@@ -72,16 +72,16 @@ private func mixer(settings: [String: MixerState.Setting] = [:], permission: Mix
             == .startTap("com.apple.Music", .init(processes: [10], output: "headphones", gain: 1, playing: true)))
     #expect(!state.fallsBack("com.apple.Music"))
     #expect(state.handle(.outputsChanged([speakers], defaultOutput: "speakers"))
-            == [.stopTap("com.apple.Music"), .startTap("com.apple.Music", .init(processes: [10], output: "speakers", gain: 1, playing: true))])
+            == [.startTap("com.apple.Music", .init(processes: [10], output: "speakers", gain: 1, playing: true))])
     #expect(state.fallsBack("com.apple.Music"))
     #expect(state.handle(.outputsChanged([speakers, headphones], defaultOutput: "speakers"))
-            == [.stopTap("com.apple.Music"), .startTap("com.apple.Music", .init(processes: [10], output: "headphones", gain: 1, playing: true))])
+            == [.startTap("com.apple.Music", .init(processes: [10], output: "headphones", gain: 1, playing: true))])
 }
 
 @Test func anAppFollowingTheDefaultMovesWithIt() {
     var state = mixer(settings: ["com.apple.Music": .init(muted: true)])
     #expect(state.handle(.outputsChanged([speakers, headphones], defaultOutput: "headphones"))
-            == [.stopTap("com.apple.Music"), .startTap("com.apple.Music", .init(processes: [10], output: "headphones", gain: 0, playing: true))])
+            == [.startTap("com.apple.Music", .init(processes: [10], output: "headphones", gain: 0, playing: true))])
 }
 
 @Test func theTapFollowsTheAppsProcessesAndWhetherItPlays() {
@@ -90,7 +90,7 @@ private func mixer(settings: [String: MixerState.Setting] = [:], permission: Mix
     #expect(state.handle(.processesChanged([paused], apps: ["com.apple.Music": "Music"])) == [.setPlaying("com.apple.Music", false)])
     let helper = MixerState.Client(object: 11, bundleID: "com.apple.Music.helper", name: "Music Helper", playing: true)
     #expect(state.handle(.processesChanged([paused, helper], apps: ["com.apple.Music": "Music"]))
-            == [.stopTap("com.apple.Music"), .startTap("com.apple.Music", .init(processes: [10, 11], output: "speakers", gain: 0.25, playing: true))])
+            == [.setProcesses("com.apple.Music", [10, 11]), .setPlaying("com.apple.Music", true)])
     #expect(state.handle(.processesChanged([], apps: [:])) == [.stopTap("com.apple.Music")])
 }
 
@@ -126,7 +126,17 @@ private func mixer(settings: [String: MixerState.Setting] = [:], permission: Mix
     #expect(state.handle(.outputsChanged([speakers], defaultOutput: "speakers")).last
             == .startTap("com.apple.Music", .init(processes: [10], output: "speakers", gain: 1, playing: true)))
     #expect(state.handle(.outputsChanged([speakers, headphones], defaultOutput: "speakers"))
-            == [.stopTap("com.apple.Music"), .startTap("com.apple.Music", .init(processes: [10], output: "headphones", gain: 1, playing: true))])
+            == [.startTap("com.apple.Music", .init(processes: [10], output: "headphones", gain: 1, playing: true))])
+}
+
+@Test func aFailureBeforeTheProcessesChangedStillEndsTheTap() {
+    var state = mixer(settings: ["com.apple.Music": .init(volume: 0.5)])
+    let started = state.taps["com.apple.Music"]!
+    let helper = MixerState.Client(object: 11, bundleID: "com.apple.Music.helper", name: "Music Helper", playing: true)
+    _ = state.handle(.processesChanged([music, helper], apps: ["com.apple.Music": "Music"]))
+    #expect(state.handle(.tapFailed("com.apple.Music", started)) == [.stopTap("com.apple.Music")])
+    #expect(state.taps["com.apple.Music"] == nil)
+    #expect(state.handle(.processesChanged([music, helper], apps: ["com.apple.Music": "Music"])).isEmpty)
 }
 
 @Test func theFailureOfAReplacedPlanLeavesTheNewOneRunning() {

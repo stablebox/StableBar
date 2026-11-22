@@ -85,7 +85,14 @@ final class AudioMixer {
             case let .startTap(id, tap):
                 onTaps(failing: (id, tap)) { taps in
                     guard #available(macOS 14.2, *) else { return }
+                    let replaced = taps.byApp[id]
                     taps.byApp[id] = try AppAudioTap(tap)
+                    replaced?.stop()
+                }
+            case let .setProcesses(id, processes):
+                onTaps(failing: state.taps[id].map { (id, $0) }) { taps in
+                    guard #available(macOS 14.2, *) else { return }
+                    try taps.byApp[id]?.setProcesses(processes)
                 }
             case let .setGain(id, gain): onTaps { $0.byApp[id]?.setGain(gain) }
             case let .setPlaying(id, playing):
