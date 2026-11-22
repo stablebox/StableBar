@@ -248,7 +248,11 @@ enum UninstallSystem {
             _ = try await runCommand("/usr/bin/tccutil", arguments: ["reset", "All", bundleID])
         case let .files(urls):
             try Uninstall.remove(urls)
-            UserDefaults.standard.removePersistentDomain(forName: bundleID)
+            // Deleting the domain leaves an empty property list. UserDefaults writes it seconds later, even after
+            // StableBar has quit, while defaults writes it at once, so the file can go too. defaults fails when there's
+            // no domain left, as after brew uninstall --zap.
+            _ = try? await runCommand("/usr/bin/defaults", arguments: ["delete", bundleID])
+            try Uninstall.remove([FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Preferences/\(bundleID).plist")])
         }
     }
 
