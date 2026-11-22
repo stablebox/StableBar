@@ -21,6 +21,8 @@ final class AppAudioTap: @unchecked Sendable {
     private var processes: [AudioObjectID] = []
     /// How many times the processes started or stopped playing, so the device waits only once they stayed quiet.
     private var changes = 0
+    /// Whether starting the device makes it wait for the app's sound, as on macOS 27.
+    private var waits = true
     /// StableBar's calls come one at a time, but the processes' listener runs alongside them, so what they share sits
     /// behind this.
     private let lock = NSLock()
@@ -44,8 +46,8 @@ final class AppAudioTap: @unchecked Sendable {
             ]
             try check(AudioHardwareCreateAggregateDevice(device as CFDictionary, &aggregate), "open the app’s output")
             try check(AudioDeviceCreateIOProcIDWithBlock(&proc, aggregate, nil, Self.player(gains)), "play the app’s sound")
-            try check(AudioDeviceStart(aggregate, proc), "play the app’s sound")
             follow(plan.processes.map { AudioObjectID($0) })
+            try check(lock.withLock { restart() }, "play the app’s sound")
         } catch {
             stop()
             throw error
@@ -78,10 +80,24 @@ final class AppAudioTap: @unchecked Sendable {
     func setPlaying(_ playing: Bool) throws {
         guard playing else { return waitOnceQuiet() }
         try lock.withLock {
-            guard let proc, !isRunning else { return }
-            AudioDeviceStop(aggregate, proc)
-            try check(AudioDeviceStart(aggregate, proc), "play the app’s sound")
+            guard proc != nil, !isRunning else { return }
+            try check(restart(), "play the app’s sound")
         }
+    }
+
+    /// Stops the device and starts it again, which makes it wait for the app's sound while the app is quiet. A macOS that
+    /// runs it at once instead would keep it running between sounds, so there it stays stopped while the app is quiet,
+    /// and `setPlaying(true)` starts it when StableBar hears the app play. Call it with `lock` held.
+    @discardableResult
+    private func restart() -> OSStatus {
+        guard let proc else { return noErr }
+        AudioDeviceStop(aggregate, proc)
+        let status = AudioDeviceStart(aggregate, proc)
+        if status == noErr, waits, isRunning, !processes.contains(where: Self.plays) {
+            AudioDeviceStop(aggregate, proc)
+            waits = false
+        }
+        return status
     }
 
     /// Makes a running device wait for the app's next sound once none of its processes played for half a second: the
@@ -98,8 +114,7 @@ final class AppAudioTap: @unchecked Sendable {
     private func wait(unlessChangedSince change: Int) {
         lock.withLock {
             guard changes == change, let proc, isRunning, !processes.contains(where: Self.plays) else { return }
-            AudioDeviceStop(aggregate, proc)
-            AudioDeviceStart(aggregate, proc)
+            if waits { restart() } else { AudioDeviceStop(aggregate, proc) }
         }
     }
 
