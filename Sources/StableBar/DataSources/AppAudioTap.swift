@@ -2,12 +2,13 @@ import CoreAudio
 import Foundation
 
 /// One app's sound played back by StableBar: a process tap mutes the app's processes at the source, and a private
-/// aggregate device reads the tap and plays it on an output device at the app's gain. Owned on the main actor.
+/// aggregate device reads the tap and plays it on an output device at the app's gain.
 ///
 /// The device waits for the app's sound: with `tapautostart`, CoreAudio starts it as the app starts playing, without
-/// waiting for StableBar. It keeps running after the app stops, which keeps the output and the Mac awake, so hearing
-/// that the app stopped makes it wait again.
-final class AppAudioTap {
+/// waiting for StableBar. It keeps running after the app stops, which keeps the output and the Mac awake, so it waits
+/// again once none of the app's processes plays. The tap follows them itself: StableBar can miss a sound that starts
+/// and stops between two of its looks, and the device would then run until the app's next sound ended.
+final class AppAudioTap: @unchecked Sendable {
     /// The UIDs of the aggregate devices start with this. A private device is hidden from other apps but not from
     /// StableBar, so its device lists leave these out.
     static let uidPrefix = "org.stablebar.mixer."
@@ -17,6 +18,14 @@ final class AppAudioTap {
     private var aggregate = AudioObjectID(kAudioObjectUnknown)
     private var proc: AudioDeviceIOProcID?
     private let gains = Gains()
+    private var processes: [AudioObjectID] = []
+    /// How many times the processes started or stopped playing, so the device waits only once they stayed quiet.
+    private var changes = 0
+    /// StableBar's calls come one at a time, but the processes' listener runs alongside them, so what they share sits
+    /// behind this.
+    private let lock = NSLock()
+    private lazy var listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.waitOnceQuiet() }
+    private static let listenerQueue = DispatchQueue(label: "org.stablebar.mixer.taps")
 
     @available(macOS 14.2, *)
     init(_ plan: MixerState.Tap) throws {
@@ -36,6 +45,7 @@ final class AppAudioTap {
             try check(AudioHardwareCreateAggregateDevice(device as CFDictionary, &aggregate), "open the app’s output")
             try check(AudioDeviceCreateIOProcIDWithBlock(&proc, aggregate, nil, Self.player(gains)), "play the app’s sound")
             try check(AudioDeviceStart(aggregate, proc), "play the app’s sound")
+            follow(plan.processes.map { AudioObjectID($0) })
         } catch {
             stop()
             throw error
@@ -55,16 +65,62 @@ final class AppAudioTap {
     func setProcesses(_ processes: [UInt32]) throws {
         var address = AudioObjectPropertyAddress(mSelector: kAudioTapPropertyDescription, mScope: kAudioObjectPropertyScopeGlobal,
                                                  mElement: kAudioObjectPropertyElementMain)
-        var value: CFTypeRef = description(of: processes)
-        try check(AudioObjectSetPropertyData(tap, &address, 0, nil, UInt32(MemoryLayout<CFTypeRef>.size), &value), "follow the app’s processes")
+        let status = withUnsafePointer(to: description(of: processes) as CFTypeRef) {
+            AudioObjectSetPropertyData(tap, &address, 0, nil, UInt32(MemoryLayout<CFTypeRef>.size), $0)
+        }
+        try check(status, "follow the app’s processes")
+        follow(processes.map { AudioObjectID($0) })
+        waitOnceQuiet()
     }
 
-    /// Makes the device wait for the app's next sound once the app stops, and starts it should CoreAudio not have when
-    /// the app plays. Starting a running device again would make it wait instead, muting what plays until the next sound.
+    /// Starts the device should CoreAudio not have when the app plays, and makes it wait once the app stops. Starting a
+    /// running device again would make it wait instead, muting what plays until the next sound.
     func setPlaying(_ playing: Bool) throws {
-        guard let proc, !(playing && isRunning) else { return }
-        AudioDeviceStop(aggregate, proc)
-        try check(AudioDeviceStart(aggregate, proc), "play the app’s sound")
+        guard playing else { return waitOnceQuiet() }
+        try lock.withLock {
+            guard let proc, !isRunning else { return }
+            AudioDeviceStop(aggregate, proc)
+            try check(AudioDeviceStart(aggregate, proc), "play the app’s sound")
+        }
+    }
+
+    /// Makes a running device wait for the app's next sound once none of its processes played for half a second: the
+    /// app's last sound reaches the device a moment after the app stops. A start that fails leaves the device stopped,
+    /// which `setPlaying(true)` starts with the app's next sound.
+    private func waitOnceQuiet() {
+        let change = lock.withLock {
+            changes += 1
+            return changes
+        }
+        Self.listenerQueue.asyncAfter(deadline: .now() + .milliseconds(500)) { [weak self] in self?.wait(unlessChangedSince: change) }
+    }
+
+    private func wait(unlessChangedSince change: Int) {
+        lock.withLock {
+            guard changes == change, let proc, isRunning, !processes.contains(where: Self.plays) else { return }
+            AudioDeviceStop(aggregate, proc)
+            AudioDeviceStart(aggregate, proc)
+        }
+    }
+
+    private func follow(_ processes: [AudioObjectID]) {
+        let followed = lock.withLock {
+            defer { self.processes = processes }
+            return self.processes
+        }
+        // CoreAudio announces that a process starts or stops playing as a change of `IsRunning`, not of `IsRunningOutput`.
+        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyIsRunning, mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        for process in followed { AudioObjectRemovePropertyListenerBlock(process, &address, Self.listenerQueue, listener) }
+        for process in processes { AudioObjectAddPropertyListenerBlock(process, &address, Self.listenerQueue, listener) }
+    }
+
+    private static func plays(_ process: AudioObjectID) -> Bool {
+        var playing: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyIsRunningOutput, mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        return AudioObjectGetPropertyData(process, &address, 0, nil, &size, &playing) == noErr && playing != 0
     }
 
     private var isRunning: Bool {
@@ -77,15 +133,18 @@ final class AppAudioTap {
 
     /// Ends the tap, so the app plays as macOS does again.
     func stop() {
-        if let proc {
-            AudioDeviceStop(aggregate, proc)
-            AudioDeviceDestroyIOProcID(aggregate, proc)
+        follow([])
+        lock.withLock {
+            if let proc {
+                AudioDeviceStop(aggregate, proc)
+                AudioDeviceDestroyIOProcID(aggregate, proc)
+            }
+            if aggregate != kAudioObjectUnknown { AudioHardwareDestroyAggregateDevice(aggregate) }
+            if tap != kAudioObjectUnknown, #available(macOS 14.2, *) { AudioHardwareDestroyProcessTap(tap) }
+            proc = nil
+            aggregate = AudioObjectID(kAudioObjectUnknown)
+            tap = AudioObjectID(kAudioObjectUnknown)
         }
-        if aggregate != kAudioObjectUnknown { AudioHardwareDestroyAggregateDevice(aggregate) }
-        if tap != kAudioObjectUnknown, #available(macOS 14.2, *) { AudioHardwareDestroyProcessTap(tap) }
-        proc = nil
-        aggregate = AudioObjectID(kAudioObjectUnknown)
-        tap = AudioObjectID(kAudioObjectUnknown)
     }
 
     /// Muted even while the device waits, so a sound it starts late is cut short rather than played at full volume.
