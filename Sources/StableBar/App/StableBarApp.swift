@@ -108,6 +108,12 @@ struct StableBarApp {
             case let .finishUninstall(bar):
                 Task { exit(await UninstallSystem.finish(after: bar)) }
                 dispatchMain()
+            case .homebrewUninstall:
+                exit(HomebrewUninstall.start())
+            case let .finishHomebrewUninstall(brew, app, showsMenuBar):
+                Task { exit(await HomebrewUninstall.finish(after: brew, app: app, showsMenuBar: showsMenuBar)) }
+                // Without brew's process ID, Launch Services opened it and waits for it to check in as an app.
+                if brew == nil { NSApplication.shared.run() } else { dispatchMain() }
             case let .finishApplicationMove(plan, bar):
                 Task { exit(await ApplicationMoveRelaunch.finish(planURL: plan, parent: bar)) }
                 dispatchMain()

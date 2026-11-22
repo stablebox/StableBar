@@ -17,6 +17,10 @@ enum LaunchCommand {
     case uninstall(removesConfiguration: Bool, showsMenuBar: Bool, confirmed: Bool)
     /// Started by Settings › Uninstall, not by hand: finishes the uninstall once the bar with this process ID has quit.
     case finishUninstall(pid_t)
+    /// Run by the Homebrew cask's `uninstall` script, not by hand: see `HomebrewUninstall`.
+    case homebrewUninstall
+    /// Started by `--homebrew-uninstall`: once `brew` exits, uninstalls unless the app at this path is installed again.
+    case finishHomebrewUninstall(brew: pid_t?, app: URL, showsMenuBar: Bool)
     /// A detached helper: wait for this bar to exit, then open the moved app with its original arguments.
     case finishApplicationMove(URL, pid_t)
     case version
@@ -172,6 +176,18 @@ enum LaunchCommand {
         case "--finish-uninstall" where arguments.count == 2 && !targeted:
             guard let bar = pid_t(arguments[1]), bar > 0 else { throw CommandFailure(message: Self.usage) }
             self = .finishUninstall(bar)
+        case "--homebrew-uninstall" where arguments.count == 1 && !targeted:
+            self = .homebrewUninstall
+        case "--finish-homebrew-uninstall" where !targeted:
+            var rest = arguments.dropFirst()
+            let brew = rest.first.flatMap { pid_t($0) }
+            if brew != nil { rest = rest.dropFirst() }
+            let showsMenuBar = rest.last == "--show-menu-bar"
+            if showsMenuBar { rest = rest.dropLast() }
+            guard brew.map({ $0 > 0 }) ?? true, rest.count == 1, let app = rest.first, app.hasPrefix("/") else {
+                throw CommandFailure(message: Self.usage)
+            }
+            self = .finishHomebrewUninstall(brew: brew, app: URL(filePath: app, directoryHint: .isDirectory), showsMenuBar: showsMenuBar)
         case "--finish-application-move" where arguments.count == 3 && !targeted:
             guard let bar = pid_t(arguments[2]), bar > 0 else { throw CommandFailure(message: Self.usage) }
             self = .finishApplicationMove(URL(filePath: arguments[1]), bar)
