@@ -85,14 +85,16 @@ final class AudioMixer {
             case let .startTap(id, tap):
                 onTaps(failing: (id, tap)) { taps in
                     guard #available(macOS 14.2, *) else { return }
-                    let replaced = taps.byApp[id]
+                    let replaced = taps.byApp.removeValue(forKey: id)
+                    defer { replaced?.stop() }
                     taps.byApp[id] = try AppAudioTap(tap)
-                    replaced?.stop()
                 }
             case let .setProcesses(id, processes):
                 onTaps(failing: state.taps[id].map { (id, $0) }) { taps in
                     guard #available(macOS 14.2, *) else { return }
-                    try taps.byApp[id]?.setProcesses(processes)
+                    // The start failed, and `MixerState` ignores that failure now that the plan has other processes.
+                    guard let tap = taps.byApp[id] else { throw CommandFailure(message: "The app’s tap isn’t running.") }
+                    try tap.setProcesses(processes)
                 }
             case let .setGain(id, gain): onTaps { $0.byApp[id]?.setGain(gain) }
             case let .setPlaying(id, playing):

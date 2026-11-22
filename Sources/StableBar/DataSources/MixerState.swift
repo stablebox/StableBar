@@ -62,8 +62,9 @@ struct MixerState: StateMachine, Equatable {
         /// An output device's UID, or nil for the default output.
         case setOutput(String, String?)
         /// The app's tap couldn't start or play as `Tap` planned: it plays as macOS does until its processes or its
-        /// output change. A failure of a tap since replaced by one on another output changes nothing. The tap stops after
-        /// the work already queued for it, which may have started the same plan again.
+        /// output change. A failure of a plan since changed to other processes or another output changes nothing: the work
+        /// queued for the change reports its own. The tap stops after the work already queued for it, which may have
+        /// started the same plan again.
         case tapFailed(String, Tap)
     }
 
@@ -72,7 +73,7 @@ struct MixerState: StateMachine, Equatable {
         case save([String: Setting])
         case stopTap(String)
         /// Starts the app's tap. One already running for the app stops once the new one mutes the app, so the app never
-        /// plays at its full volume between them.
+        /// plays at its full volume between them, or once the new one fails to start.
         case startTap(String, Tap)
         /// Changes the processes a running tap mutes and plays, without stopping it.
         case setProcesses(String, [UInt32])
@@ -118,7 +119,7 @@ struct MixerState: StateMachine, Equatable {
         case let .setMuted(id, muted): effects = change(id) { $0.muted = muted }
         case let .setOutput(id, output): effects = change(id) { $0.output = output }
         case let .tapFailed(id, tap):
-            guard let current = taps[id], current.output == tap.output else { break }
+            guard let current = taps[id], current.processes == tap.processes, current.output == tap.output else { break }
             failed[id] = taps.removeValue(forKey: id)
             effects = [.stopTap(id)]
         }
