@@ -59,9 +59,11 @@ enum HomebrewUninstall {
         snapshot.app = nil
         var options = UninstallOptions(snapshot)
         options.showsMenuBar = options.showsMenuBar || showsMenuBar
-        let outcomes = await Uninstall.run(snapshot.steps(options), perform: UninstallSystem.perform)
+        let steps = snapshot.steps(options)
+        let outcomes = await Uninstall.run(steps, perform: UninstallSystem.perform)
         removeCopy()
-        return UninstallSystem.report(outcomes)
+        // Homebrew removed the app, so the alert lists every step left to do by hand, not just the quit.
+        return UninstallSystem.report(outcomes + Uninstall.notRun(steps, after: outcomes))
     }
 
     /// Whether StableBar is still installed once `brew` is done, as after an upgrade, a reinstall or a failed uninstall.

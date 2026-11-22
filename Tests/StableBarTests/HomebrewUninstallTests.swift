@@ -80,3 +80,12 @@ private func temporaryDirectory() throws -> URL {
     let steps = snapshot.steps(UninstallOptions(snapshot))
     #expect(steps == [.showMenuBar, .loginItem, .permissions, .files([])])
 }
+
+@Test func stepsAStableBarThatWontQuitKeptFromRunningAreListedAsNotDone() {
+    let steps: [UninstallStep] = [.quit(1), .loginItem, .permissions]
+    let outcomes = [UninstallOutcome(step: .quit(1), error: "StableBar is still running.")]
+    #expect(Uninstall.notRun(steps, after: outcomes).map(\.step) == [.loginItem, .permissions])
+    #expect(Uninstall.notRun(steps, after: outcomes).allSatisfy { $0.error != nil })
+    let finished = steps.map { UninstallOutcome(step: $0, error: nil) }
+    #expect(Uninstall.notRun(steps, after: finished).isEmpty)
+}

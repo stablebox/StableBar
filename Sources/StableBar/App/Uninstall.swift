@@ -151,6 +151,11 @@ enum Uninstall {
         return !isRunning()
     }
 
+    /// The steps after a StableBar that wouldn't quit, which `run` didn't start, as not done.
+    static func notRun(_ steps: [UninstallStep], after outcomes: [UninstallOutcome]) -> [UninstallOutcome] {
+        steps.dropFirst(outcomes.count).map { UninstallOutcome(step: $0, error: "Not done while StableBar keeps running.") }
+    }
+
     /// The steps that failed, each with what to do by hand.
     static func leftToDo(_ outcomes: [UninstallOutcome]) -> String {
         outcomes.compactMap { outcome in outcome.error.map { "\(outcome.step.title)\n\($0) \(outcome.step.fix)" } }
