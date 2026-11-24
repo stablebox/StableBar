@@ -29,7 +29,7 @@
   <a href="https://ko-fi.com/stablebar"><img src="https://img.shields.io/badge/Support_us_on_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support us on Ko-fi"></a>
 </p>
 
-<p><img src="docs/images/readme-hero.webp" width="100%" alt="The bar at the top of a screen with StableBar's wallpaper, a lighthouse at dusk. It shows the Apple menu, three workspaces, Safari's menus, Now playing, AI usage, Quick toggles, Sound, battery and clock."></p>
+<p><img src="docs/images/readme-hero.png" width="100%" alt="The bar in the Glass theme on a strip of StableBar's wallpaper at dusk. It shows the Apple menu, three workspaces, Safari's menus, Now playing, AI usage, Quick toggles, Sound, battery and clock."></p>
 
 ## Install
 
@@ -45,11 +45,11 @@ brew install --cask stablebox/tap/stablebar
 
 ## Workspaces and popups
 
-<p><img src="docs/images/readme-workspaces.gif" width="100%" alt="The focus moves from workspace 1 to 2 and 3, and App menus shows the menus of Safari, then Messages, then Notes."></p>
+<p><img src="docs/images/readme-workspaces.gif" width="100%" alt="The left of the bar. The focus highlight slides from workspace 1 to 2, to 3 and back to 1, and App menus shows the menus of Messages, then Notes, then Safari."></p>
 
 Follow your workspaces with [AeroSpace](https://github.com/nikitabobko/AeroSpace), [yabai](https://github.com/koekeishiya/yabai), [OmniWM](https://github.com/OmniNull/OmniWM), [Rift](https://github.com/acsandmann/rift) or [KiwiDesk](https://github.com/KiwiCanopy/KiwiDesk). Without a window manager, try the opt-in [macOS Spaces source](docs/widgets.md#macos-spaces-workspaces).
 
-<p><img src="docs/images/readme-popups.gif" width="100%" alt="Now playing's popup opens with music controls under its widget, then AI usage's popup opens with Claude and Codex limits."></p>
+<p><img src="docs/images/readme-popups.gif" width="100%" alt="The right of the bar. Now playing's popup with music controls morphs into AI usage's popup with Claude and Codex limits, then back."></p>
 
 Keep the active app, calendar, system stats and playback controls in reach. Widgets can open popups with graphs, lists and controls. Each display gets its own bar, with room for the notch.
 
@@ -57,7 +57,7 @@ Keep the active app, calendar, system stats and playback controls in reach. Widg
 
 ## Make it yours
 
-<p><img src="docs/images/readme-themes.webp" width="100%" alt="The same bar in each of the seven included themes, one above the other: Glass, Clear, Tonal, Slim, Dot, Gloss and Sticker."></p>
+<p><img src="docs/images/readme-themes.png" width="100%" alt="The same bar in each of the seven included themes, one above the other, each on its own strip of wallpaper: Glass, Clear, Tonal, Slim, Dot, Gloss and Sticker."></p>
 
 Choose from seven included themes, get more from the Store, or save your own.
 
