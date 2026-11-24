@@ -92,6 +92,9 @@ struct AppearanceView: View {
             if directory != nil { editor.appearanceTab = .themes }
         }
         .onChange(of: store.pendingLinks.theme?.state) { _, _ in gallery.contextChanged() }
+        // A link that fails shows its error card above the gallery.
+        .onChange(of: store.pendingLinks.themeError, initial: true) { _, error in if error != nil { editor.appearanceTab = .themes } }
+        .onChange(of: store.pendingLinks.barError, initial: true) { _, error in if error != nil { editor.appearanceTab = .themes } }
     }
 
     /// The theme, then a row for each part of its look, each with the theme's edits in it.
@@ -114,12 +117,14 @@ struct AppearanceView: View {
 
     private func sidebarRow(_ tab: AppearanceTab, name: String, subtitle: String) -> some View {
         let selected = editor.appearanceTab == tab
-        return ListRow(selected: selected) { _ in
-            WidgetRowLabel(symbol: tab.symbol, text: tab.symbol == nil ? "Aa" : nil, name: name, subtitle: subtitle, selected: selected)
+        return Button { editor.appearanceTab = tab } label: {
+            ListRow(selected: selected) { _ in
+                WidgetRowLabel(symbol: tab.symbol, text: tab.symbol == nil ? "Aa" : nil, name: name, subtitle: subtitle, selected: selected)
+            }
         }
-        .onTapGesture { editor.appearanceTab = tab }
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     /// The look paths a tab edits, for its count of the theme's edits.

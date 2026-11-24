@@ -504,7 +504,7 @@ struct StyleFields {
 
     /// The bar's margin: one value for every side, or the sides and the top and bottom each their own once set apart.
     func margin() -> some View {
-        let apart = values["marginHorizontal"] != nil || values["marginVertical"] != nil
+        let apart = ["marginHorizontal", "marginVertical"].contains { values[$0].map { $0 != .null } ?? false }
         let margin = if case let .number(value) = property("margin").editingValue { value } else { 0.0 }
         return Group {
             if apart {
@@ -522,7 +522,10 @@ struct StyleFields {
                     if apart {
                         set(["marginHorizontal": .number(margin), "marginVertical": .number(margin)])
                     } else {
+                        // A null hides a value that a theme or an included file sets, which removing this layer's can't.
+                        let inherited = ["marginHorizontal", "marginVertical"].filter { property($0).inheritedValue != nil }
                         unset(["marginHorizontal": .null, "marginVertical": .null])
+                        if !inherited.isEmpty { set(Dictionary(uniqueKeysWithValues: inherited.map { ($0, ConfigurationValue.null) })) }
                     }
                 }))
                 .labelsHidden()
