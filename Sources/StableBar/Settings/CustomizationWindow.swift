@@ -523,9 +523,8 @@ struct StyleFields {
                         set(["marginHorizontal": .number(margin), "marginVertical": .number(margin)])
                     } else {
                         // A null hides a value that a theme or an included file sets, which removing this layer's can't.
-                        let inherited = ["marginHorizontal", "marginVertical"].filter { property($0).inheritedValue != nil }
-                        unset(["marginHorizontal": .null, "marginVertical": .null])
-                        if !inherited.isEmpty { set(Dictionary(uniqueKeysWithValues: inherited.map { ($0, ConfigurationValue.null) })) }
+                        let axes: [String: ConfigurationValue] = ["marginHorizontal": .null, "marginVertical": .null]
+                        if axes.keys.contains(where: { property($0).inheritedValue != nil }) { set(axes) } else { unset(axes) }
                     }
                 }))
                 .labelsHidden()
