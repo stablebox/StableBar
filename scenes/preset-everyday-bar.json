@@ -39,20 +39,26 @@
         }
       },
       {
-        "id": "date",
-        "type": "clock",
-        "position": "right",
-        "format": "EEE d MMM",
-        "role": "secondary",
-        "details": true
-      },
-      {
         "id": "clock",
         "type": "clock",
         "position": "right",
-        "format": "HH:mm",
-        "role": "time",
-        "details": true
+        "format": "EEE d MMM  HH:mm",
+        "details": true,
+        "layout": {
+          "type": "row",
+          "children": [
+            {
+              "type": "field",
+              "field": "date",
+              "role": "secondary"
+            },
+            {
+              "type": "field",
+              "field": "time",
+              "role": "time"
+            }
+          ]
+        }
       },
       {
         "id": "menu-bar-items",

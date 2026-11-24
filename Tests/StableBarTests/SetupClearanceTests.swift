@@ -287,8 +287,8 @@ struct SetupClearanceTests {
         let store = fixture.store
         let height = ConfigurationEdit(action: .bar, properties: ["height": .number(38)])
         try store.configurationStore.applyEdits([ConfigurationEdit(action: .add, properties: [
-            "id": .string("date"), "type": .string("text"), "text": .string("Date"), "position": .string("right")
-        ]), ConfigurationEdit(action: .set, id: "date", properties: ["position": .string("center")]), height], persist: false)
+            "id": .string("clock"), "type": .string("text"), "text": .string("Clock"), "position": .string("right")
+        ]), ConfigurationEdit(action: .set, id: "clock", properties: ["position": .string("center")]), height], persist: false)
         let session = SetupSession(store: store, system: fixture.system)
         session.toggle(.minimal)
         session.finish()

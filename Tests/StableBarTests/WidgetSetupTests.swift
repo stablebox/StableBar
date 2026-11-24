@@ -702,7 +702,7 @@ final class WidgetSetupTests: XCTestCase {
     session.endReview()
     #expect(session.review == nil)
     #expect(session.storeWidgetsToAdd.map(\.entry.id) == ["weather"])
-    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "now-playing", "sound", "battery", "date", "clock", "menu-bar-items"])
+    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "now-playing", "sound", "battery", "clock", "menu-bar-items"])
     #expect(store.configuration?.widgets.first { $0.id == "now-playing" }?.position == .center)
     session.finish()
     #expect(session.error == nil)

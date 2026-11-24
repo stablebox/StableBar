@@ -163,7 +163,7 @@ The widget can use:
 }
 ```
 
-Bar layouts receive the widget's `text` and `icon` as fields, beside the script's own fields: a text widget's `text`, a clock's time in its `format`, the frontmost app's name, or a script's or provider's `text` and `icon`.
+Bar layouts receive the widget's `text` and `icon` as fields, beside the script's own fields: a text widget's `text`, a clock's time in its `format`, with its date and time parts also as `date` and `time`, the frontmost app's name, or a script's or provider's `text` and `icon`.
 
 Script output ignores unknown top-level fields, but styles, animations and menu items in it use the configuration's property names and reject unknown ones. Script output may include `style` to override the widget style, `display` to change its display filter, and `styles` to supply named element styles. A block with `"styleSource": "countdown"` reads `styles.countdown`, overlaid on its configured style. A list row can use `styleField` to read the style name from a field in that row. Scripts can return `widgetStyles`, keyed by widget ID, to style another widget (for example, change a workspace underline when the window-manager mode changes). Later scripts take precedence; a widget's own `style` output takes precedence over those overrides. Omitted overrides return to the configured style on the next update.
 

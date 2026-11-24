@@ -24,8 +24,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
             case available, added, disabled, conflict
         }
 
-        /// A set of several widgets, such as the date and the time, conflicts when one of them does, so it goes on the
-        /// bar whole or not at all.
+        /// A set of several widgets conflicts when one of them does, so it goes on the bar whole or not at all.
         func state(in configuration: Configuration) -> State {
             if case let .store(id, _, _, _) = self {
                 guard let widget = configuration.widgets.first(where: { $0.id == id }) else { return .available }
@@ -191,17 +190,24 @@ struct SetupPreferences: Equatable, Codable, Sendable {
             case .privacy: json = #"[{ "id": "privacy", "type": "privacy", "position": "right" }]"#
             case .dateAndTime, .dayAndTime:
                 // The Mac's own date order and hour cycle, as the starter's clock has.
-                return [
-                    ["id": .string("date"), "type": .string("clock"), "position": .string("right"), "role": .string("secondary"), "details": .bool(true),
-                     "format": .string(SetupPreferences.dateFormat(self == .dateAndTime ? "EEEdMMM" : "EEEd", or: self == .dateAndTime ? "EEE d MMM" : "EEE d"))],
-                    ["id": .string("clock"), "type": .string("clock"), "position": .string("right"), "role": .string("time"), "details": .bool(true),
-                     "format": .string(SetupPreferences.timeFormat())]
+                let format = self == .dateAndTime ? SetupPreferences.clockFormat()
+                    : SetupPreferences.dateFormat("EEEd", or: "EEE d") + "  " + SetupPreferences.timeFormat()
+                json = #"""
+                [
+                  {
+                    "id": "clock", "type": "clock", "position": "right", "format": "\#(format)", "details": true,
+                    "layout": {
+                      "type": "row",
+                      "children": [{ "type": "field", "field": "date", "role": "secondary" }, { "type": "field", "field": "time", "role": "time" }]
+                    }
+                  }
                 ]
+                """#
             case .store: return []
             case .system: json = #"""
                 [
                   {
-                    "id": "system-monitor", "type": "system", "position": "right",
+                    "id": "system-monitor", "type": "system", "position": "right", "details": true,
                     "layout": {
                       "type": "row",
                       "children": [
@@ -213,36 +219,6 @@ struct SetupPreferences: Equatable, Codable, Sendable {
                           "children": [{ "type": "field", "field": "memory" }, { "type": "text", "text": "%" }]
                         }
                       ]
-                    },
-                    "popup": {
-                      "style": { "width": 280 },
-                      "layout": {
-                        "type": "column",
-                        "children": [
-                          { "type": "text", "text": "System", "role": "heading" },
-                          { "type": "graph", "height": 36 },
-                          {
-                            "type": "row",
-                            "children": [
-                              { "type": "text", "text": "CPU", "role": "key" },
-                              { "type": "field", "field": "cpu", "alignment": "trailing", "role": "value" },
-                              { "type": "text", "text": "%", "role": "value", "style": { "width": 14 } }
-                            ]
-                          },
-                          { "type": "progress", "source": "cpu", "height": 3, "role": "meter" },
-                          {
-                            "type": "row",
-                            "children": [
-                              { "type": "text", "text": "Memory", "role": "key" },
-                              { "type": "field", "field": "memory", "alignment": "trailing", "role": "value" },
-                              { "type": "text", "text": "%", "role": "value", "style": { "width": 14 } }
-                            ]
-                          },
-                          { "type": "progress", "source": "memory", "height": 3, "role": "meter" },
-                          { "type": "divider", "role": "separator" },
-                          { "type": "text", "text": "Activity Monitor", "open": "com.apple.ActivityMonitor", "role": "button" }
-                        ]
-                      }
                     }
                   }
                 ]
@@ -498,12 +474,69 @@ struct SetupPreferences: Equatable, Codable, Sendable {
     /// The starter bar below the macOS menu bar, which already shows the menus, the clock and the menu bar items.
     static let belowMenuBarStarter = WidgetSet.workspaces(.spaces).widgets + WidgetSet.system.widgets + WidgetSet.sound.widgets
 
+    /// The starter below the menu bar as 0.18.0 wrote it, once launch gives its Sound the details: its System widget
+    /// drew a popup of its own instead of the details.
+    static let earlierBelowMenuBarStarter = WidgetSet.workspaces(.spaces).widgets + widgets(#"""
+        [
+          {
+            "id": "system-monitor", "type": "system", "position": "right",
+            "layout": {
+              "type": "row",
+              "children": [
+                { "type": "symbol", "name": "cpu" },
+                { "type": "field", "field": "text" },
+                { "type": "symbol", "name": "memorychip" },
+                {
+                  "type": "row", "style": { "spacing": 0 },
+                  "children": [{ "type": "field", "field": "memory" }, { "type": "text", "text": "%" }]
+                }
+              ]
+            },
+            "popup": {
+              "style": { "width": 280 },
+              "layout": {
+                "type": "column",
+                "children": [
+                  { "type": "text", "text": "System", "role": "heading" },
+                  { "type": "graph", "height": 36 },
+                  {
+                    "type": "row",
+                    "children": [
+                      { "type": "text", "text": "CPU", "role": "key" },
+                      { "type": "field", "field": "cpu", "alignment": "trailing", "role": "value" },
+                      { "type": "text", "text": "%", "role": "value", "style": { "width": 14 } }
+                    ]
+                  },
+                  { "type": "progress", "source": "cpu", "height": 3, "role": "meter" },
+                  {
+                    "type": "row",
+                    "children": [
+                      { "type": "text", "text": "Memory", "role": "key" },
+                      { "type": "field", "field": "memory", "alignment": "trailing", "role": "value" },
+                      { "type": "text", "text": "%", "role": "value", "style": { "width": 14 } }
+                    ]
+                  },
+                  { "type": "progress", "source": "memory", "height": 3, "role": "meter" },
+                  { "type": "divider", "role": "separator" },
+                  { "type": "text", "text": "Activity Monitor", "open": "com.apple.ActivityMonitor", "role": "button" }
+                ]
+              }
+            }
+          }
+        ]
+        """#) + WidgetSet.sound.widgets
+
+    /// Whether `widgets` are the starter below the menu bar, as this release writes it or as 0.18.0 did.
+    static func isBelowMenuBarStarter(_ widgets: [[String: ConfigurationValue]]) -> Bool {
+        widgets == belowMenuBarStarter || widgets == earlierBelowMenuBarStarter
+    }
+
     /// Whether `document` is still the starter below the menu bar with Spaces, as the first launch writes it when it
     /// finds no window manager, such as before the login shell's PATH arrives: no other files, profiles or overrides,
     /// the starter's widgets, and the bar at its starting offset.
     static func isFirstLaunchSpacesStarter(_ document: [String: ConfigurationValue]) -> Bool {
         isFirstLaunchStarter(document) && document["workspaceSource"] == .string(WorkspaceSource.spaces.rawValue)
-            && (try? document["widgets"]?.decoded([[String: ConfigurationValue]].self)) == belowMenuBarStarter
+            && (try? document["widgets"]?.decoded([[String: ConfigurationValue]].self)).map(isBelowMenuBarStarter) == true
     }
 
     /// Whether `document` is still a starter as the first launch writes it, on the top edge or below the menu bar, with
@@ -515,7 +548,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
               document["widgetOverrides"] == nil, document["widgetOrder"] == nil, document["screens"] == nil,
               offset == nil || offset == .number(0), bar?["position"] != .string("bottom"),
               let widgets = try? document["widgets"]?.decoded([[String: ConfigurationValue]].self) else { return false }
-        return widgets == belowMenuBarStarter || isMenuBarStarter(widgets)
+        return isBelowMenuBarStarter(widgets) || isMenuBarStarter(widgets)
     }
 
     /// The widgets of the menu bar starter that repeat the macOS menu bar.
@@ -577,7 +610,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         }
         // Includes and packages can refer to these widgets from files setup doesn't edit, so their widgets stay.
         guard document["includes"] == nil, document["packages"] == nil else {
-            return StarterChange(configuration: configuration, isBelowMenuBarStarter: widgets == Self.belowMenuBarStarter)
+            return StarterChange(configuration: configuration, isBelowMenuBarStarter: Self.isBelowMenuBarStarter(widgets))
         }
         let ids = widgets.map(Self.id)
         func swap(to starter: [[String: ConfigurationValue]]) -> StarterChange? {
@@ -597,20 +630,20 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         let changed = Self.changedIDs(in: document)
         let isStarter = configuration.widgets.map(\.id) == ids && changed.isDisjoint(with: ids)
         let presetBar = widgetSets.flatMap { added($0, tracks: tracks) }
-        if isStarter, !presetBar.isEmpty, Self.isMenuBarStarter(widgets) || widgets == Self.belowMenuBarStarter, let change = swap(to: presetBar) {
+        if isStarter, !presetBar.isEmpty, Self.isMenuBarStarter(widgets) || Self.isBelowMenuBarStarter(widgets), let change = swap(to: presetBar) {
             return change
         }
         if isStarter, placement == .belowMenuBar, Self.isMenuBarStarter(widgets), let change = swap(to: Self.belowMenuBarStarter) { return change }
         // On the top edge, only the first launch's own starter trades its Workspaces and System for the top edge's
         // starter; one the person changed keeps them.
-        if isStarter, Self.isFirstLaunchStarter(document), placement == .top, widgets == Self.belowMenuBarStarter,
+        if isStarter, Self.isFirstLaunchStarter(document), placement == .top, Self.isBelowMenuBarStarter(widgets),
            let change = swap(to: Self.menuBarStarter) { return change }
         let removed = placement != .belowMenuBar ? [] : widgets.filter { widget in
             let id = Self.id(widget)
             return Self.menuBarWidgetIDs.contains(id) && !changed.contains(id)
                 && Self.starters(remembered: Self.rememberedStarterClockFormats()).contains { $0.contains(widget) }
         }.map(Self.id)
-        return StarterChange(configuration: configuration, removed: removed, isBelowMenuBarStarter: widgets == Self.belowMenuBarStarter)
+        return StarterChange(configuration: configuration, removed: removed, isBelowMenuBarStarter: Self.isBelowMenuBarStarter(widgets))
     }
 
 

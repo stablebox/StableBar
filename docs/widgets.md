@@ -9,7 +9,7 @@
 | `controlCenter` | Control Center icon; click to open macOS Control Center | — |
 | `stableBar` | StableBar's menu bar icon; click to open Settings | — |
 | `menuBarItems` | Grid symbol; rest the pointer on it or click it to list the items in the macOS menu bar, with their apps' icons, and open one | `openOnHover`: list them when the pointer rests on it (default `true`); `false` lists them only on click. `rightClickInMenuBar`: experimental, right-click items as in the macOS menu bar (default `false`) |
-| `clock` | Local date/time, updated each minute, or each second when the format shows seconds | `format`: DateFormatter format |
+| `clock` | Local date/time, updated each minute, or each second when the format shows seconds | `format`: DateFormatter format. A layout can show its date and time apart, with the `date` and `time` fields |
 | `text` | Static text and optional icon | `text` |
 | `script` | Output of a shell command | `command`, `interval` in seconds or `null` for event-only updates |
 | `provider` | Shared command, stream or native data | `provider`: key from the top-level `providers` object |

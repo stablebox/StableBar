@@ -18,7 +18,8 @@ private func output(_ json: String) throws -> ScriptOutput {
     #expect(note.label(output: nil, activeApp: "Finder", date: date)
         == WidgetLabel(text: "Ready", icon: "bolt", fields: ["text": "Ready", "icon": "bolt"]))
     let clock = try widget(#"{"id":"time","type":"clock","format":"HH:mm","position":"right"}"#)
-    #expect(clock.label(output: nil, activeApp: nil, date: date) == WidgetLabel(text: "09:41", icon: nil, fields: ["text": "09:41", "icon": ""]))
+    #expect(clock.label(output: nil, activeApp: nil, date: date)
+        == WidgetLabel(text: "09:41", icon: nil, fields: ["text": "09:41", "icon": "", "date": "", "time": "09:41"]))
     let app = try widget(#"{"id":"app","type":"activeApp","position":"left"}"#)
     #expect(app.label(output: nil, activeApp: "Finder", date: date).fields == ["text": "Finder", "icon": ""])
     #expect(app.label(output: nil, activeApp: nil, date: date).text == "Desktop")
@@ -105,6 +106,15 @@ private func output(_ json: String) throws -> ScriptOutput {
     #expect(try clock("UTC").label(output: nil, activeApp: nil, date: date).text == "2024-03-01 00:30")
     #expect(try clock("America/New_York").label(output: nil, activeApp: nil, date: date).text == "2024-02-29 19:30")
     #expect(throws: (any Error).self) { try clock("Not/A_Time_Zone") }
+}
+
+@Test(arguments: [("dd.MM.yyyy  HH:mm", "01.03.2024", "00:30"), ("HH:mm dd.MM", "01.03", "00:30"),
+                  ("'Tag' dd  HH:mm", "Tag 01", "00:30"), ("dd.MM.yyyy", "01.03.2024", "")])
+func clockFieldsSplitItsFormatIntoTheDateAndTheTime(format: String, date: String, time: String) throws {
+    let clock = try widget(#"{"id":"clock","type":"clock","position":"right","timeZone":"UTC","format":"\#(format)"}"#)
+    let fields = clock.label(output: nil, activeApp: nil, date: ISO8601DateFormatter().date(from: "2024-03-01T00:30:00Z")!).fields
+    #expect(fields["date"] == date)
+    #expect(fields["time"] == time)
 }
 
 @Test func monthCalendarKeepsLeapDayAndNavigatesAcrossTheYearBoundary() {

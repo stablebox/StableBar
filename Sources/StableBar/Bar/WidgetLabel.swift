@@ -9,11 +9,13 @@ struct WidgetLabel: Equatable, Sendable {
 }
 
 extension WidgetConfiguration {
-    /// This widget's label: a text widget's text, a clock's time at `date`, the frontmost app's
-    /// name (`activeApp`, else Desktop), or its script or provider output. The bar, the More widgets
-    /// menu and Diagnostics all read it here. Workspaces and spacers have no text.
+    /// This widget's label: a text widget's text, a clock's time at `date`, with its format's date and time parts
+    /// as the `date` and `time` fields, the frontmost app's name (`activeApp`, else Desktop), or its script or
+    /// provider output. The bar, the More widgets menu and Diagnostics all read it here. Workspaces and spacers have
+    /// no text.
     func label(output: ScriptOutput?, activeApp: String?, date: Date) -> WidgetLabel {
         var icon = self.icon
+        var fields = output?.fields ?? [:]
         let text: String
         switch content {
         case let .text(value):
@@ -23,6 +25,11 @@ extension WidgetConfiguration {
             formatter.dateFormat = format
             formatter.timeZone = timeZone.flatMap(TimeZone.init(identifier:)) ?? .autoupdatingCurrent
             text = formatter.string(from: date)
+            let parts = Self.clockFormatParts(format)
+            formatter.dateFormat = parts.date
+            fields["date"] = formatter.string(from: date)
+            formatter.dateFormat = parts.time
+            fields["time"] = formatter.string(from: date)
         case .activeApp:
             text = activeApp ?? "Desktop"
         case .controlCenter, .menuBarItems:
@@ -34,12 +41,31 @@ extension WidgetConfiguration {
         case .stableBar:
             text = ""
         case .workspaces, .appMenu, .appleMenu, .spacer:
-            return WidgetLabel(text: "", icon: icon, fields: output?.fields ?? [:])
+            return WidgetLabel(text: "", icon: icon, fields: fields)
         }
-        var fields = output?.fields ?? [:]
         fields["text"] = text
         fields["icon"] = icon ?? ""
         return WidgetLabel(text: text, icon: icon, fields: fields)
+    }
+
+    /// `format`'s date and time patterns. The time runs from its first hour, minute, second, day-period or zone letter
+    /// to its last; the date is the rest. Quoted text is literal.
+    private static func clockFormatParts(_ format: String) -> (date: String, time: String) {
+        var quoted = false
+        var time: Range<String.Index>?
+        for index in format.indices {
+            if format[index] == "'" {
+                quoted.toggle()
+            } else if !quoted, "abBhHkKmsSAzZOvVXx".contains(format[index]) {
+                time = (time?.lowerBound ?? index)..<format.index(after: index)
+            }
+        }
+        guard let time else { return (format, "") }
+        let date = [format[..<time.lowerBound], format[time.upperBound...]]
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return (date, String(format[time]))
     }
 }
 
