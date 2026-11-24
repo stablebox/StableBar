@@ -77,7 +77,12 @@ extension WidgetConfiguration {
         guard var time else { return (format, "") }
         var suffix = time.upperBound
         while suffix < format.endIndex, !format[suffix].isWhitespace, !(format[suffix].isASCII && format[suffix].isLetter) {
-            suffix = quotes.first { $0.lowerBound == suffix }?.upperBound ?? format.index(after: suffix)
+            if let quoted = quotes.first(where: { $0.lowerBound == suffix }) {
+                if format[format.index(after: quoted.lowerBound)].isWhitespace { break }
+                suffix = quoted.upperBound
+            } else {
+                suffix = format.index(after: suffix)
+            }
         }
         time = time.lowerBound..<suffix
         var end = time.lowerBound
