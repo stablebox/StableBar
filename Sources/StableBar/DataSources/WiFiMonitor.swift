@@ -23,9 +23,12 @@ final class WiFiMonitor: NSObject, ChangeMonitor, CWEventDelegate, CLLocationMan
     private lazy var location: CLLocationManager = {
         let manager = CLLocationManager()
         manager.delegate = self
-        manager.requestWhenInUseAuthorization()
+        Self.access.requestWhenInUseAuthorization()
         return manager
     }()
+    /// Asks for Location access and lives as long as the app: macOS withdraws its prompt when the manager that asked
+    /// goes away, and a monitor goes away whenever its provider stops, such as when the Quick toggles panel closes.
+    nonisolated(unsafe) private static let access = CLLocationManager()
 
     deinit { stop() }
 
