@@ -409,6 +409,8 @@ struct BarShareView: View {
                 Spacer(minLength: 12)
                 closeButton
             }
+            // Over the image, for the screen menu's tooltip.
+            .zIndex(1)
             stage
             toolbar
         }
@@ -458,7 +460,7 @@ struct BarShareView: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("The screen, its notch and the StableBar badge")
+        .modifier(ShareTooltip(text: "The screen, its notch and the StableBar badge", below: true, alignment: .leading))
     }
 
     private var closeButton: some View {
@@ -521,7 +523,7 @@ struct BarShareView: View {
                             }
                             .buttonStyle(.plain)
                             .offset(x: -13, y: -13)
-                            .help("Remove the StableBar badge")
+                            .modifier(ShareTooltip(text: "Remove the StableBar badge"))
                             .accessibilityLabel("Remove StableBar Badge")
                         }
                 } else {
@@ -536,7 +538,7 @@ struct BarShareView: View {
                     }
                     .buttonStyle(.plain)
                     .fixedSize()
-                    .help("Add the StableBar badge")
+                    .modifier(ShareTooltip(text: "Add the StableBar badge"))
                     .frame(width: rect.width, height: rect.height, alignment: .trailing)
                 }
             }
@@ -550,7 +552,7 @@ struct BarShareView: View {
             ForEach(BarSharePreset.allCases) { preset in
                 Button(preset.label) { share.format.preset = preset }
                     .buttonStyle(GlassButtonStyle(selected: share.format.preset == preset))
-                    .help(preset.help)
+                    .modifier(ShareTooltip(text: preset.help))
                     .accessibilityLabel(preset.title)
                     .accessibilityAddTraits(share.format.preset == preset ? .isSelected : [])
             }
@@ -570,7 +572,7 @@ struct BarShareView: View {
             }
             .buttonStyle(GlassButtonStyle(selected: true))
             .keyboardShortcut(.defaultAction)
-            .help("Post the image and the bar link")
+            .modifier(ShareTooltip(text: "Post the image and the bar link"))
             .disabled(share.image == nil)
             .padding(.leading, 4)
         }
@@ -584,7 +586,7 @@ struct BarShareView: View {
             Image(systemName: symbol).font(.system(size: 14, weight: .medium)).frame(width: 36)
         }
         .buttonStyle(GlassButtonStyle(selected: false, highlighted: selected, round: true))
-        .help(title)
+        .modifier(ShareTooltip(text: title))
         .accessibilityLabel(title)
     }
 
@@ -761,6 +763,40 @@ struct BarShareView: View {
         } catch {
             NSAlert(error: error).runModal()
         }
+    }
+}
+
+/// A tooltip drawn in the panel, above the view or `below` it. macOS shows its own only while StableBar is the active
+/// app, and posting brings the browser in front.
+private struct ShareTooltip: ViewModifier {
+    let text: String
+    var below = false
+    var alignment = HorizontalAlignment.center
+    @State private var hovering = false
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering = $0 }
+            .task(id: hovering) {
+                shown = false
+                guard hovering else { return }
+                try? await Task.sleep(for: .milliseconds(600))
+                shown = !Task.isCancelled
+            }
+            .overlay(alignment: Alignment(horizontal: alignment, vertical: below ? .bottom : .top)) {
+                if shown {
+                    Text(text)
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(white: 0.1).opacity(0.95), in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.15)))
+                        .fixedSize()
+                        .alignmentGuide(below ? .bottom : .top) { below ? $0[.top] - 6 : $0[.bottom] + 6 }
+                        .allowsHitTesting(false)
+                }
+            }
     }
 }
 
