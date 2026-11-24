@@ -33,11 +33,13 @@ struct FillButton: View {
     let set: (ConfigurationValue) -> Void
 
     var body: some View {
+        // A theme color that isn't one color, such as Glass's popup gradient, can't be one side of a light and dark pair.
+        let isGradientToken = if case let .token(name) = FillChoice(value) { !tokens.contains { $0.name == name } } else { false }
         HStack(spacing: 6) {
             ForEach([false, true], id: \.self) { isDark in
                 SideButton(title: title, value: colorSide(dark: isDark, of: value), dark: isDark, tokens: tokens,
                            allowsGradient: allowsGradient, allowsNone: allowsNone, arrowEdge: arrowEdge) {
-                    set(settingColorSide(dark: isDark, of: value, to: $0))
+                    set(isGradientToken ? $0 : settingColorSide(dark: isDark, of: value, to: $0))
                 }
             }
         }
@@ -130,7 +132,8 @@ private struct SideButton: View {
         case .none:
             return Text("None")
         case let .token(name):
-            return Text(tokens.first { $0.name == name }?.title ?? name) + detail("theme")
+            let title = tokens.first { $0.name == name }?.title
+            return Text(title ?? friendly(name)) + detail(title == nil ? "theme gradient" : "theme color")
         case let .color(color):
             let rgba = color.rgba(dark: dark)
             let hex = Text(String(format: "#%06X", rgba >> 8))
