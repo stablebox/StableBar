@@ -199,8 +199,8 @@
       }
     },
     "draw": {
-      "description": "What to draw. `update` draws the update popup for a sample offer, with the request for a star on GitHub. `setup` draws a step of setup's tour, 1512 by 982 points by default, with the bar above it as the configuration has it: setup's choices show in the tour, not on the bar, since previewing them would start the commands of the widgets they add. `accessibilityGuide` draws the panel that asks people to drag StableBar into the Accessibility list in System Settings. `share` draws Share My Bar for a 1512 by 982 point screen with the setup tour's wallpaper, at Bar only, `shareLink` the same with What it shares open, and `sharePost` the same with the Share card open. `barLinkReview` draws the Store's review of the packages that barLink's ticked widgets need, as Use this bar opens it.",
-      "enum": ["bar", "editBar", "popup", "settings", "uninstall", "update", "setup", "accessibilityGuide", "share", "shareLink", "sharePost", "barLinkReview"]
+      "description": "What to draw. `update` draws the update popup for a sample offer, with the request for a star on GitHub. `setup` draws a step of setup's tour, 1512 by 982 points by default, with the bar above it as the configuration has it: setup's choices show in the tour, not on the bar, since previewing them would start the commands of the widgets they add. `accessibilityGuide` draws the panel that asks people to drag StableBar into the Accessibility list in System Settings. `share` draws Share My Bar for a 1512 by 982 point screen with the setup tour's wallpaper, at Bar only, `shareLink` the same with What it shares open, `sharePost` the same with the Share card open, and `shareDock` the dock it shows while a post is open, over the wallpaper, 560 by 140 points by default. `barLinkReview` draws the Store's review of the packages that barLink's ticked widgets need, as Use this bar opens it.",
+      "enum": ["bar", "editBar", "popup", "settings", "uninstall", "update", "setup", "accessibilityGuide", "share", "shareLink", "sharePost", "shareDock", "barLinkReview"]
     },
     "widget": { "description": "The widget whose popup or Settings page to draw. With `bar`, the bar is drawn with that widget's popup open, below the bar or above a bar at the bottom, or, for a widget without a popup that has hover controls, those controls in their tooltip.", "type": "string" },
     "group": { "description": "For `settings`, without `widget`: the group whose page Settings → Bar draws, with its widgets listed under it.", "type": "string" },
@@ -314,11 +314,11 @@
       "uniqueItems": true
     },
     "shareScreen": {
-      "description": "For `share`, `shareLink` and `sharePost`: the screen Share My Bar draws the bar on. `this` is the scene's 1512 by 982 point screen without a notch, and `air13`, `pro14` and `pro16` a 13-inch MacBook Air, 14-inch and 16-inch MacBook Pro at their default sizes, with the notch. this by default.",
+      "description": "For `share`, `shareLink`, `sharePost` and `shareDock`: the screen Share My Bar draws the bar on. `this` is the scene's 1512 by 982 point screen without a notch, and `air13`, `pro14` and `pro16` a 13-inch MacBook Air, 14-inch and 16-inch MacBook Pro at their default sizes, with the notch. this by default.",
       "enum": ["this", "air13", "pro14", "pro16"]
     },
     "sharePreset": {
-      "description": "For `share`, `shareLink` and `sharePost`: the shape of the image Share My Bar draws. `bar` is the bar alone on a strip of wallpaper, and `landscape`, `square` and `portrait` are 16:9, 1:1 and 4:5. bar by default.",
+      "description": "For `share`, `shareLink`, `sharePost` and `shareDock`: the shape of the image Share My Bar draws. `bar` is the bar alone on a strip of wallpaper, and `landscape`, `square` and `portrait` are 16:9, 1:1 and 4:5. bar by default.",
       "enum": ["bar", "landscape", "square", "portrait"]
     },
     "macOSMajorVersion": {
@@ -339,7 +339,7 @@
       "items": { "enum": ["increaseContrast", "reduceTransparency"] },
       "uniqueItems": true
     },
-    "wallpaper": { "description": "For `bar` and `popup`: an image relative to this file, drawn behind the bar or popup in place of the setup tour's wallpaper, scaled to fill and aligned to the top. For `settings` and `setup`: the Mac's wallpaper, which the previews of the bar show in place of the drawn backdrop. For `share`, `shareLink` and `sharePost`: the screen's wallpaper, in place of the setup tour's.", "type": "string" },
+    "wallpaper": { "description": "For `bar` and `popup`: an image relative to this file, drawn behind the bar or popup in place of the setup tour's wallpaper, scaled to fill and aligned to the top. For `settings` and `setup`: the Mac's wallpaper, which the previews of the bar show in place of the drawn backdrop. For `share`, `shareLink`, `sharePost` and `shareDock`: the screen's wallpaper, in place of the setup tour's.", "type": "string" },
     "width": { "description": "The image's width in points.", "type": "number", "minimum": 100, "maximum": 4000 },
     "height": { "description": "The image's height in points.", "type": "number", "minimum": 20, "maximum": 4000 }
   }

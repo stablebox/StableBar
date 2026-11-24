@@ -714,7 +714,7 @@ private struct ToolButton: View {
 
 /// Shows `text` in StableBar's tooltip under the view while the pointer rests on it, as the bar's widgets do: an app
 /// that's never in front gets no system tooltips.
-private struct BarTooltip: ViewModifier {
+struct BarTooltip: ViewModifier {
     let text: String
     /// Shows or hides a tooltip under a view.
     let hover: (String, NSView, Bool) -> Void

@@ -5,10 +5,10 @@ import Foundation
 /// runs nothing: commands, providers and window managers are replaced by the samples it gives.
 struct SceneFile: Decodable {
     enum Draw: String, Decodable, CaseIterable {
-        case bar, editBar, popup, settings, uninstall, update, setup, accessibilityGuide, share, shareLink, sharePost, barLinkReview
+        case bar, editBar, popup, settings, uninstall, update, setup, accessibilityGuide, share, shareLink, sharePost, shareDock, barLinkReview
 
-        /// Share My Bar, alone or with its bar link or Share card open.
-        static let shares: [Draw] = [.share, .shareLink, .sharePost]
+        /// Share My Bar, alone or with its bar link or Share card open, and the dock it shows while a post is open.
+        static let shares: [Draw] = [.share, .shareLink, .sharePost, .shareDock]
     }
     enum Appearance: String, Decodable, CaseIterable { case dark, light }
     /// A Settings section, named as the toolbar names it, `feedback` for Send feedback in Help, or `crashes` for Crashes in Status.
@@ -321,11 +321,11 @@ struct SceneFile: Decodable {
         }
         shareScreen = try values.decodeIfPresent(BarShareScreen.self, forKey: .shareScreen) ?? .this
         if values.contains(.shareScreen), !Draw.shares.contains(draw) {
-            throw DecodingError.dataCorruptedError(forKey: .shareScreen, in: values, debugDescription: "shareScreen draws share, shareLink or sharePost.")
+            throw DecodingError.dataCorruptedError(forKey: .shareScreen, in: values, debugDescription: "shareScreen draws share, shareLink, sharePost or shareDock.")
         }
         sharePreset = try values.decodeIfPresent(BarSharePreset.self, forKey: .sharePreset) ?? .bar
         if values.contains(.sharePreset), !Draw.shares.contains(draw) {
-            throw DecodingError.dataCorruptedError(forKey: .sharePreset, in: values, debugDescription: "sharePreset draws share, shareLink or sharePost.")
+            throw DecodingError.dataCorruptedError(forKey: .sharePreset, in: values, debugDescription: "sharePreset draws share, shareLink, sharePost or shareDock.")
         }
         macOSMajorVersion = try values.decodeIfPresent(Int.self, forKey: .macOSMajorVersion) ?? 26
         if macOSMajorVersion < 14 {

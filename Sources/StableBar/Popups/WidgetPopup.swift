@@ -255,6 +255,14 @@ final class WidgetPopup {
         openTooltip(id: widget.id, style: widget.tooltipStyle, defaults: defaults, store: store, anchor: anchor, ignoresMouseEvents: true) { _ in Text(text) }
     }
 
+    /// Shows `text` in a tooltip under `anchor`, in the tooltip style of its screen's look, for a view that isn't a
+    /// widget's, such as a button in Share My Bar.
+    func showTooltip(_ text: String, store: BarStore, anchor: NSView) {
+        let look = store.configuration!.onScreen(ScreenKind(BarDisplay(screen: anchor.window!.screen!)))
+        openTooltip(id: "tooltip", style: WidgetStyle(), defaults: look.popupDefaults.popupStyle(over: look.defaults), store: store,
+                    anchor: anchor, ignoresMouseEvents: true) { _ in Text(text) }
+    }
+
     /// Shows a widget's hover controls in a tooltip under it, drawn in the tooltip's style. The pointer can move into
     /// it, and it stays open while a control in it is dragged.
     func showControls(widget: WidgetConfiguration, defaults: WidgetStyle, store: BarStore, anchor: NSView,

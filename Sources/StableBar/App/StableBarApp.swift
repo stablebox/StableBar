@@ -640,7 +640,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !store.widgetScripts.inspectorOpen, let window = barShare.window { window.makeKeyAndOrderFront(nil) } else { showCustomization() }
+        if !store.widgetScripts.inspectorOpen, barShare.window != nil { barShare.bringBack() } else { showCustomization() }
         return false
     }
 

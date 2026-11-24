@@ -452,15 +452,23 @@ enum SceneRenderer {
             try await OffscreenSnapshot.write(AccessibilityGuideView {}
                 .padding(24).background(Color(nsColor: .windowBackgroundColor)),
                                               size: NSSize(width: CGFloat(scene.width ?? 408), height: CGFloat(scene.height ?? 181)), dark: dark, to: url)
-        case .share, .shareLink, .sharePost:
+        case .share, .shareLink, .sharePost, .shareDock:
             let share = BarShare(store: store, display: display, screen: CGSize(width: 1512, height: 982), menuBar: setupMenuBarHeight,
                                  wallpaper: wallpaper)
             share.format.screen = scene.shareScreen
             share.format.preset = scene.sharePreset
-            try await OffscreenSnapshot.write(BarShareView(share: share, showsLink: scene.draw == .shareLink, showsDetails: scene.draw == .shareLink,
-                                                           showsPost: scene.draw == .sharePost),
-                                              size: NSSize(width: CGFloat(scene.width ?? 680), height: CGFloat(scene.height ?? 460)),
-                                              dark: dark, ready: { share.image != nil }, to: url)
+            if scene.draw == .shareDock {
+                // The panel draws the image before it steps aside for the dock.
+                await share.draw(fixedDate: DocsImages.date, colorScheme: dark ? .dark : .light)
+                try await OffscreenSnapshot.write(BarShareDock(share: share).frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                    .background(OffscreenSnapshot.backdrop(dark: dark)),
+                                                  size: NSSize(width: CGFloat(scene.width ?? 560), height: CGFloat(scene.height ?? 140)), dark: dark, to: url)
+            } else {
+                try await OffscreenSnapshot.write(BarShareView(share: share, showsLink: scene.draw == .shareLink, showsDetails: scene.draw == .shareLink,
+                                                               showsPost: scene.draw == .sharePost),
+                                                  size: NSSize(width: CGFloat(scene.width ?? 680), height: CGFloat(scene.height ?? 460)),
+                                                  dark: dark, ready: { share.image != nil }, to: url)
+            }
         case .setup:
             try await drawSetup(scene.setup ?? SceneFile.Setup(), move: scene.applicationMove, store: store, macOSVersion: macOSVersion,
                                 wallpaper: wallpaper,
