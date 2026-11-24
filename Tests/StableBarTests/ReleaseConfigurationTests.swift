@@ -28,6 +28,7 @@ func everyReleasedStarterConfigurationStillLoads(_ name: String) throws {
     try migrateStarterAppleLogo(fixture.url)
     try migrateEarlierSoundDetails(fixture.url, pinned: nil)
     try migrateEarlierStarterClock(fixture.url, pinned: nil)
+    try migrateSetupDateAndTime(fixture.url, pinned: nil)
     try migrateEarlierColors(fixture.url)
     try migrateEarlierBelowMenuBarOffset(fixture.url, offsets: [22, 24])
     try migrateRetiredThemes(fixture.url, pinned: nil, themes: fixture.themes, storeThemes: fixture.storeThemes)

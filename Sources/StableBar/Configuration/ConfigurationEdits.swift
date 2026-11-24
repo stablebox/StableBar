@@ -380,6 +380,32 @@ func migrateEarlierStarterClock(_ url: URL, pinned: String?, savedBy release: St
     try writeConfiguration(configurationData(root, editing: original, savedBy: release), to: url)
 }
 
+/// Turns the date and time that setup wrote as two clocks before 0.19.0, a `date` and a time-only `clock`, into the one
+/// clock it writes now, with the date and time apart. A pair given anything more, such as a style, stays as it is.
+func migrateSetupDateAndTime(_ url: URL, pinned: String?, savedBy release: String? = AppVersion.release) throws {
+    if let pinned, compareReleases(pinned, "0.19.0") != .orderedAscending { return }
+    let original = try Data(contentsOf: url)
+    var root = try JSONDecoder().decode([String: ConfigurationValue].self, from: original)
+    let widgets = try root["widgets"]?.decoded([[String: ConfigurationValue]].self) ?? []
+    /// The format of the clock `id` as setup wrote it in `role`.
+    func setupFormat(_ id: String, _ role: String) -> String? {
+        guard let widget = widgets.first(where: { $0["id"] == .string(id) }), case let .string(format)? = widget["format"],
+              widget == ["id": .string(id), "type": .string("clock"), "position": .string("right"), "role": .string(role),
+                         "details": .bool(true), "format": .string(format)] else { return nil }
+        return format
+    }
+    guard let date = setupFormat("date", "secondary"), let time = setupFormat("clock", "time") else { return }
+    var ids: [String] = []
+    root = try ConfigurationEdit(action: .remove, id: "date").applying(to: root, widgetIDs: &ids)
+    let clock: [String: ConfigurationValue] = ["id": .string("clock"), "type": .string("clock"), "position": .string("right"),
+                                               "details": .bool(true), "format": .string(date + "  " + time),
+                                               "layout": WidgetLayoutChoice.dateAndTimeApart.layout]
+    root["widgets"] = .array(try (root["widgets"]?.decoded([[String: ConfigurationValue]].self) ?? []).map { widget in
+        .object(widget["id"] == .string("clock") ? clock : widget)
+    })
+    try writeConfiguration(configurationData(root, editing: original, savedBy: release), to: url)
+}
+
 /// Selects an installed package in place of a retired theme's frozen copy: the Store's package of a theme that moved to
 /// the Store, installed from its copy in `storeThemes`, or a copy of an older one's own files. A file pinned to this release
 /// or a newer one before the launch's migrations, `pinned`, keeps its selections, since only a hand edit selects a frozen

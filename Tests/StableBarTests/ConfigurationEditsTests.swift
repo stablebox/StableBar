@@ -208,3 +208,41 @@ final class ConfigurationEditsTests: XCTestCase {
     #expect(widgets[5]["onClick"] == .string("open -a Calendar"))
     #expect(widgets[6]["onClick"] == .string("open -a Clock"))
 }
+
+@Test func setupsDateAndTimeSavedBefore019BecomeOneClock() throws {
+    let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).json")
+    defer { try? FileManager.default.removeItem(at: url) }
+    func pair(dateStyle: String = "") -> Data {
+        Data(#"""
+        {
+          "widgets": [
+            { "id": "date", "type": "clock", "position": "right", "role": "secondary", "details": true, "format": "EEE d MMM"\#(dateStyle) },
+            { "id": "clock", "type": "clock", "position": "right", "role": "time", "details": true, "format": "HH:mm" },
+            { "id": "menu-bar-items", "type": "menuBarItems", "position": "right" }
+          ],
+          "widgetOrder": ["date", "clock", "menu-bar-items"]
+        }
+        """#.utf8)
+    }
+    func widgets() throws -> [[String: ConfigurationValue]] {
+        try #require(try JSONDecoder().decode([String: ConfigurationValue].self, from: Data(contentsOf: url))["widgets"]?
+            .decoded([[String: ConfigurationValue]].self))
+    }
+    try pair().write(to: url)
+    try migrateSetupDateAndTime(url, pinned: "0.19.0")
+    #expect(try Data(contentsOf: url) == pair(), "A file saved by 0.19.0 keeps what it says")
+
+    try migrateSetupDateAndTime(url, pinned: "0.19.0-beta.20261123164352.1618")
+    #expect(try widgets() == [
+        ["id": .string("clock"), "type": .string("clock"), "position": .string("right"), "details": .bool(true),
+         "format": .string("EEE d MMM  HH:mm"), "layout": WidgetLayoutChoice.dateAndTimeApart.layout],
+        ["id": .string("menu-bar-items"), "type": .string("menuBarItems"), "position": .string("right")]
+    ])
+    let document = try JSONDecoder().decode([String: ConfigurationValue].self, from: Data(contentsOf: url))
+    #expect(document["widgetOrder"] == .array([.string("clock"), .string("menu-bar-items")]))
+
+    let styled = pair(dateStyle: #", "style": { "fontSize": 11 }"#)
+    try styled.write(to: url)
+    try migrateSetupDateAndTime(url, pinned: nil)
+    #expect(try Data(contentsOf: url) == styled)
+}
