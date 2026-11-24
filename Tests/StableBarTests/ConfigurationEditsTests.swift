@@ -242,7 +242,8 @@ final class ConfigurationEditsTests: XCTestCase {
     #expect(document["widgetOrder"] == .array([.string("clock"), .string("menu-bar-items")]))
 
     for customized in [pair(dateStyle: #", "style": { "fontSize": 11 }"#),
-                       pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "widgetOverrides": { "date": { "enabled": false } } } }]"#)] {
+                       pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "widgetOverrides": { "date": { "enabled": false } } } }]"#),
+                       pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "screens": { "laptop": { "layout": { "left": ["date"], "right": ["clock"] } } } } }]"#)] {
         try customized.write(to: url)
         try migrateSetupDateAndTime(url, pinned: nil)
         #expect(try Data(contentsOf: url) == customized)
