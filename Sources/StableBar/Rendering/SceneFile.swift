@@ -4,7 +4,12 @@ import Foundation
 /// `StableBar --render-scenes` reads these from `scenes/`, and scene.schema.json describes them. A scene
 /// runs nothing: commands, providers and window managers are replaced by the samples it gives.
 struct SceneFile: Decodable {
-    enum Draw: String, Decodable, CaseIterable { case bar, editBar, popup, settings, uninstall, update, setup, accessibilityGuide, share, shareLink, barLinkReview }
+    enum Draw: String, Decodable, CaseIterable {
+        case bar, editBar, popup, settings, uninstall, update, setup, accessibilityGuide, share, shareLink, sharePost, barLinkReview
+
+        /// Share My Bar, alone or with its bar link or Share card open.
+        static let shares: [Draw] = [.share, .shareLink, .sharePost]
+    }
     enum Appearance: String, Decodable, CaseIterable { case dark, light }
     /// A Settings section, named as the toolbar names it, `feedback` for Send feedback in Help, or `crashes` for Crashes in Status.
     enum Section: String, Decodable, CaseIterable { case general, bar, theme, profiles, packages, help, feedback, crashes }
@@ -110,7 +115,7 @@ struct SceneFile: Decodable {
     /// The Accessibility display settings a bar or popup scene draws with, all off by default, whatever the Mac that draws has.
     var accessibilityDisplay: [AccessibilityDisplay] = []
     /// An image, relative to the scene file, drawn behind the bar or popup in place of the setup tour's wallpaper, or
-    /// behind the previews of the bar in Settings and setup as the Mac's wallpaper.
+    /// behind the previews of the bar in Settings, setup and Share My Bar as the Mac's wallpaper.
     var wallpaper: String?
     var width: Double?
     var height: Double?
@@ -315,12 +320,12 @@ struct SceneFile: Decodable {
             }
         }
         shareScreen = try values.decodeIfPresent(BarShareScreen.self, forKey: .shareScreen) ?? .this
-        if values.contains(.shareScreen), draw != .share && draw != .shareLink {
-            throw DecodingError.dataCorruptedError(forKey: .shareScreen, in: values, debugDescription: "shareScreen draws share or shareLink.")
+        if values.contains(.shareScreen), !Draw.shares.contains(draw) {
+            throw DecodingError.dataCorruptedError(forKey: .shareScreen, in: values, debugDescription: "shareScreen draws share, shareLink or sharePost.")
         }
         sharePreset = try values.decodeIfPresent(BarSharePreset.self, forKey: .sharePreset) ?? .bar
-        if values.contains(.sharePreset), draw != .share && draw != .shareLink {
-            throw DecodingError.dataCorruptedError(forKey: .sharePreset, in: values, debugDescription: "sharePreset draws share or shareLink.")
+        if values.contains(.sharePreset), !Draw.shares.contains(draw) {
+            throw DecodingError.dataCorruptedError(forKey: .sharePreset, in: values, debugDescription: "sharePreset draws share, shareLink or sharePost.")
         }
         macOSMajorVersion = try values.decodeIfPresent(Int.self, forKey: .macOSMajorVersion) ?? 26
         if macOSMajorVersion < 14 {
@@ -390,9 +395,9 @@ struct SceneFile: Decodable {
             throw DecodingError.dataCorruptedError(forKey: .accessibilityDisplay, in: values,
                                                    debugDescription: "accessibilityDisplay belongs to a bar or popup scene.")
         }
-        if wallpaper != nil, ![.bar, .popup, .settings, .setup].contains(draw) {
+        if wallpaper != nil, ![.bar, .popup, .settings, .setup].contains(draw), !Draw.shares.contains(draw) {
             throw DecodingError.dataCorruptedError(forKey: .wallpaper, in: values,
-                                                   debugDescription: "wallpaper belongs to a bar, popup, settings or setup scene.")
+                                                   debugDescription: "wallpaper belongs to a bar, popup, settings, setup or share scene.")
         }
         if let tab, tab.isBarTab, widget != nil || section != .bar {
             throw DecodingError.dataCorruptedError(forKey: .tab, in: values,

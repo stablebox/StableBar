@@ -111,6 +111,49 @@ enum BarSharePreset: String, CaseIterable, Identifiable, Decodable {
         case .portrait: NSSize(width: 2160, height: 2700)
         }
     }
+
+    /// The tooltip: the shape and its size.
+    var help: String {
+        pixels.map { "\(title), \(Int($0.width)) × \(Int($0.height)) pixels" } ?? "The bar alone, on a strip of wallpaper"
+    }
+}
+
+/// A social network Share My Bar posts to, through its compose page, which takes the caption and the bar link but not
+/// the image.
+enum BarShareNetwork: CaseIterable, Identifiable {
+    case x, bluesky, threads, reddit
+
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .x: "X"
+        case .bluesky: "Bluesky"
+        case .threads: "Threads"
+        case .reddit: "Reddit"
+        }
+    }
+
+    /// The network's logo, or nil where the app's resources aren't bundled, as in tests.
+    var logo: NSImage? {
+        Bundle.main.url(forResource: "Share\(name)", withExtension: "pdf").flatMap(NSImage.init(contentsOf:))
+    }
+
+    /// The compose page, filled in with `caption` and `link`.
+    func compose(_ caption: String, link: URL?) -> URL {
+        let link = link?.absoluteString
+        let (page, fields): (String, [(String, String?)]) = switch self {
+        case .x: ("https://x.com/intent/tweet", [("text", caption), ("url", link)])
+        // Bluesky's takes only text, and links the address in it.
+        case .bluesky: ("https://bsky.app/intent/compose", [("text", [caption, link].compactMap { $0 }.joined(separator: " "))])
+        case .threads: ("https://www.threads.com/intent/post", [("text", caption), ("url", link)])
+        case .reddit: ("https://www.reddit.com/submit", [("title", caption), ("url", link)])
+        }
+        // In a value, `&` and `=` would end it, and `+` would read as a space.
+        let allowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+"))
+        let query = fields.compactMap { name, value in value.map { "\(name)=\($0.addingPercentEncoding(withAllowedCharacters: allowed)!)" } }
+        return URL(string: "\(page)?\(query.joined(separator: "&"))")!
+    }
 }
 
 /// What Share My Bar draws: the screen, with or without the MacBook's notch, and the image's shape.
@@ -125,6 +168,7 @@ struct BarShareFormat: Equatable {
 @MainActor @Observable
 final class BarShare {
     static let badgeKey = "shareMyBarBadge"
+    static let captionKey = "shareMyBarCaption"
 
     /// The desktop as drawn, without the badge, `size` points large; `bottom` for a bar at the bottom.
     struct Drawing {
@@ -140,6 +184,10 @@ final class BarShare {
             defaults?.set(badge, forKey: Self.badgeKey)
             compose()
         }
+    }
+    /// What a post says before the bar link, remembered for the next share.
+    var caption: String {
+        didSet { defaults?.set(caption, forKey: Self.captionKey) }
     }
     private(set) var drawn: Drawing?
     /// `drawn`'s image with the badge when it's on.
@@ -173,7 +221,14 @@ final class BarShare {
         self.menuBarScheme = menuBarScheme
         self.defaults = defaults
         badge = defaults?.object(forKey: Self.badgeKey) as? Bool ?? true
+        caption = defaults?.string(forKey: Self.captionKey) ?? "My macOS bar, made with StableBar. Try it on yours:"
     }
+
+    /// The bar link, unless the bar can't be shared as one.
+    var linkURL: URL? { (try? link?.get())?.link }
+
+    /// The caption and the bar link, as Copy Caption and the macOS share menu give them.
+    var post: String { [caption, linkURL?.absoluteString].compactMap { $0 }.joined(separator: " ") }
 
     /// `image` as PNG, at twice its size in points per inch, as Copy, Save and Share give it.
     var png: Data? {
@@ -319,9 +374,12 @@ struct BarShareView: View {
     @Bindable var share: BarShare
     @State var showsLink = false
     @State var showsDetails = false
+    @State var showsPost = false
     var close: () -> Void = {}
     @State private var detailsHeight: CGFloat = 0
     @State private var copied = false
+    /// What the Share card's last action did, such as copying the image.
+    @State private var note: String?
     @State private var overImage = false
     @Environment(\.fixedDate) private var fixedDate
     @Environment(\.colorScheme) private var colorScheme
@@ -340,6 +398,7 @@ struct BarShareView: View {
         .padding(14)
         .overlay(alignment: .bottom) {
             if showsLink { linkCard.padding(.top, 56).padding(.bottom, 70) }
+            if showsPost { postCard.padding(.top, 56).padding(.bottom, 70) }
         }
         .background { backdrop.overlay(WindowDragArea()) }
         .ignoresSafeArea()
@@ -349,7 +408,11 @@ struct BarShareView: View {
         .frame(minWidth: 520, minHeight: 360)
         .task(id: share.format) { await share.draw(fixedDate: fixedDate, colorScheme: colorScheme) }
         .onChange(of: showsLink) { copied = false }
-        .onChange(of: share.format) { copied = false }
+        .onChange(of: showsPost) { note = nil }
+        .onChange(of: share.format) {
+            copied = false
+            note = nil
+        }
     }
 
     private var backdrop: some View {
@@ -378,11 +441,18 @@ struct BarShareView: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
+        .help("The screen, its notch and the StableBar badge")
     }
 
     private var closeButton: some View {
         GlassCloseButton(title: "Close") {
-            if showsLink { showsLink = false } else { close() }
+            if showsLink {
+                showsLink = false
+            } else if showsPost {
+                showsPost = false
+            } else {
+                close()
+            }
         }
     }
 
@@ -463,19 +533,27 @@ struct BarShareView: View {
             ForEach(BarSharePreset.allCases) { preset in
                 Button(preset.label) { share.format.preset = preset }
                     .buttonStyle(GlassButtonStyle(selected: share.format.preset == preset))
+                    .help(preset.help)
                     .accessibilityLabel(preset.title)
                     .accessibilityAddTraits(share.format.preset == preset ? .isSelected : [])
             }
             Rectangle().fill(.white.opacity(0.25)).frame(width: 1, height: 20).padding(.horizontal, 6)
             tool("doc.on.doc", "Copy Image", action: copy).disabled(share.image == nil)
             tool("square.and.arrow.down", "Save Image…", action: save).disabled(share.image == nil)
-            tool("link", "Bar Link", selected: showsLink) { showsLink.toggle() }.disabled(share.link == nil)
-            Button(action: shareBar) {
+            tool("link", "Bar Link", selected: showsLink) {
+                showsLink.toggle()
+                showsPost = false
+            }
+            .disabled(share.link == nil)
+            Button {
+                showsPost.toggle()
+                showsLink = false
+            } label: {
                 Label("Share", systemImage: "square.and.arrow.up").labelStyle(.titleAndIcon)
             }
             .buttonStyle(GlassButtonStyle(selected: true))
             .keyboardShortcut(.defaultAction)
-            .background(MenuAnchor(view: anchor))
+            .help("Post the image and the bar link")
             .disabled(share.image == nil)
             .padding(.leading, 4)
         }
@@ -522,11 +600,67 @@ struct BarShareView: View {
             case nil: EmptyView()
             }
         }
-        .padding(14)
-        .frame(width: 360, alignment: .leading)
-        .background(Color(white: 0.13).opacity(0.97), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.14)))
-        .shadow(color: .black.opacity(0.4), radius: 18, y: 8)
+        .modifier(ShareCard())
+    }
+
+    /// The caption and the bar link, the networks that post them, and the macOS share menu, above the toolbar.
+    private var postCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Share", systemImage: "square.and.arrow.up").font(.system(size: 13, weight: .semibold))
+            VStack(alignment: .leading, spacing: 6) {
+                TextField("Caption", text: $share.caption, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12.5))
+                    .lineLimit(2...4)
+                Group {
+                    switch share.link {
+                    case let .success(sharing)?: Text(sharing.link.absoluteString).lineLimit(1).truncationMode(.middle)
+                    case let .failure(error)?: Text(errorMessage(error))
+                    case nil: EmptyView()
+                    }
+                }
+                .font(.system(size: 11.5))
+                .foregroundStyle(.white.opacity(0.55))
+            }
+            .padding(10)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white.opacity(0.12)))
+            HStack(spacing: 6) {
+                ForEach(BarShareNetwork.allCases) { network in
+                    Button { post(to: network) } label: {
+                        if let logo = network.logo {
+                            Image(nsImage: logo).renderingMode(.template).resizable().frame(width: 16, height: 16).frame(width: 40)
+                        } else {
+                            Text(network.name).padding(.horizontal, 12)
+                        }
+                    }
+                    .buttonStyle(GlassButtonStyle(selected: false, round: true))
+                    .help("Post on \(network.name)")
+                    .accessibilityLabel("Post on \(network.name)")
+                }
+            }
+            if let note {
+                Label(note, systemImage: "checkmark").font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.7))
+            }
+            Rectangle().fill(.white.opacity(0.1)).frame(height: 1)
+            HStack(spacing: 6) {
+                Button("Copy Image") {
+                    copy()
+                    note = "Image copied"
+                }
+                Button("Copy Caption") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(share.post, forType: .string)
+                    note = "Caption and bar link copied"
+                }
+                Spacer(minLength: 0)
+                Button("More…", action: more).background(MenuAnchor(view: anchor))
+            }
+            .buttonStyle(GlassButtonStyle(selected: false, size: .compact))
+        }
+        // While the image redraws, the link is still the last screen's.
+        .disabled(share.image == nil)
+        .modifier(ShareCard())
     }
 
     private func details(_ sharing: BarLink.Sharing) -> some View {
@@ -593,15 +727,35 @@ struct BarShareView: View {
         do { try png.write(to: url) } catch { NSAlert(error: error).runModal() }
     }
 
-    private func shareBar() {
+    /// Copies the image, which a compose page can't take, and opens `network`'s with the caption and the bar link.
+    private func post(to network: BarShareNetwork) {
+        copy()
+        NSWorkspace.shared.open(network.compose(share.caption, link: share.linkURL))
+        note = "Image copied: paste it into your post with ⌘V"
+    }
+
+    private func more() {
         guard let png = share.png else { return }
         let url = FileManager.default.temporaryDirectory.appending(path: "StableBar.png")
         do {
             try png.write(to: url)
-            NSSharingServicePicker(items: [url]).show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+            // With text, the menu leaves out only Add to Photos. With a URL, it would also leave out Notes and Freeform.
+            NSSharingServicePicker(items: [url, share.post]).show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
         } catch {
             NSAlert(error: error).runModal()
         }
+    }
+}
+
+/// A card above Share My Bar's toolbar.
+private struct ShareCard: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(14)
+            .frame(width: 360, alignment: .leading)
+            .background(Color(white: 0.13).opacity(0.97), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.14)))
+            .shadow(color: .black.opacity(0.4), radius: 18, y: 8)
     }
 }
 

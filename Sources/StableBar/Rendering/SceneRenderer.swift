@@ -452,12 +452,13 @@ enum SceneRenderer {
             try await OffscreenSnapshot.write(AccessibilityGuideView {}
                 .padding(24).background(Color(nsColor: .windowBackgroundColor)),
                                               size: NSSize(width: CGFloat(scene.width ?? 408), height: CGFloat(scene.height ?? 181)), dark: dark, to: url)
-        case .share, .shareLink:
+        case .share, .shareLink, .sharePost:
             let share = BarShare(store: store, display: display, screen: CGSize(width: 1512, height: 982), menuBar: setupMenuBarHeight,
-                                 wallpaper: nil)
+                                 wallpaper: wallpaper)
             share.format.screen = scene.shareScreen
             share.format.preset = scene.sharePreset
-            try await OffscreenSnapshot.write(BarShareView(share: share, showsLink: scene.draw == .shareLink, showsDetails: scene.draw == .shareLink),
+            try await OffscreenSnapshot.write(BarShareView(share: share, showsLink: scene.draw == .shareLink, showsDetails: scene.draw == .shareLink,
+                                                           showsPost: scene.draw == .sharePost),
                                               size: NSSize(width: CGFloat(scene.width ?? 680), height: CGFloat(scene.height ?? 460)),
                                               dark: dark, ready: { share.image != nil }, to: url)
         case .setup:

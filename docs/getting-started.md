@@ -106,9 +106,11 @@ And a shape in the toolbar under the image:
 
 The image carries StableBar's badge, its logo, name and website, in the bottom-right corner, or the top-right one with a bar at the bottom, so it sits on the wallpaper beyond the bar. To leave it out, point at the image and click **×** on the badge, or turn off **StableBar Badge** in the menu at the top left. **+ Badge** on the image, or the same menu, brings it back. StableBar remembers your choice for the next image.
 
-The toolbar's buttons copy the image to the clipboard as PNG, save it to a file, open the bar link, and **Share** (or Return) opens the macOS share menu for AirDrop, Messages, Mail and more. A dynamic or aerial wallpaper that has no still image is replaced with StableBar's own backdrop.
+The toolbar's buttons copy the image to the clipboard as PNG, save it to a file, open the bar link, and **Share** (or Return) opens the Share card. Point at a button to see what it does. A dynamic or aerial wallpaper that has no still image is replaced with StableBar's own backdrop.
 
 The link button opens your [bar link](themes.md) above the toolbar: anyone with StableBar can try your look and your built-in and Store widgets on their own bar, and keep the widgets they like. **Copy Link** copies it. **What it shares** opens a list of your look and each widget the link carries, with the settings a Store widget takes along, and under **Stays on your Mac**, the widgets it leaves out and why, such as a script widget, a custom provider, or a package from a folder or a private source, and the Store settings it doesn't carry: secrets and free text. Click the link button again, or press Esc, to close it.
+
+The Share card posts the image and the bar link together. Its caption, "My macOS bar, made with StableBar. Try it on yours:" at first, comes before the link; edit it, and StableBar remembers it for the next share. Click **X**, **Bluesky**, **Threads** or **Reddit** to copy the image and open that network's new post in your browser, with the caption and the link filled in, then paste the image with ⌘V: a post page can't take an image from a link. Reddit puts the caption in the title. **Copy Image** and **Copy Caption** copy the image or the caption with the link, and **More…** opens the macOS share menu for AirDrop, Messages, Notes and more, with the image and the caption. A posted link shows StableBar's card, since the bar it carries never reaches the website. Click **Share** again, or press Esc, to close the card.
 
 ## Updates
 

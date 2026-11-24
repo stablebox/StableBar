@@ -71,6 +71,19 @@ import Testing
     }
 }
 
+@Test func composePagesCarryTheCaptionAndTheWholeLink() throws {
+    // A bar link's fragment holds `&` and `=`, which would split a value that isn't encoded.
+    let link = try #require(URL(string: "https://stablebar.app/bar.html#v=1&d=a-b_c"))
+    for network in BarShareNetwork.allCases {
+        let page = network.compose("Mine & yours = 1+1", link: link)
+        let values = try #require(URLComponents(url: page, resolvingAgainstBaseURL: false)?.queryItems).compactMap(\.value)
+        #expect(values.contains { $0.hasPrefix("Mine & yours = 1+1") }, "\(network)")
+        #expect(values.contains { $0.hasSuffix(link.absoluteString) }, "\(network)")
+    }
+    let unshared = try #require(URLComponents(url: BarShareNetwork.x.compose("Mine", link: nil), resolvingAgainstBaseURL: false)?.queryItems)
+    #expect(unshared == [URLQueryItem(name: "text", value: "Mine")])
+}
+
 @Test func sceneDrawsShareMyBarInAShape() throws {
     let decoded = try JSONDecoder().decode(SceneFile.self, from: Data(#"{"configuration": {}, "draw": "share", "sharePreset": "portrait"}"#.utf8))
     #expect(decoded.sharePreset == .portrait)
