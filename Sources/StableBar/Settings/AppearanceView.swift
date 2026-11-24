@@ -74,6 +74,8 @@ struct AppearanceView: View {
         .sheet(item: $advanced) { ThemeAdvancedSheet(editor: editor, sheet: $0, screen: screen) }
         .onChange(of: kinds) { if let screen, !kinds.contains(screen) { self.screen = nil } }
         .onChange(of: store.effectiveDocument) { _, _ in gallery.configurationChanged() }
+        // Moving a value between the main file and the theme's edits changes no value the bar draws.
+        .onChange(of: store.profiles) { _, _ in gallery.configurationChanged() }
         .onChange(of: store.configurationError) { _, _ in gallery.contextChanged() }
         .onChange(of: store.configurationStore.context) { _, _ in gallery.contextChanged() }
         .onChange(of: store.pendingLinks.theme?.choice.directory) { _, _ in gallery.contextChanged() }
