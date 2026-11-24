@@ -49,25 +49,42 @@ extension WidgetConfiguration {
     }
 
     /// `format`'s date and time patterns. The time runs from its first hour, minute, second, day-period or zone letter
-    /// to its last; the date is the rest, without the separators between it and the time. Quoted text is literal.
+    /// to its last; the date is the rest, without the spaces and quoted text between it and the time. Quoted text is
+    /// literal.
     private static func clockFormatParts(_ format: String) -> (date: String, time: String) {
-        var quoted = false
+        var quote: String.Index?
+        var quotes: [Range<String.Index>] = []
         var time: Range<String.Index>?
-        var letters: [String.Index] = []
         for index in format.indices {
             if format[index] == "'" {
-                quoted.toggle()
-            } else if !quoted, format[index].isASCII, format[index].isLetter {
-                letters.append(index)
-                if "abBhHkKmsSAzZOvVXx".contains(format[index]) {
-                    time = (time?.lowerBound ?? index)..<format.index(after: index)
-                }
+                if let start = quote { quotes.append(start..<format.index(after: index)) }
+                quote = quote == nil ? index : nil
+            } else if quote == nil, "abBhHkKmsSAzZOvVXx".contains(format[index]) {
+                time = (time?.lowerBound ?? index)..<format.index(after: index)
             }
         }
         guard let time else { return (format, "") }
-        let before = letters.last { $0 < time.lowerBound }.map { format[...$0] } ?? ""
-        let after = letters.first { $0 >= time.upperBound }.map { format[$0...] } ?? ""
-        let date = [before, after].filter { !$0.isEmpty }.joined(separator: " ")
+        var end = time.lowerBound
+        while end > format.startIndex {
+            if format[format.index(before: end)].isWhitespace {
+                end = format.index(before: end)
+            } else if let quoted = quotes.first(where: { $0.upperBound == end }) {
+                end = quoted.lowerBound
+            } else {
+                break
+            }
+        }
+        var start = time.upperBound
+        while start < format.endIndex {
+            if format[start].isWhitespace {
+                start = format.index(after: start)
+            } else if let quoted = quotes.first(where: { $0.lowerBound == start }) {
+                start = quoted.upperBound
+            } else {
+                break
+            }
+        }
+        let date = [format[..<end], format[start...]].filter { !$0.isEmpty }.joined(separator: " ")
         return (date, String(format[time]))
     }
 }
