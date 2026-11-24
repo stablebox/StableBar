@@ -31,8 +31,18 @@ final class AppWatcher: NSObject {
             self, selector: #selector(refreshAppMenu), name: Notification.Name("com.apple.screenIsUnlocked"), object: nil)
     }
 
-    /// The app macOS shows its permission prompts from, such as the one for System Audio Recording.
-    static let permissionPrompts = "com.apple.UserNotificationCenter"
+    /// The apps macOS shows its permission prompts from: System Audio Recording's and Location's.
+    static let permissionPrompts: Set = ["com.apple.UserNotificationCenter", "com.apple.CoreLocationAgent"]
+
+    /// Whether the pointer is over a permission prompt. The Location prompt takes a click before its app comes to the
+    /// front, so the window under the pointer tells, not the front app.
+    static func pointerIsOnPermissionPrompt() -> Bool {
+        let window = NSWindow.windowNumber(at: NSEvent.mouseLocation, belowWindowWithWindowNumber: 0)
+        let info = CGWindowListCopyWindowInfo(.optionIncludingWindow, CGWindowID(window)) as? [[String: Any]] ?? []
+        guard let owner = info.first?[kCGWindowOwnerPID as String] as? pid_t,
+              let id = NSRunningApplication(processIdentifier: owner)?.bundleIdentifier else { return false }
+        return permissionPrompts.contains(id)
+    }
 
     /// The active app while a permission prompt is in front of it.
     private var behindPrompt: NSRunningApplication?
@@ -42,7 +52,7 @@ final class AppWatcher: NSObject {
         let front = NSWorkspace.shared.frontmostApplication
         // A permission prompt in front of the app, and the app coming back after it, leave the active app and an open
         // popup as they were, such as the Sound details that asked for the permission.
-        if front?.bundleIdentifier == Self.permissionPrompts {
+        if let id = front?.bundleIdentifier, Self.permissionPrompts.contains(id) {
             behindPrompt = activeApp
             return
         }

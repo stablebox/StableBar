@@ -651,9 +651,11 @@ final class WidgetPopup {
             return handled ? nil : event
         }
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            // Answering a permission prompt the popup asked for, such as System Audio Recording, leaves it open.
-            guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier != AppWatcher.permissionPrompts else { return }
-            MainActor.assumeIsolated { self?.close() }
+            MainActor.assumeIsolated {
+                // Answering a permission prompt the popup asked for, such as System Audio Recording, leaves it open.
+                guard !AppWatcher.pointerIsOnPermissionPrompt() else { return }
+                self?.close()
+            }
         }
         if pinnable {
             // Dragging a pinnable popup away pins it where it's dropped.
