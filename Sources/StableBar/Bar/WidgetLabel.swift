@@ -49,22 +49,25 @@ extension WidgetConfiguration {
     }
 
     /// `format`'s date and time patterns. The time runs from its first hour, minute, second, day-period or zone letter
-    /// to its last; the date is the rest. Quoted text is literal.
+    /// to its last; the date is the rest, without the separators between it and the time. Quoted text is literal.
     private static func clockFormatParts(_ format: String) -> (date: String, time: String) {
         var quoted = false
         var time: Range<String.Index>?
+        var letters: [String.Index] = []
         for index in format.indices {
             if format[index] == "'" {
                 quoted.toggle()
-            } else if !quoted, "abBhHkKmsSAzZOvVXx".contains(format[index]) {
-                time = (time?.lowerBound ?? index)..<format.index(after: index)
+            } else if !quoted, format[index].isASCII, format[index].isLetter {
+                letters.append(index)
+                if "abBhHkKmsSAzZOvVXx".contains(format[index]) {
+                    time = (time?.lowerBound ?? index)..<format.index(after: index)
+                }
             }
         }
         guard let time else { return (format, "") }
-        let date = [format[..<time.lowerBound], format[time.upperBound...]]
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        let before = letters.last { $0 < time.lowerBound }.map { format[...$0] } ?? ""
+        let after = letters.first { $0 >= time.upperBound }.map { format[$0...] } ?? ""
+        let date = [before, after].filter { !$0.isEmpty }.joined(separator: " ")
         return (date, String(format[time]))
     }
 }
