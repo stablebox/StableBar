@@ -14,7 +14,6 @@
       }
     ]
   },
-  "appearances": ["dark"],
   "draw": "settings",
   "widget": "clock",
   "tab": "style"

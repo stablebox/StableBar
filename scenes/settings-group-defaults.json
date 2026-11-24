@@ -64,7 +64,6 @@
       }
     }
   },
-  "appearances": ["dark"],
   "draw": "settings",
   "group": "status",
   "height": 900
