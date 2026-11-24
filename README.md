@@ -29,7 +29,7 @@
   <a href="https://ko-fi.com/stablebar"><img src="https://img.shields.io/badge/Support_us_on_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support us on Ko-fi"></a>
 </p>
 
-<p><img src="docs/images/readme-hero.gif" width="100%" alt="The top of your bar. A closer look at the widgets: Made yours. The camera pulls back and the intro loops."></p>
+<p><img src="docs/images/readme-hero.webp" width="100%" alt="The bar at the top of a screen with StableBar's wallpaper, a lighthouse at dusk. It shows the Apple menu, three workspaces, Safari's menus, Now playing, AI usage, Quick toggles, Sound, battery and clock."></p>
 
 ## Install
 
@@ -45,11 +45,11 @@ brew install --cask stablebox/tap/stablebar
 
 ## Workspaces and popups
 
-<p><img src="docs/images/readme-workspaces.gif" width="100%" alt="Switching workspaces updates the selected workspace and the app window below, with the screen held still."></p>
+<p><img src="docs/images/readme-workspaces.gif" width="100%" alt="The focus moves from workspace 1 to 2 and 3, and App menus shows the menus of Safari, then Messages, then Notes."></p>
 
 Follow your workspaces with [AeroSpace](https://github.com/nikitabobko/AeroSpace), [yabai](https://github.com/koekeishiya/yabai), [OmniWM](https://github.com/OmniNull/OmniWM), [Rift](https://github.com/acsandmann/rift) or [KiwiDesk](https://github.com/KiwiCanopy/KiwiDesk). Without a window manager, try the opt-in [macOS Spaces source](docs/widgets.md#macos-spaces-workspaces).
 
-<p><img src="docs/images/readme-popups.gif" width="100%" alt="The pointer opens music controls and then a CPU and memory graph beneath their widgets."></p>
+<p><img src="docs/images/readme-popups.gif" width="100%" alt="Now playing's popup opens with music controls under its widget, then AI usage's popup opens with Claude and Codex limits."></p>
 
 Keep the active app, calendar, system stats and playback controls in reach. Widgets can open popups with graphs, lists and controls. Each display gets its own bar, with room for the notch.
 
@@ -57,11 +57,11 @@ Keep the active app, calendar, system stats and playback controls in reach. Widg
 
 ## Make it yours
 
-<p><img src="docs/images/readme-themes.gif" width="100%" alt="The same bar changes through the included themes while the screen and wallpaper stay still."></p>
+<p><img src="docs/images/readme-themes.webp" width="100%" alt="The same bar in each of the seven included themes, one above the other: Glass, Clear, Tonal, Slim, Dot, Gloss and Sticker."></p>
 
 Choose from seven included themes, get more from the Store, or save your own.
 
-<p><img src="docs/images/readme-edit.gif" width="100%" alt="The pointer opens Edit Bar in Place, drags Now Playing beside the notch and clicks Done."></p>
+<p><img src="docs/images/readme-edit.webp" width="100%" alt="The right side of the bar in Edit Bar in Place, with a minus button on each widget and plus buttons where new ones can go."></p>
 
 Right-click the bar and choose **Edit Bar in Place** to drag widgets between positions, add them with **+** or remove them with **−**. Changes save as you go, with undo.
 
@@ -69,11 +69,11 @@ Right-click the bar and choose **Edit Bar in Place** to drag widgets between pos
 
 ## Add your widgets
 
-<p><img src="docs/images/readme-script.gif" width="100%" alt="A shell script prints disk usage and its output appears as a widget on the bar."></p>
+<p><img src="docs/images/readme-script.gif" width="100%" alt="A disk usage script's output, a drive icon and 42%, appears as a widget on the bar beside Now playing."></p>
 
 Run a command that prints text or JSON, and its output becomes a widget. Refresh on a timer or on events.
 
-<p><img src="docs/images/readme-store.gif" width="100%" alt="The pointer gets Weather from the Store, and its widget appears on the bar."></p>
+<p><img src="docs/images/readme-store.webp" width="100%" alt="Settings → Store lists widgets by category, each with Add to bar or On your bar."></p>
 
 Find widgets and themes in **Settings → Store**. StableBar shows a package's commands, hosts and permissions before anything runs.
 
@@ -100,7 +100,7 @@ printf '{"text":"%s","icon":"internaldrive"}' "$used"
 
 ## Settings or JSON
 
-<p><img src="docs/images/readme-settings.gif" width="100%" alt="StableBar Settings and config.json open beneath the bar in a fixed view."></p>
+<p><img src="docs/images/readme-settings.webp" width="100%" alt="Settings → Bar with the clock selected: the bar's preview at the top, its widgets on the left and the clock's formats on the Content tab."></p>
 
 Change content, appearance and behavior in Settings, with undo and redo. Or edit `~/.config/stablebar/config.json`: StableBar applies it when you save and keeps the last working bar if a change is invalid. The JSON schema gives your editor completion and validation.
 
