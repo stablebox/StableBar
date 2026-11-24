@@ -28,84 +28,65 @@
         "position": "right",
         "details": true,
         "layout": {
-          "type": "row",
-          "style": {
-            "spacing": 10
-          },
           "children": [
             {
-              "type": "row",
-              "style": {
-                "spacing": 5
-              },
               "children": [
                 {
-                  "type": "ring",
-                  "source": "cpu",
-                  "lineWidth": 2,
+                  "source": "icon",
                   "style": {
-                    "iconSize": 18,
-                    "background": "@token.track"
+                    "iconSize": 8.5
                   },
-                  "children": [
-                    {
-                      "type": "symbol",
-                      "name": "cpu",
-                      "style": {
-                        "iconSize": 8.5
-                      }
-                    }
-                  ]
-                },
-                {
-                  "type": "field",
-                  "field": "text"
+                  "type": "symbol"
                 }
-              ]
+              ],
+              "lineWidth": 2,
+              "role": "meter",
+              "source": "cpu",
+              "style": {
+                "iconSize": 18
+              },
+              "type": "ring"
             },
             {
-              "type": "row",
-              "style": {
-                "spacing": 5
-              },
+              "field": "text",
+              "type": "field"
+            },
+            {
               "children": [
                 {
-                  "type": "ring",
-                  "source": "memory",
-                  "lineWidth": 2,
+                  "name": "memorychip",
                   "style": {
-                    "iconSize": 18,
-                    "background": "@token.track"
+                    "iconSize": 8.5
                   },
-                  "children": [
-                    {
-                      "type": "symbol",
-                      "name": "memorychip",
-                      "style": {
-                        "iconSize": 8.5
-                      }
-                    }
-                  ]
+                  "type": "symbol"
+                }
+              ],
+              "lineWidth": 2,
+              "role": "meter",
+              "source": "memory",
+              "style": {
+                "iconSize": 18
+              },
+              "type": "ring"
+            },
+            {
+              "children": [
+                {
+                  "field": "memory",
+                  "type": "field"
                 },
                 {
-                  "type": "row",
-                  "style": {
-                    "spacing": 0
-                  },
-                  "children": [
-                    {
-                      "type": "field",
-                      "field": "memory"
-                    },
-                    {
-                      "type": "text",
-                      "text": "%"
-                    }
-                  ]
+                  "text": "%",
+                  "type": "text"
                 }
-              ]
+              ],
+              "style": {
+                "spacing": 0
+              },
+              "type": "row"
             }
-          ]
+          ],
+          "type": "row"
         }
       },
       {
@@ -114,34 +95,31 @@
         "position": "right",
         "details": true,
         "layout": {
-          "type": "row",
-          "style": {
-            "spacing": 5
-          },
           "children": [
             {
-              "type": "ring",
-              "source": "percent",
-              "lineWidth": 2,
-              "style": {
-                "iconSize": 18,
-                "background": "@token.track"
-              },
               "children": [
                 {
-                  "type": "symbol",
                   "source": "icon",
                   "style": {
                     "iconSize": 8.5
-                  }
+                  },
+                  "type": "symbol"
                 }
-              ]
+              ],
+              "lineWidth": 2,
+              "role": "meter",
+              "source": "percent",
+              "style": {
+                "iconSize": 18
+              },
+              "type": "ring"
             },
             {
-              "type": "field",
-              "field": "text"
+              "field": "text",
+              "type": "field"
             }
-          ]
+          ],
+          "type": "row"
         }
       },
       {

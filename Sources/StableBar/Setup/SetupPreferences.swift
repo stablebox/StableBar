@@ -81,184 +81,35 @@ struct SetupPreferences: Equatable, Codable, Sendable {
             case let .workspaces(_, showsApps):
                 json = showsApps ? #"[{ "id": "workspaces", "type": "workspaces", "position": "left" }]"#
                     : #"[{ "id": "workspaces", "type": "workspaces", "position": "left", "workspace": { "showApps": false } }]"#
-            case .systemMeters: json = #"""
-                [
-                  {
-                    "id": "system-monitor", "type": "system", "position": "right", "details": true,
-                    "layout": {
-                      "type": "row", "style": { "spacing": 14 },
-                      "children": [
-                        {
-                          "type": "row", "style": { "spacing": 6 },
-                          "children": [
-                            { "type": "text", "text": "CPU", "role": "key", "style": { "fontWeight": "medium" } },
-                            { "type": "field", "field": "text", "alignment": "trailing", "style": { "minWidth": 37 } },
-                            { "type": "progress", "source": "cpu", "height": 4, "role": "meter", "style": { "width": 32 } }
-                          ]
-                        },
-                        {
-                          "type": "row", "style": { "spacing": 6 },
-                          "children": [
-                            { "type": "text", "text": "MEM", "role": "key", "style": { "fontWeight": "medium" } },
-                            {
-                              "type": "row", "alignment": "trailing", "style": { "spacing": 0, "minWidth": 37 },
-                              "children": [{ "type": "field", "field": "memory" }, { "type": "text", "text": "%" }]
-                            },
-                            { "type": "progress", "source": "memory", "height": 4, "role": "meter", "style": { "width": 32 } }
-                          ]
-                        }
-                      ]
-                    }
-                  }
-                ]
-                """#
-            case .diskMeter: json = #"""
-                [
-                  {
-                    "id": "disk", "type": "disk", "position": "right", "details": true,
-                    "layout": {
-                      "type": "row", "style": { "spacing": 6 },
-                      "children": [
-                        { "type": "text", "text": "DISK", "role": "key", "style": { "fontWeight": "medium" } },
-                        { "type": "field", "field": "text", "alignment": "trailing", "style": { "minWidth": 37 } },
-                        { "type": "progress", "source": "disk", "height": 4, "role": "meter", "style": { "width": 32 } }
-                      ]
-                    }
-                  }
-                ]
-                """#
-            case .batteryLevel: json = #"""
-                [
-                  {
-                    "id": "battery", "type": "battery", "position": "right", "details": true,
-                    "layout": { "type": "row", "children": [{ "type": "battery" }, { "type": "field", "field": "text" }] }
-                  }
-                ]
-                """#
-            case .systemRings: json = #"""
-                [
-                  {
-                    "id": "system-monitor", "type": "system", "position": "right", "details": true,
-                    "layout": {
-                      "type": "row", "style": { "spacing": 10 },
-                      "children": [
-                        {
-                          "type": "row", "style": { "spacing": 5 },
-                          "children": [
-                            {
-                              "type": "ring", "source": "cpu", "lineWidth": 2, "style": { "iconSize": 18, "background": "@token.track" },
-                              "children": [{ "type": "symbol", "name": "cpu", "style": { "iconSize": 8.5 } }]
-                            },
-                            { "type": "field", "field": "text" }
-                          ]
-                        },
-                        {
-                          "type": "row", "style": { "spacing": 5 },
-                          "children": [
-                            {
-                              "type": "ring", "source": "memory", "lineWidth": 2, "style": { "iconSize": 18, "background": "@token.track" },
-                              "children": [{ "type": "symbol", "name": "memorychip", "style": { "iconSize": 8.5 } }]
-                            },
-                            {
-                              "type": "row", "style": { "spacing": 0 },
-                              "children": [{ "type": "field", "field": "memory" }, { "type": "text", "text": "%" }]
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  }
-                ]
-                """#
-            case .batteryRing: json = #"""
-                [
-                  {
-                    "id": "battery", "type": "battery", "position": "right", "details": true,
-                    "layout": {
-                      "type": "row", "style": { "spacing": 5 },
-                      "children": [
-                        {
-                          "type": "ring", "source": "percent", "lineWidth": 2, "style": { "iconSize": 18, "background": "@token.track" },
-                          "children": [{ "type": "symbol", "source": "icon", "style": { "iconSize": 8.5 } }]
-                        },
-                        { "type": "field", "field": "text" }
-                      ]
-                    }
-                  }
-                ]
-                """#
+            case .systemMeters:
+                return [["id": .string("system-monitor"), "type": .string("system"), "position": .string("right"), "details": .bool(true),
+                         "layout": WidgetMetricDisplay.labelValueMeter.layout(for: ["cpu", "memory"])!]]
+            case .diskMeter:
+                return [["id": .string("disk"), "type": .string("disk"), "position": .string("right"), "details": .bool(true),
+                         "layout": WidgetMetricDisplay.labelValueMeter.layout(for: ["disk"])!]]
+            case .batteryLevel:
+                return [["id": .string("battery"), "type": .string("battery"), "position": .string("right"), "details": .bool(true),
+                         "layout": WidgetMetricDisplay.standard.layout(for: ["percent"])!]]
+            case .systemRings:
+                return [["id": .string("system-monitor"), "type": .string("system"), "position": .string("right"), "details": .bool(true),
+                         "layout": WidgetMetricDisplay.ring.layout(for: ["cpu", "memory"])!]]
+            case .batteryRing:
+                return [["id": .string("battery"), "type": .string("battery"), "position": .string("right"), "details": .bool(true),
+                         "layout": WidgetMetricDisplay.ring.layout(for: ["percent"])!]]
             case .privacy: json = #"[{ "id": "privacy", "type": "privacy", "position": "right" }]"#
             case .dateAndTime, .dayAndTime:
                 // The Mac's own date order and hour cycle, as the starter's clock has.
                 let format = self == .dateAndTime ? SetupPreferences.clockFormat()
                     : SetupPreferences.dateFormat("EEEd", or: "EEE d") + "  " + SetupPreferences.timeFormat()
-                json = #"""
-                [
-                  {
-                    "id": "clock", "type": "clock", "position": "right", "format": "\#(format)", "details": true,
-                    "layout": {
-                      "type": "row",
-                      "children": [{ "type": "field", "field": "date", "role": "secondary" }, { "type": "field", "field": "time", "role": "time" }]
-                    }
-                  }
-                ]
-                """#
+                return [["id": .string("clock"), "type": .string("clock"), "position": .string("right"), "format": .string(format),
+                         "details": .bool(true), "layout": WidgetLayoutChoice.dateAndTimeApart.layout]]
             case .store: return []
-            case .system: json = #"""
-                [
-                  {
-                    "id": "system-monitor", "type": "system", "position": "right", "details": true,
-                    "layout": {
-                      "type": "row",
-                      "children": [
-                        { "type": "symbol", "name": "cpu" },
-                        { "type": "field", "field": "text" },
-                        { "type": "symbol", "name": "memorychip" },
-                        {
-                          "type": "row", "style": { "spacing": 0 },
-                          "children": [{ "type": "field", "field": "memory" }, { "type": "text", "text": "%" }]
-                        }
-                      ]
-                    }
-                  }
-                ]
-                """#
-            case .meetings: json = #"""
-                [
-                  {
-                    "id": "meeting", "type": "calendar", "position": "center", "priority": 1, "details": true,
-                    "layout": {
-                      "type": "row", "hideWhen": { "field": "phase", "equals": "none" }, "style": { "spacing": 6 },
-                      "children": [
-                        { "type": "symbol", "name": "calendar", "hideWhen": { "field": "phase", "equals": "live" } },
-                        {
-                          "type": "symbol", "name": "circle.fill", "showWhen": { "field": "phase", "equals": "live" },
-                          "style": { "iconSize": 7, "foreground": { "light": "#28a745", "dark": "#30d158" } }
-                        },
-                        { "type": "field", "field": "title", "style": { "maxWidth": 170 } },
-                        { "type": "field", "field": "start", "role": "secondary", "showWhen": { "field": "phase", "equals": "later" } },
-                        {
-                          "type": "row", "showWhen": [{ "field": "phase", "equals": "soon" }, { "field": "phase", "equals": "now" }],
-                          "style": { "spacing": 3, "foreground": "@token.warning" },
-                          "children": [{ "type": "text", "text": "in" }, { "type": "field", "field": "minutes" }, { "type": "text", "text": "min" }]
-                        },
-                        {
-                          "type": "row", "showWhen": { "field": "phase", "equals": "live" }, "role": "secondary", "style": { "spacing": 3 },
-                          "children": [{ "type": "field", "field": "minutes" }, { "type": "text", "text": "min left" }]
-                        },
-                        {
-                          "type": "text", "text": "Join", "hideWhenEmpty": "joinCommand", "hideWhen": { "field": "phase", "equals": "later" },
-                          "onClickField": "joinCommand",
-                          "style": {
-                            "background": { "light": "#34c75938", "dark": "#30d15847" }, "cornerRadius": 8,
-                            "paddingHorizontal": 8, "paddingVertical": 2, "fontWeight": "semibold"
-                          }
-                        }
-                      ]
-                    }
-                  }
-                ]
-                """#
+            case .system:
+                return [["id": .string("system-monitor"), "type": .string("system"), "position": .string("right"), "details": .bool(true),
+                         "layout": WidgetMetricDisplay.standard.layout(for: ["cpu", "memory"])!]]
+            case .meetings:
+                return [["id": .string("meeting"), "type": .string("calendar"), "position": .string("center"), "priority": .number(1),
+                         "details": .bool(true), "layout": WidgetLayoutChoice.countdownAndJoin.layout]]
             case .battery: json = #"[{ "id": "battery", "type": "battery", "position": "right", "details": true }]"#
             case .sound: json = #"[{ "id": "sound", "type": "audio", "position": "right", "details": true }]"#
             case .menuBarItems: json = #"[{ "id": "menu-bar-items", "type": "menuBarItems", "position": "right" }]"#

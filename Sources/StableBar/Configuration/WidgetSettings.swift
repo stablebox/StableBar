@@ -142,11 +142,66 @@ struct WidgetClockFormat {
     }
 }
 
+/// A `layout` that Settings offers by name for a clock or a calendar widget. `null` is the widget's default layout.
+struct WidgetLayoutChoice: Equatable {
+    let title: String
+    let layout: ConfigurationValue
+
+    /// The clock's date and time in the theme's `secondary` and `time` roles.
+    static let dateAndTimeApart = Self(title: "Date and time apart", layout: decoded(#"""
+        {
+          "type": "row",
+          "children": [{ "type": "field", "field": "date", "role": "secondary" }, { "type": "field", "field": "time", "role": "time" }]
+        }
+        """#))
+
+    /// The next meeting with its start, a countdown in the warning color before it starts, a green dot and the minutes
+    /// left while it runs, and a Join button for its link.
+    static let countdownAndJoin = Self(title: "Countdown and Join", layout: decoded(#"""
+        {
+          "type": "row", "hideWhen": { "field": "phase", "equals": "none" }, "style": { "spacing": 6 },
+          "children": [
+            { "type": "symbol", "name": "calendar", "hideWhen": { "field": "phase", "equals": "live" } },
+            {
+              "type": "symbol", "name": "circle.fill", "showWhen": { "field": "phase", "equals": "live" },
+              "style": { "iconSize": 7, "foreground": { "light": "#28a745", "dark": "#30d158" } }
+            },
+            { "type": "field", "field": "title", "style": { "maxWidth": 170 } },
+            { "type": "field", "field": "start", "role": "secondary", "showWhen": { "field": "phase", "equals": "later" } },
+            {
+              "type": "row", "showWhen": [{ "field": "phase", "equals": "soon" }, { "field": "phase", "equals": "now" }],
+              "style": { "spacing": 3, "foreground": "@token.warning" },
+              "children": [{ "type": "text", "text": "in" }, { "type": "field", "field": "minutes" }, { "type": "text", "text": "min" }]
+            },
+            {
+              "type": "row", "showWhen": { "field": "phase", "equals": "live" }, "role": "secondary", "style": { "spacing": 3 },
+              "children": [{ "type": "field", "field": "minutes" }, { "type": "text", "text": "min left" }]
+            },
+            {
+              "type": "text", "text": "Join", "hideWhenEmpty": "joinCommand", "hideWhen": { "field": "phase", "equals": "later" },
+              "onClickField": "joinCommand",
+              "style": {
+                "background": { "light": "#34c75938", "dark": "#30d15847" }, "cornerRadius": 8,
+                "paddingHorizontal": 8, "paddingVertical": 2, "fontWeight": "semibold"
+              }
+            }
+          ]
+        }
+        """#))
+
+    static let clock = [Self(title: "One text", layout: .null), dateAndTimeApart]
+    static let calendar = [Self(title: "Title and minutes", layout: .null), countdownAndJoin]
+
+    private static func decoded(_ json: String) -> ConfigurationValue {
+        try! JSONDecoder().decode(ConfigurationValue.self, from: Data(json.utf8))
+    }
+}
+
 /// How a battery, sound, system or disk widget shows its values. `sources` names them: `percent` for
 /// battery, whose icon is its battery block, `volume` for sound, `cpu`, `memory` or both, in
 /// order, for system, and `disk` for disk.
 enum WidgetMetricDisplay: String, CaseIterable {
-    case standard, changes, icon, value, meter, labelValueMeter, graph, custom
+    case standard, changes, icon, value, meter, labelValueMeter, ring, graph, custom
 
     var title: String {
         switch self {
@@ -156,6 +211,7 @@ enum WidgetMetricDisplay: String, CaseIterable {
         case .value: "Value only"
         case .meter: "Meter and value"
         case .labelValueMeter: "Label, value and meter"
+        case .ring: "Ring and value"
         case .graph: "Graph and value"
         case .custom: "Custom layout"
         }
@@ -212,6 +268,13 @@ enum WidgetMetricDisplay: String, CaseIterable {
             // A graph without a source draws the history of the provider's `value`, which is CPU for system.
             if source == "memory" { graph["source"] = .string(source) }
             return [.object(graph), icon, text]
+        case .ring:
+            // A ring holds a symbol: battery's battery block doesn't fit inside one.
+            var symbol: [String: ConfigurationValue] = source == "memory" ? ["type": .string("symbol"), "name": .string("memorychip")]
+                : ["type": .string("symbol"), "source": .string("icon")]
+            symbol["style"] = .object(["iconSize": .number(8.5)])
+            return [.object(["type": .string("ring"), "source": .string(source), "lineWidth": .number(2), "role": .string("meter"),
+                             "style": .object(["iconSize": .number(18)]), "children": .array([.object(symbol)])]), text]
         default: return [icon, text]
         }
     }

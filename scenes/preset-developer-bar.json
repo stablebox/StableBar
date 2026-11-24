@@ -28,88 +28,125 @@
         "position": "right",
         "details": true,
         "layout": {
-          "type": "row",
-          "style": {
-            "spacing": 14
-          },
           "children": [
             {
-              "type": "row",
-              "style": {
-                "spacing": 6
-              },
               "children": [
                 {
-                  "type": "text",
-                  "text": "CPU",
-                  "role": "key",
-                  "style": {
-                    "fontWeight": "medium"
-                  }
-                },
-                {
-                  "type": "field",
-                  "field": "text",
-                  "alignment": "trailing",
-                  "style": {
-                    "minWidth": 37
-                  }
-                },
-                {
-                  "type": "progress",
-                  "source": "cpu",
-                  "height": 4,
-                  "role": "meter",
-                  "style": {
-                    "width": 32
-                  }
-                }
-              ]
-            },
-            {
-              "type": "row",
-              "style": {
-                "spacing": 6
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "text": "MEM",
-                  "role": "key",
-                  "style": {
-                    "fontWeight": "medium"
-                  }
-                },
-                {
-                  "type": "row",
-                  "alignment": "trailing",
-                  "style": {
-                    "spacing": 0,
-                    "minWidth": 37
-                  },
                   "children": [
                     {
-                      "type": "field",
-                      "field": "memory"
+                      "children": [
+                        {
+                          "alignment": "leading",
+                          "role": "key",
+                          "style": {
+                            "fontWeight": "medium",
+                            "minWidth": 36
+                          },
+                          "text": "CPU",
+                          "type": "text"
+                        },
+                        {
+                          "alignment": "trailing",
+                          "field": "text",
+                          "style": {
+                            "minWidth": 37
+                          },
+                          "type": "field"
+                        }
+                      ],
+                      "style": {
+                        "spacing": 0
+                      },
+                      "type": "row"
                     },
                     {
-                      "type": "text",
-                      "text": "%"
+                      "children": [
+                        {
+                          "height": 4,
+                          "role": "meter",
+                          "source": "cpu",
+                          "type": "progress"
+                        }
+                      ],
+                      "style": {
+                        "paddingTop": 2
+                      },
+                      "type": "column"
                     }
-                  ]
+                  ],
+                  "style": {
+                    "minWidth": 73,
+                    "spacing": 1
+                  },
+                  "type": "column"
                 },
                 {
-                  "type": "progress",
-                  "source": "memory",
-                  "height": 4,
-                  "role": "meter",
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "alignment": "leading",
+                          "role": "key",
+                          "style": {
+                            "fontWeight": "medium",
+                            "minWidth": 36
+                          },
+                          "text": "MEM",
+                          "type": "text"
+                        },
+                        {
+                          "alignment": "trailing",
+                          "children": [
+                            {
+                              "field": "memory",
+                              "type": "field"
+                            },
+                            {
+                              "text": "%",
+                              "type": "text"
+                            }
+                          ],
+                          "style": {
+                            "minWidth": 37,
+                            "spacing": 0
+                          },
+                          "type": "row"
+                        }
+                      ],
+                      "style": {
+                        "spacing": 0
+                      },
+                      "type": "row"
+                    },
+                    {
+                      "children": [
+                        {
+                          "height": 4,
+                          "role": "meter",
+                          "source": "memory",
+                          "type": "progress"
+                        }
+                      ],
+                      "style": {
+                        "paddingTop": 2
+                      },
+                      "type": "column"
+                    }
+                  ],
                   "style": {
-                    "width": 32
-                  }
+                    "minWidth": 73,
+                    "spacing": 1
+                  },
+                  "type": "column"
                 }
-              ]
+              ],
+              "style": {
+                "spacing": 14
+              },
+              "type": "row"
             }
-          ]
+          ],
+          "type": "row"
         }
       },
       {
@@ -118,37 +155,58 @@
         "position": "right",
         "details": true,
         "layout": {
-          "type": "row",
-          "style": {
-            "spacing": 6
-          },
           "children": [
             {
-              "type": "text",
-              "text": "DISK",
-              "role": "key",
+              "children": [
+                {
+                  "children": [
+                    {
+                      "alignment": "leading",
+                      "role": "key",
+                      "style": {
+                        "fontWeight": "medium",
+                        "minWidth": 36
+                      },
+                      "text": "DISK",
+                      "type": "text"
+                    },
+                    {
+                      "alignment": "trailing",
+                      "field": "text",
+                      "style": {
+                        "minWidth": 37
+                      },
+                      "type": "field"
+                    }
+                  ],
+                  "style": {
+                    "spacing": 0
+                  },
+                  "type": "row"
+                },
+                {
+                  "children": [
+                    {
+                      "height": 4,
+                      "role": "meter",
+                      "source": "disk",
+                      "type": "progress"
+                    }
+                  ],
+                  "style": {
+                    "paddingTop": 2
+                  },
+                  "type": "column"
+                }
+              ],
               "style": {
-                "fontWeight": "medium"
-              }
-            },
-            {
-              "type": "field",
-              "field": "text",
-              "alignment": "trailing",
-              "style": {
-                "minWidth": 37
-              }
-            },
-            {
-              "type": "progress",
-              "source": "disk",
-              "height": 4,
-              "role": "meter",
-              "style": {
-                "width": 32
-              }
+                "minWidth": 73,
+                "spacing": 1
+              },
+              "type": "column"
             }
-          ]
+          ],
+          "type": "row"
         }
       },
       {

@@ -1,0 +1,32 @@
+{
+  "$schema": "../scene.schema.json",
+  "configuration": {
+    "widgets": [
+      {
+        "id": "clock",
+        "type": "clock",
+        "position": "right",
+        "format": "EEE d MMM  HH:mm",
+        "details": true,
+        "layout": {
+          "type": "row",
+          "children": [
+            {
+              "type": "field",
+              "field": "date",
+              "role": "secondary"
+            },
+            {
+              "type": "field",
+              "field": "time",
+              "role": "time"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "draw": "settings",
+  "widget": "clock",
+  "tab": "content"
+}

@@ -473,6 +473,26 @@ struct BarInspector: View {
                 }
             }
         }
+        let layoutChoices: [WidgetLayoutChoice]? = if case .clock = widget.content { WidgetLayoutChoice.clock }
+            else if let name = widget.providerName, store.configuration?.providers[name]?.type == "calendar" { WidgetLayoutChoice.calendar }
+            else { nil }
+        if let layoutChoices {
+            let layout = editor.properties(for: widget.id)["layout"] ?? .null
+            let current = layoutChoices.first { $0.layout == layout }
+            SettingsGroup("Display") {
+                SettingRow(title: "Show") {
+                    Picker("Show", selection: Binding(get: { current?.title ?? "" }, set: { title in
+                        if let choice = layoutChoices.first(where: { $0.title == title }) { editor.set(["layout": choice.layout], for: widget.id) }
+                    })) {
+                        ForEach(layoutChoices, id: \.title) { choice in
+                            Text(choice.title).tag(choice.title)
+                        }
+                        if current == nil { Text("Custom layout").tag("") }
+                    }
+                    .labelsHidden().frame(width: 180)
+                }
+            }
+        }
         if let packageID = store.widgetPackageIDs[widget.id], !store.builtInWidgetIDs.contains(widget.id) {
             SettingsCallout(systemImage: source(widget).symbol,
                             text: Text("Settings from the **\(store.widgetPackageNames[widget.id] ?? packageID)** package, shared by its widgets.")) {

@@ -1405,6 +1405,24 @@ func setupKeepsStarterWidgetsChangedByOverrides(inProfile: Bool) throws {
     #expect(configuration.workspaceSource == .spaces)
 }
 
+/// Setup gives a widget only a display that Settings names, so Settings never calls one of its layouts custom.
+@Test func setupWidgetsUseDisplaysThatSettingsOffers() {
+    let sets = SetupPreferences.Preset.allCases.flatMap { preset in
+        [SetupPreferences.Placement.top, .belowMenuBar].flatMap { preset.preferences(workspaces: .spaces, placement: $0).widgetSets }
+    }
+    for widget in sets.flatMap(\.widgets) + SetupPreferences.belowMenuBarStarter {
+        guard let layout = widget["layout"] else { continue }
+        switch widget["type"] {
+        case .string("clock"): #expect(WidgetLayoutChoice.clock.contains { $0.layout == layout })
+        case .string("calendar"): #expect(WidgetLayoutChoice.calendar.contains { $0.layout == layout })
+        case .string("system"): #expect(WidgetMetricDisplay.current(layout, sources: WidgetSystemMetrics.current(layout).sources) != .custom)
+        case .string("battery"): #expect(WidgetMetricDisplay.current(layout, sources: ["percent"]) != .custom)
+        case .string("disk"): #expect(WidgetMetricDisplay.current(layout, sources: ["disk"]) != .custom)
+        default: Issue.record("Settings offers no display for \(widget)")
+        }
+    }
+}
+
 /// The preset's widgets a changed bar lacks join the ones it keeps in the preset's order: Dashboard has Sound after Battery.
 @Test func setupPresetsAddWidgetsInThePresetsOrderAroundKeptOnes() throws {
     let bar = Data(#"{ "widgets": [{"id":"battery","type":"battery","position":"right"}] }"#.utf8)
