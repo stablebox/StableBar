@@ -570,8 +570,7 @@ final class SetupSession {
             let data = try Data(contentsOf: store.configurationStore.configurationURL)
             let base = try applied.load(store.configurationStore.configurationURL, data: data, context: store.configurationStore.context, with: &loader)
             let document = try JSONDecoder().decode([String: ConfigurationValue].self, from: data)
-            let edits = try sessionEdits + applied.edits(in: base, document: document, widgetPackageIDs: loader.widgetPackageIDs,
-                                                         tokens: loader.document["tokens"]?.decoded([String: ConfigurationValue].self))
+            let edits = try sessionEdits + applied.edits(in: base, document: document, widgetPackageIDs: loader.widgetPackageIDs)
             try store.configurationStore.setSessionEdits(edits + laterEdits)
             previewEdits = edits
             self.base = base

@@ -455,7 +455,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
     /// A configuration that is still a starter bar becomes the starter of the chosen placement. A changed one keeps
     /// its widgets, except that below the menu bar it loses the menu bar starter's unchanged copies of what the menu
     /// bar shows.
-    private func starterChange(in configuration: Configuration, document: [String: ConfigurationValue]?, tracks: Bool) -> StarterChange {
+    private func starterChange(in configuration: Configuration, document: [String: ConfigurationValue]?) -> StarterChange {
         guard let document, let widgets = try? document["widgets"]?.decoded([[String: ConfigurationValue]].self) else {
             return StarterChange(configuration: configuration)
         }
@@ -480,7 +480,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         // changed, even when its file still lists a starter.
         let changed = Self.changedIDs(in: document)
         let isStarter = configuration.widgets.map(\.id) == ids && changed.isDisjoint(with: ids)
-        let presetBar = widgetSets.flatMap { added($0, tracks: tracks) }
+        let presetBar = widgetSets.flatMap(added)
         if isStarter, !presetBar.isEmpty, Self.isMenuBarStarter(widgets) || Self.isBelowMenuBarStarter(widgets), let change = swap(to: presetBar) {
             return change
         }
@@ -520,8 +520,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         }
         if self == SetupPreferences() { return data }
         var document = try JSONDecoder().decode([String: ConfigurationValue].self, from: data)
-        let edits = try edits(in: configuration, document: document, widgetPackageIDs: loader.widgetPackageIDs,
-                              tokens: loader.document["tokens"]?.decoded([String: ConfigurationValue].self))
+        let edits = try edits(in: configuration, document: document, widgetPackageIDs: loader.widgetPackageIDs)
         if edits.isEmpty { return data }
         var ids = configuration.widgets.map(\.id)
         for edit in edits { document = try edit.applying(to: document, widgetIDs: &ids) }
@@ -544,9 +543,9 @@ struct SetupPreferences: Equatable, Codable, Sendable {
     }
 
     /// The edits that turn `configuration` into the bar setup builds. `document` is the configuration file's own
-    /// content, which tells whether its widgets are still a starter bar. `tokens` are the loaded configuration's tokens.
+    /// content, which tells whether its widgets are still a starter bar.
     func edits(in configuration: Configuration, document: [String: ConfigurationValue]? = nil,
-               widgetPackageIDs: [String: String] = [:], tokens: [String: ConfigurationValue]? = nil) throws -> [ConfigurationEdit] {
+               widgetPackageIDs: [String: String] = [:]) throws -> [ConfigurationEdit] {
         var edits: [ConfigurationEdit] = []
         if let themeEdit { edits.append(themeEdit) }
         if placement != .current {
@@ -564,9 +563,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         if let keepWindowsClear {
             edits.append(ConfigurationEdit(action: .bar, properties: ["keepWindowsClear": .bool(keepWindowsClear)]))
         }
-        var tracks = true
-        if let tokens { tracks = (try? tokens["track"]?.decoded(BackgroundFill.self)) != nil }
-        var starter = starterChange(in: configuration, document: document, tracks: tracks)
+        var starter = starterChange(in: configuration, document: document)
         let presetIDs = widgetSets.flatMap(\.ids)
         // The preset's bar replaces a changed bar's widgets. Removing one that another file defines turns it off.
         if !widgetSets.isEmpty {
@@ -607,7 +604,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
                 order.insert(id, at: next(after: id) ?? order.endIndex)
                 continue
             }
-            for widget in added(set, tracks: tracks) {
+            for widget in added(set) {
                 let id = Self.id(widget)
                 // The set doesn't conflict, so a widget with this ID is this one.
                 if let existing = target.widgets.first(where: { $0.id == id }) {
@@ -645,18 +642,10 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         return edits
     }
 
-    /// `set`'s widgets as setup adds them: Meetings turned off while it waits for Calendars, and rings without their
-    /// track when the `track` token isn't a fill, since the loader would reject it as a background.
-    private func added(_ set: WidgetSet, tracks: Bool) -> [[String: ConfigurationValue]] {
-        func withoutTrack(_ value: ConfigurationValue) -> ConfigurationValue {
-            switch value {
-            case let .object(object): .object(object.filter { $0.value != .string("@token.track") }.mapValues(withoutTrack))
-            case let .array(array): .array(array.map(withoutTrack))
-            default: value
-            }
-        }
-        return set.widgets.map { widget in
-            var widget = tracks ? widget : widget.mapValues(withoutTrack)
+    /// `set`'s widgets as setup adds them: Meetings turned off while it waits for Calendars.
+    private func added(_ set: WidgetSet) -> [[String: ConfigurationValue]] {
+        set.widgets.map { widget in
+            var widget = widget
             if set == .meetings && deferMeetings { widget["enabled"] = .bool(false) }
             return widget
         }
