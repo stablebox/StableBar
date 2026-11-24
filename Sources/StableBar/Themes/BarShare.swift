@@ -910,14 +910,17 @@ struct BarShareDock: View {
     var body: some View {
         HStack(spacing: 14) {
             if let image = share.image, let drawn = share.drawn {
-                let fit = BarShareView.fit(drawn.size, in: CGSize(width: 150, height: 64))
+                let fit = BarShareView.fit(drawn.size, in: CGSize(width: 134, height: 48))
+                // The whole tile drags the image, which can be a thin strip.
                 Image(decorative: image, scale: 1)
                     .resizable()
                     .interpolation(.high)
                     .frame(width: fit.width, height: fit.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .overlay(ImageDragSource(share: share) { dropped = true })
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
                     .frame(width: 150, height: 64)
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    .overlay(ImageDragSource(share: share) { dropped = true })
             }
             VStack(alignment: .leading, spacing: 8) {
                 Label(dropped ? "Added to your post" : "Drag the image into your post, or press ⌘V",
@@ -998,7 +1001,10 @@ private struct ImageDragSource: NSViewRepresentable {
             // Beside the file, for a page that only reads image data.
             item.setData(png, forType: .png)
             let dragging = NSDraggingItem(pasteboardWriter: item)
-            dragging.setDraggingFrame(bounds, contents: NSImage(data: png))
+            let image = NSImage(data: png)!
+            let fit = BarShareView.fit(image.size, in: bounds.size)
+            dragging.setDraggingFrame(NSRect(x: bounds.midX - fit.width / 2, y: bounds.midY - fit.height / 2, width: fit.width, height: fit.height),
+                                      contents: image)
             beginDraggingSession(with: [dragging], event: event, source: self)
         }
 
