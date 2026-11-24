@@ -264,9 +264,11 @@ final class BarShare {
         let pixels = format.preset.pixels ?? NSSize(width: screen.width * 2, height: strip * 2)
         let size = NSSize(width: screen.width, height: screen.width * pixels.height / pixels.width)
         let dark = (configuration?.bar.appearance?.colorScheme ?? colorScheme) == .dark
+        let filled = CGSize(width: size.width, height: max(screen.height, size.height))
         let desktop = BarView(store: store, display: display, preview: true)
             .padding(bottom ? .bottom : .top, edge)
-            .frame(width: size.width, height: max(screen.height, size.height))
+            .frame(width: filled.width, height: filled.height)
+            .coordinateSpace(.named(GlassBackdrop.space))
             .overlay(alignment: .top) {
                 if let notch = display.notch {
                     UnevenRoundedRectangle(bottomLeadingRadius: 11, bottomTrailingRadius: 11)
@@ -285,6 +287,7 @@ final class BarShare {
             .clipped()
             .environment(\.fixedDate, fixedDate)
             .environment(\.menuBarScheme, menuBarScheme)
+            .environment(\.glassBackdrop, (wallpaper ?? OffscreenSnapshot.wallpaper).flatMap { Self.glassBackdrop($0, filling: filled) })
         let png = try? await OffscreenSnapshot.png(desktop, size: size, pixels: pixels, dark: dark, settle: .after(.seconds(1)),
                                                    name: "Share My Bar")
         guard !Task.isCancelled else { return }
@@ -332,6 +335,20 @@ final class BarShare {
         context.draw(badge, in: CGRect(x: frame.minX * scale, y: bounds.height - frame.maxY * scale,
                                        width: frame.width * scale, height: frame.height * scale))
         return context.makeImage()
+    }
+
+    /// `wallpaper` blurred as Liquid Glass blurs it, for a wallpaper that fills `size` points.
+    private static func glassBackdrop(_ wallpaper: NSImage, filling size: CGSize) -> GlassBackdrop? {
+        let image = wallpaper.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        // One pixel to a point of the wallpaper as drawn: the blur leaves no finer detail.
+        let fill = max(size.width / wallpaper.size.width, size.height / wallpaper.size.height)
+        return image.flatMap { image in
+            let scale = wallpaper.size.width * fill / CGFloat(image.width)
+            let small = CIImage(cgImage: image).transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+            let blurred = small.clampedToExtent().applyingGaussianBlur(sigma: 2).cropped(to: small.extent)
+            return CIContext().createCGImage(blurred, from: small.extent)
+        }
+        .map { GlassBackdrop(image: NSImage(cgImage: $0, size: .zero), size: size) }
     }
 
     /// Blurred at a quarter of the size, which looks the same behind the window for a sixteenth of the work.

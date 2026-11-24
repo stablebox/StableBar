@@ -1,0 +1,33 @@
+{
+  "$schema": "../scene.schema.json",
+  "configuration": {
+    "theme": {
+      "id": "glass"
+    },
+    "bar": {
+      "offset": 150
+    },
+    "widgets": [
+      {
+        "id": "plain",
+        "type": "text",
+        "text": "Liquid Glass",
+        "position": "left"
+      },
+      {
+        "id": "date",
+        "type": "clock",
+        "format": "EEE d MMM",
+        "position": "right"
+      },
+      {
+        "id": "time",
+        "type": "clock",
+        "format": "HH:mm",
+        "position": "right"
+      }
+    ]
+  },
+  "draw": "share",
+  "wallpaper": "../Resources/InstallerBackground.png"
+}

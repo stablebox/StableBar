@@ -38,6 +38,7 @@ struct GlassBackground<S: Shape>: ViewModifier {
     var shadow: WidgetAppearance? = nil
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.glassBackdrop) private var backdrop
 
     func body(content: Content) -> some View {
         let painted = glass.painted(fill, on: surface, reduceTransparency: reduceTransparency)
@@ -47,8 +48,22 @@ struct GlassBackground<S: Shape>: ViewModifier {
             let visible = fill.map { (colorScheme == .dark ? $0.firstColor.dark : $0.firstColor.light) & 0xff > 0 } ?? false
             content.background {
                 ZStack {
-                    Color.clear.glassEffect(visible ? .clear : .identity, in: shape)
+                    Color.clear.glassEffect(visible && backdrop == nil ? .clear : .identity, in: shape)
+                    if let backdrop {
+                        // Offscreen, nothing blurs what's behind the glass or lightens it. Glass on widgets and
+                        // popups sits on the bar, so only the bar's shows the wallpaper.
+                        ZStack {
+                            if surface == \GlassSettings.bar { backdrop.view }
+                            Color.white.opacity(0.14)
+                        }
+                        .clipShape(shape)
+                        .opacity(visible ? 1 : 0)
+                    }
                     shape.fill(painted?.shapeStyle ?? AnyShapeStyle(Color.clear))
+                    if backdrop != nil {
+                        // The light along the glass's edge, half of the stroke inside the shape.
+                        shape.stroke(.white.opacity(visible ? 0.18 : 0), lineWidth: 2).clipShape(shape)
+                    }
                 }
                 .styledShadow(shadow)
             }
@@ -63,6 +78,28 @@ struct GlassBackground<S: Shape>: ViewModifier {
             content.background { shape.fill(painted?.shapeStyle ?? empty).styledShadow(shadow) }
         }
     }
+}
+
+/// The wallpaper blurred as Liquid Glass blurs it on screen, for glass in an offscreen drawing, where the window server
+/// doesn't draw it. `image` fills `size` points from the origin of the coordinate space named `space`, as the wallpaper.
+struct GlassBackdrop {
+    static let space = "glassBackdrop"
+    let image: NSImage
+    let size: CGSize
+
+    /// The part of `image` behind the view.
+    var view: some View {
+        GeometryReader { proxy in
+            let origin = proxy.frame(in: .named(Self.space)).origin
+            Image(nsImage: image).resizable().scaledToFill()
+                .frame(width: size.width, height: size.height)
+                .offset(x: -origin.x, y: -origin.y)
+        }
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var glassBackdrop: GlassBackdrop?
 }
 
 extension GlassSettings {
