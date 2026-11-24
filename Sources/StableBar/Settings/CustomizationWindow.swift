@@ -447,7 +447,7 @@ struct StyleFields {
         let property = property(key)
         return SettingRow(title: title, property: property, source: store.propertySourceText(property),
                           reset: property.saved.map { saved in { reset(saved) } }) {
-            FillButton(title: title, value: fill(key, property), tokens: store.themeTokenColors,
+            FillButton(title: title, value: fill(key, property), drawn: property.editingValue, tokens: store.themeTokenColors,
                        allowsGradient: ["background", "popupBackground", "tooltipBackground"].contains(key), allowsNone: key != "foreground") {
                 set([key: $0])
             }

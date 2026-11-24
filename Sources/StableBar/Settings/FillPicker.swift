@@ -26,6 +26,8 @@ struct FillButton: View {
     static let sideWidth = 168.0
     let title: String
     let value: ConfigurationValue?
+    /// What `value` draws, for the swatch of a theme gradient, which `tokens` doesn't hold.
+    var drawn: ConfigurationValue?
     let tokens: [ThemeTokenColor]
     var allowsGradient = false
     var allowsNone = false
@@ -37,8 +39,8 @@ struct FillButton: View {
         let isGradientToken = if case let .token(name) = FillChoice(value) { !tokens.contains { $0.name == name } } else { false }
         HStack(spacing: 6) {
             ForEach([false, true], id: \.self) { isDark in
-                SideButton(title: title, value: colorSide(dark: isDark, of: value), dark: isDark, tokens: tokens,
-                           allowsGradient: allowsGradient, allowsNone: allowsNone, arrowEdge: arrowEdge) {
+                SideButton(title: title, value: colorSide(dark: isDark, of: value), drawn: isGradientToken ? drawn : nil, dark: isDark,
+                           tokens: tokens, allowsGradient: allowsGradient, allowsNone: allowsNone, arrowEdge: arrowEdge) {
                     set(isGradientToken ? $0 : settingColorSide(dark: isDark, of: value, to: $0))
                 }
             }
@@ -89,6 +91,8 @@ private struct SideButton: View {
     let title: String
     /// This side's value, or the whole value when it's a gradient or None.
     let value: ConfigurationValue?
+    /// What a theme gradient draws, for the swatch.
+    var drawn: ConfigurationValue?
     let dark: Bool
     let tokens: [ThemeTokenColor]
     var allowsGradient = false
@@ -104,7 +108,7 @@ private struct SideButton: View {
         let label = label(fill)
         Button { isPresented.toggle() } label: {
             HStack(spacing: 6) {
-                FillChip(fill: fill, tokens: tokens, width: 15, height: 15, cornerRadius: 4)
+                FillChip(fill: drawn.map(FillChoice.init) ?? fill, tokens: tokens, width: 15, height: 15, cornerRadius: 4)
                     .environment(\.colorScheme, dark ? .dark : .light)
                 label.lineLimit(1)
             }

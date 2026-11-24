@@ -84,11 +84,11 @@ struct AppearanceView: View {
         .onChange(of: store.profiles) { _, _ in gallery.configurationChanged() }
         .onChange(of: store.configurationError) { _, _ in gallery.contextChanged() }
         .onChange(of: store.configurationStore.context) { _, _ in gallery.contextChanged() }
-        .onChange(of: store.pendingLinks.theme?.choice.directory) { _, directory in
+        .onChange(of: store.pendingLinks.theme?.choice.directory, initial: true) { _, directory in
             gallery.contextChanged()
             if directory != nil { editor.appearanceTab = .themes }
         }
-        .onChange(of: store.pendingLinks.bar?.look.choice.directory) { _, directory in
+        .onChange(of: store.pendingLinks.bar?.look.choice.directory, initial: true) { _, directory in
             if directory != nil { editor.appearanceTab = .themes }
         }
         .onChange(of: store.pendingLinks.theme?.state) { _, _ in gallery.contextChanged() }
@@ -140,7 +140,8 @@ struct AppearanceView: View {
         let bar = editor.fields(["bar"], on: screen, values: editor.values("bar", on: screen))
         let source = store.propertySources(path: bar.path, key: "appearance", defaultsPath: bar.defaultsPath, values: bar.values)
         let saved = try? source.editingValue?.decoded(BarAppearance.self)
-        let wallpaper = bar.values["followsWallpaper"] == .bool(true)
+        let wallpaperSource = store.propertySources(path: bar.path, key: "followsWallpaper", defaultsPath: bar.defaultsPath, values: bar.values)
+        let wallpaper = wallpaperSource.editingValue == .bool(true)
         let choice: LightOrDark = saved == .light ? .light : saved == .dark ? .dark : wallpaper ? .wallpaper : .automatic
         return HStack(spacing: 10) {
             editingMenu
@@ -152,8 +153,7 @@ struct AppearanceView: View {
                 .font(.system(size: 12))
             }
             Spacer()
-            let saved = [source.saved, store.propertySources(path: bar.path, key: "followsWallpaper", defaultsPath: bar.defaultsPath,
-                                                             values: bar.values).saved].compactMap { $0 }
+            let saved = [source.saved, wallpaperSource.saved].compactMap { $0 }
             RevertSettingButton(title: "Appearance", property: source, reset: saved.isEmpty ? nil : { saved.forEach(reset) })
             SettingsSegments(selection: Binding(get: { choice }, set: { next in
                 guard next != choice else { return }
