@@ -156,7 +156,7 @@ struct WidgetLayoutChoice: Equatable {
         """#))
 
     /// The next meeting with its start, a countdown in the warning color before it starts, a green dot and the minutes
-    /// left while it runs, and a Join button for its link.
+    /// left while it runs, and a Join button for its link. Without Calendar access, the provider's text says so.
     static let countdownAndJoin = Self(title: "Countdown and Join", layout: decoded(#"""
         {
           "type": "row", "hideWhen": { "field": "phase", "equals": "none" }, "style": { "spacing": 6 },
@@ -166,7 +166,8 @@ struct WidgetLayoutChoice: Equatable {
               "type": "symbol", "name": "circle.fill", "showWhen": { "field": "phase", "equals": "live" },
               "style": { "iconSize": 7, "foreground": { "light": "#28a745", "dark": "#30d158" } }
             },
-            { "type": "field", "field": "title", "style": { "maxWidth": 170 } },
+            { "type": "field", "field": "text", "hideWhen": { "field": "access", "equals": "granted" } },
+            { "type": "field", "field": "title", "hideWhenEmpty": "title", "style": { "maxWidth": 170 } },
             { "type": "field", "field": "start", "role": "secondary", "showWhen": { "field": "phase", "equals": "later" } },
             {
               "type": "row", "showWhen": [{ "field": "phase", "equals": "soon" }, { "field": "phase", "equals": "now" }],

@@ -56,10 +56,19 @@
             },
             {
               "type": "field",
+              "field": "text",
+              "hideWhen": {
+                "field": "access",
+                "equals": "granted"
+              }
+            },
+            {
+              "type": "field",
               "field": "title",
               "style": {
                 "maxWidth": 170
-              }
+              },
+              "hideWhenEmpty": "title"
             },
             {
               "type": "field",
