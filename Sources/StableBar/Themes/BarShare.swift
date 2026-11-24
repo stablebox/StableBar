@@ -149,11 +149,16 @@ enum BarShareNetwork: CaseIterable, Identifiable {
         case .threads: ("https://www.threads.com/intent/post", [("text", caption), ("url", link)])
         case .reddit: ("https://www.reddit.com/submit", [("title", caption), ("url", link)])
         }
-        // In a value, `&` and `=` would end it, and `+` would read as a space.
-        let allowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+"))
-        let query = fields.compactMap { name, value in value.map { "\(name)=\($0.addingPercentEncoding(withAllowedCharacters: allowed)!)" } }
-        return URL(string: "\(page)?\(query.joined(separator: "&"))")!
+        return URL(string: "\(page)?\(query(fields))")!
     }
+}
+
+/// `fields` as a URL's query, leaving out those without a value.
+private func query(_ fields: [(String, String?)]) -> String {
+    // In a value, `&` and `=` would end it, and `+` would read as a space.
+    let allowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+"))
+    return fields.compactMap { name, value in value.map { "\(name)=\($0.addingPercentEncoding(withAllowedCharacters: allowed)!)" } }
+        .joined(separator: "&")
 }
 
 /// What Share My Bar draws: the screen, with or without the MacBook's notch, and the image's shape.
@@ -169,6 +174,7 @@ struct BarShareFormat: Equatable {
 final class BarShare {
     static let badgeKey = "shareMyBarBadge"
     static let captionKey = "shareMyBarCaption"
+    static let shortensKey = "shareMyBarShortensLink"
 
     /// The desktop as drawn, without the badge, `size` points large; `bottom` for a bar at the bottom.
     struct Drawing {
@@ -189,6 +195,12 @@ final class BarShare {
     var caption: String {
         didSet { defaults?.set(caption, forKey: Self.captionKey) }
     }
+    /// Whether posts carry the bar link shortened by is.gd, remembered for the next share.
+    var shortens: Bool {
+        didSet { defaults?.set(shortens, forKey: Self.shortensKey) }
+    }
+    /// The bar link as is.gd shortened it, or why it couldn't. Nil while it's asked.
+    private(set) var shortLink: Result<URL, Error>?
     private(set) var drawn: Drawing?
     /// `drawn`'s image with the badge when it's on.
     private(set) var image: CGImage?
@@ -222,13 +234,46 @@ final class BarShare {
         self.defaults = defaults
         badge = defaults?.object(forKey: Self.badgeKey) as? Bool ?? true
         caption = defaults?.string(forKey: Self.captionKey) ?? "My macOS bar, made with StableBar. Try it on yours:"
+        shortens = defaults?.bool(forKey: Self.shortensKey) ?? false
     }
 
     /// The bar link, unless the bar can't be shared as one.
     var linkURL: URL? { (try? link?.get())?.link }
 
-    /// The caption and the bar link, as Copy Caption and the macOS share menu give them.
-    var post: String { [caption, linkURL?.absoluteString].compactMap { $0 }.joined(separator: " ") }
+    /// The link a post carries: the bar link, shortened when `shortens` and is.gd could.
+    var postLink: URL? { shortens ? (try? shortLink?.get()) ?? linkURL : linkURL }
+
+    /// The caption and the link, as Copy Caption and the macOS share menu give them.
+    var post: String { [caption, postLink?.absoluteString].compactMap { $0 }.joined(separator: " ") }
+
+    /// Asks is.gd for a short link to the bar link, when `shortens`.
+    func shorten() async {
+        shortLink = nil
+        guard shortens, let linkURL else { return }
+        let result: Result<URL, Error>
+        do { result = .success(try await Self.shortened(linkURL)) } catch { result = .failure(error) }
+        guard !Task.isCancelled else { return }
+        shortLink = result
+    }
+
+    /// `link` shortened by is.gd, whose short link leads to it with its fragment, which carries the bar.
+    nonisolated static func shortened(_ link: URL) async throws -> URL {
+        let request = URL(string: "https://is.gd/create.php?" + query([("format", "simple"), ("url", link.absoluteString)]))!
+        let (data, response) = try await URLSession.shared.data(from: request)
+        // The short link, or the error in words.
+        let reply = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (response as? HTTPURLResponse)?.statusCode == 200, let short = URL(string: reply) else {
+            throw CommandFailure(message: "is.gd: \(reply)")
+        }
+        return short
+    }
+
+    /// Writes `png` to a file in the temporary folder, for the share menu and a drag into a post.
+    func pngFile() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appending(path: "StableBar.png")
+        try png?.write(to: url)
+        return url
+    }
 
     /// `image` as PNG, at twice its size in points per inch, as Copy, Save and Share give it.
     var png: Data? {
@@ -491,6 +536,8 @@ struct BarShareView: View {
                             if let frame = share.badgeFrame { badgeSpot(frame, scale: fit.width / drawn.size.width) }
                         }
                         .onHover { overImage = $0 }
+                        // Into a post, whose page can't take the image from its link.
+                        .onDrag { (try? share.pngFile()).flatMap(NSItemProvider.init(contentsOf:)) ?? NSItemProvider() }
                 } else {
                     ProgressView().controlSize(.small)
                 }
@@ -632,18 +679,27 @@ struct BarShareView: View {
                     .font(.system(size: 12.5))
                     .lineLimit(2...4)
                 Group {
-                    switch share.link {
-                    case let .success(sharing)?: Text(sharing.link.absoluteString).lineLimit(1).truncationMode(.middle)
-                    case let .failure(error)?: Text(errorMessage(error))
-                    case nil: EmptyView()
+                    if case let .failure(error)? = share.link {
+                        Text(errorMessage(error))
+                    } else if share.shortens, case let .failure(error)? = share.shortLink {
+                        Text("Couldn't shorten the link. \(errorMessage(error))")
+                    } else if share.shortens, share.shortLink == nil {
+                        Text("Shortening…")
+                    } else if let link = share.postLink {
+                        Text(link.absoluteString).lineLimit(1).truncationMode(.middle)
                     }
                 }
                 .font(.system(size: 11.5))
                 .foregroundStyle(.white.opacity(0.55))
+                Toggle("Shorten with is.gd", isOn: $share.shortens)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 11.5))
             }
             .padding(10)
             .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white.opacity(0.12)))
+            // While the image redraws, the link is still the last screen's.
+            let ready = share.image != nil && !(share.shortens && share.linkURL != nil && share.shortLink == nil)
             HStack(spacing: 6) {
                 ForEach(BarShareNetwork.allCases) { network in
                     Button { post(to: network) } label: {
@@ -654,32 +710,36 @@ struct BarShareView: View {
                         }
                     }
                     .buttonStyle(GlassButtonStyle(selected: false, round: true))
-                    .help("Post on \(network.name)")
+                    .modifier(ShareTooltip(text: "Copy the image and post on \(network.name)"))
                     .accessibilityLabel("Post on \(network.name)")
                 }
             }
-            if let note {
-                Label(note, systemImage: "checkmark").font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.7))
-            }
+            .disabled(!ready)
+            Label(note ?? "Each copies the image: paste it into the post with ⌘V, or drag it in from the preview.",
+                  systemImage: note == nil ? "info.circle" : "checkmark")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.white.opacity(0.7))
+                .fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(.white.opacity(0.1)).frame(height: 1)
             HStack(spacing: 6) {
                 Button("Copy Image") {
                     copy()
                     note = "Image copied"
                 }
+                .disabled(share.image == nil)
                 Button("Copy Caption") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(share.post, forType: .string)
-                    note = "Caption and bar link copied"
+                    note = "Caption and link copied"
                 }
+                .disabled(!ready)
                 Spacer(minLength: 0)
-                Button("More…", action: more).background(MenuAnchor(view: anchor))
+                Button("More…", action: more).background(MenuAnchor(view: anchor)).disabled(!ready)
             }
             .buttonStyle(GlassButtonStyle(selected: false, size: .compact))
         }
-        // While the image redraws, the link is still the last screen's.
-        .disabled(share.image == nil)
         .modifier(ShareCard())
+        .task(id: share.shortens ? share.linkURL : nil) { await share.shorten() }
     }
 
     private func details(_ sharing: BarLink.Sharing) -> some View {
@@ -746,20 +806,17 @@ struct BarShareView: View {
         do { try png.write(to: url) } catch { NSAlert(error: error).runModal() }
     }
 
-    /// Copies the image, which a compose page can't take, and opens `network`'s with the caption and the bar link.
+    /// Copies the image, which a compose page can't take, and opens `network`'s with the caption and the link.
     private func post(to network: BarShareNetwork) {
         copy()
-        NSWorkspace.shared.open(network.compose(share.caption, link: share.linkURL))
+        NSWorkspace.shared.open(network.compose(share.caption, link: share.postLink))
         note = "Image copied: paste it into your post with ⌘V"
     }
 
     private func more() {
-        guard let png = share.png else { return }
-        let url = FileManager.default.temporaryDirectory.appending(path: "StableBar.png")
         do {
-            try png.write(to: url)
             // With text, the menu leaves out only Add to Photos. With a URL, it would also leave out Notes and Freeform.
-            NSSharingServicePicker(items: [url, share.post]).show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+            NSSharingServicePicker(items: [try share.pngFile(), share.post]).show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
         } catch {
             NSAlert(error: error).runModal()
         }
