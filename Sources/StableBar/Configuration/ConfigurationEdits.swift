@@ -250,7 +250,9 @@ func removingReferences(to id: String, in document: [String: ConfigurationValue]
     if let profiles = try document["profiles"]?.decoded([[String: ConfigurationValue]].self) {
         document["profiles"] = .array(try profiles.map { profile in
             var profile = profile
-            profile["configuration"] = .object(try removingReferences(to: id, in: (profile["configuration"] ?? .object([:])).decoded([String: ConfigurationValue].self)))
+            if let configuration = profile["configuration"] {
+                profile["configuration"] = .object(try removingReferences(to: id, in: configuration.decoded([String: ConfigurationValue].self)))
+            }
             return .object(profile)
         })
     }

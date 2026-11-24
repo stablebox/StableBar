@@ -241,6 +241,10 @@ final class ConfigurationEditsTests: XCTestCase {
     let document = try JSONDecoder().decode([String: ConfigurationValue].self, from: Data(contentsOf: url))
     #expect(document["widgetOrder"] == .array([.string("clock"), .string("menu-bar-items")]))
 
+    try pair(profiles: #", "profiles": [{ "name": "Plain" }]"#).write(to: url)
+    try migrateSetupDateAndTime(url, pinned: nil)
+    #expect(try widgets().map { $0["id"] } == [.string("clock"), .string("menu-bar-items")], "A profile without a configuration names neither clock")
+
     for customized in [pair(dateStyle: #", "style": { "fontSize": 11 }"#),
                        pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "widgetOverrides": { "date": { "enabled": false } } } }]"#),
                        pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "screens": { "laptop": { "layout": { "left": ["date"], "right": ["clock"] } } } } }]"#)] {
