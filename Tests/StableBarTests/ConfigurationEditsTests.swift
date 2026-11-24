@@ -212,7 +212,7 @@ final class ConfigurationEditsTests: XCTestCase {
 @Test func setupsDateAndTimeSavedBefore019BecomeOneClock() throws {
     let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).json")
     defer { try? FileManager.default.removeItem(at: url) }
-    func pair(dateStyle: String = "", profiles: String = "") -> Data {
+    func pair(dateStyle: String = "", more: String = "") -> Data {
         Data(#"""
         {
           "widgets": [
@@ -220,7 +220,7 @@ final class ConfigurationEditsTests: XCTestCase {
             { "id": "clock", "type": "clock", "position": "right", "role": "time", "details": true, "format": "HH:mm" },
             { "id": "menu-bar-items", "type": "menuBarItems", "position": "right" }
           ],
-          "widgetOrder": ["date", "clock", "menu-bar-items"]\#(profiles)
+          "widgetOrder": ["date", "clock", "menu-bar-items"]\#(more)
         }
         """#.utf8)
     }
@@ -241,13 +241,16 @@ final class ConfigurationEditsTests: XCTestCase {
     let document = try JSONDecoder().decode([String: ConfigurationValue].self, from: Data(contentsOf: url))
     #expect(document["widgetOrder"] == .array([.string("clock"), .string("menu-bar-items")]))
 
-    try pair(profiles: #", "profiles": [{ "name": "Plain" }]"#).write(to: url)
-    try migrateSetupDateAndTime(url, pinned: nil)
-    #expect(try widgets().map { $0["id"] } == [.string("clock"), .string("menu-bar-items")], "A profile without a configuration names neither clock")
+    for unrelated in [#", "profiles": [{ "name": "Plain" }]"#, #", "widgetOverrides": {}"#,
+                      #", "profiles": [{ "name": "Laptop", "configuration": { "widgetOverrides": {} } }]"#] {
+        try pair(more: unrelated).write(to: url)
+        try migrateSetupDateAndTime(url, pinned: nil)
+        #expect(try widgets().map { $0["id"] } == [.string("clock"), .string("menu-bar-items")], "\(unrelated) names neither clock")
+    }
 
     for customized in [pair(dateStyle: #", "style": { "fontSize": 11 }"#),
-                       pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "widgetOverrides": { "date": { "enabled": false } } } }]"#),
-                       pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "screens": { "laptop": { "layout": { "left": ["date"], "right": ["clock"] } } } } }]"#)] {
+                       pair(more: #", "profiles": [{ "name": "Laptop", "configuration": { "widgetOverrides": { "date": { "enabled": false } } } }]"#),
+                       pair(more: #", "profiles": [{ "name": "Laptop", "configuration": { "screens": { "laptop": { "layout": { "left": ["date"], "right": ["clock"] } } } } }]"#)] {
         try customized.write(to: url)
         try migrateSetupDateAndTime(url, pinned: nil)
         #expect(try Data(contentsOf: url) == customized)

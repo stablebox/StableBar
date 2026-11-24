@@ -234,8 +234,9 @@ enum HoverBackgroundRow {
 func removingReferences(to id: String, in document: [String: ConfigurationValue]) throws -> [String: ConfigurationValue] {
     var document = document
     var overrides = try document["widgetOverrides"]?.decoded([String: ConfigurationValue].self) ?? [:]
-    overrides.removeValue(forKey: id)
-    document["widgetOverrides"] = overrides.isEmpty ? nil : .object(overrides)
+    if overrides.removeValue(forKey: id) != nil {
+        document["widgetOverrides"] = overrides.isEmpty ? nil : .object(overrides)
+    }
     if let order = try document["widgetOrder"]?.decoded([String].self) {
         document["widgetOrder"] = .array(order.filter { $0 != id }.map(ConfigurationValue.string))
     }
