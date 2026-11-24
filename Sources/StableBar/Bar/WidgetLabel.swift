@@ -58,7 +58,14 @@ extension WidgetConfiguration {
         var time: Range<String.Index>?
         for index in format.indices {
             if format[index] == "'" {
-                if let start = quote { quotes.append(start..<format.index(after: index)) }
+                if let start = quote {
+                    // `''` inside quoted text is an apostrophe, so quotes that touch are one.
+                    if let last = quotes.last, last.upperBound == start {
+                        quotes[quotes.count - 1] = last.lowerBound..<format.index(after: index)
+                    } else {
+                        quotes.append(start..<format.index(after: index))
+                    }
+                }
                 quote = quote == nil ? index : nil
             } else if quote == nil, "abBhHkKmsSAzZOvVXx".contains(format[index]) {
                 time = (time?.lowerBound ?? index)..<format.index(after: index)
