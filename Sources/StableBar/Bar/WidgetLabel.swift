@@ -52,7 +52,7 @@ extension WidgetConfiguration {
     }
 
     /// `format`'s date and time patterns. The time runs from its first hour, minute, second, day-period or zone letter
-    /// to its last; the date is the rest, without the spaces between it and the time and the quoted text there that
+    /// to its last, with the literal text that touches its end, such as `分`; the date is the rest, without the spaces between it and the time and the quoted text there that
     /// touches the time or stands apart from the date, such as `'T'` or ` 'at' `. Quoted text that touches the date, such
     /// as `'日'`, is part of it.
     private static func clockFormatParts(_ format: String) -> (date: String, time: String) {
@@ -74,7 +74,12 @@ extension WidgetConfiguration {
                 time = (time?.lowerBound ?? index)..<format.index(after: index)
             }
         }
-        guard let time else { return (format, "") }
+        guard var time else { return (format, "") }
+        var suffix = time.upperBound
+        while suffix < format.endIndex, !format[suffix].isWhitespace, !(format[suffix].isASCII && format[suffix].isLetter) {
+            suffix = quotes.first { $0.lowerBound == suffix }?.upperBound ?? format.index(after: suffix)
+        }
+        time = time.lowerBound..<suffix
         var end = time.lowerBound
         while end > format.startIndex {
             if format[format.index(before: end)].isWhitespace {
