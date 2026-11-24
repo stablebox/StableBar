@@ -461,8 +461,9 @@ enum SceneRenderer {
                 // The panel draws the image before it steps aside for the dock.
                 await share.draw(fixedDate: DocsImages.date, colorScheme: dark ? .dark : .light)
                 try await OffscreenSnapshot.write(BarShareDock(share: share).frame(maxWidth: .infinity, maxHeight: .infinity)
-                                                    .background(OffscreenSnapshot.backdrop(dark: dark)),
-                                                  size: NSSize(width: CGFloat(scene.width ?? 560), height: CGFloat(scene.height ?? 140)), dark: dark, to: url)
+                                                    .background { backdrop(wallpaper, dark: dark) },
+                                                  size: NSSize(width: CGFloat(scene.width ?? 560), height: CGFloat(scene.height ?? 140)), dark: dark,
+                                                  ready: { share.image != nil }, to: url)
             } else {
                 try await OffscreenSnapshot.write(BarShareView(share: share, showsLink: scene.draw == .shareLink, showsDetails: scene.draw == .shareLink,
                                                                showsPost: scene.draw == .sharePost),

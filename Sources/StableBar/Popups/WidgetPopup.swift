@@ -259,8 +259,10 @@ final class WidgetPopup {
     /// widget's, such as a button in Share My Bar.
     func showTooltip(_ text: String, store: BarStore, anchor: NSView) {
         let look = store.configuration!.onScreen(ScreenKind(BarDisplay(screen: anchor.window!.screen!)))
+        // The bar's appearance, as its popups take it, rather than the window's.
+        let appearance = look.bar.appearance.flatMap { NSAppearance(named: $0 == .dark ? .darkAqua : .aqua) } ?? NSApp.effectiveAppearance
         openTooltip(id: "tooltip", style: WidgetStyle(), defaults: look.popupDefaults.popupStyle(over: look.defaults), store: store,
-                    anchor: anchor, ignoresMouseEvents: true) { _ in Text(text) }
+                    anchor: anchor, windowAppearance: appearance, ignoresMouseEvents: true) { _ in Text(text) }
     }
 
     /// Shows a widget's hover controls in a tooltip under it, drawn in the tooltip's style. The pointer can move into
@@ -303,9 +305,10 @@ final class WidgetPopup {
     }
 
     /// Shows `content` in a tooltip under `anchor`, drawn in the widget's popup style, which opens and closes with the
-    /// bar's popup motion.
+    /// bar's popup motion. It takes `windowAppearance`, or else the anchor's window's.
     private func openTooltip(id: String, style widgetStyle: WidgetStyle, defaults: WidgetStyle, store: BarStore, anchor: NSView,
-                             maxWidth: CGFloat = TooltipWidth.widgetMaxWidth, alignment: PopupAlignment = .center, sidePadding: Double = 10, ignoresMouseEvents: Bool,
+                             maxWidth: CGFloat = TooltipWidth.widgetMaxWidth, alignment: PopupAlignment = .center, sidePadding: Double = 10,
+                             windowAppearance: NSAppearance? = nil, ignoresMouseEvents: Bool,
                              @ViewBuilder content: (WidgetStyle) -> some View) {
         let window = anchor.window!
         let screen = window.screen!
@@ -355,7 +358,7 @@ final class WidgetPopup {
         panel.animationBehavior = .none
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenNone]
-        panel.appearance = window.appearance
+        panel.appearance = windowAppearance ?? window.appearance
         panel.contentView = PopupRevealView(content: host, size: size)
         let shadow = makeShadowWindow(behind: panel, style: style, inset: shadowInset)
         self.panel = panel

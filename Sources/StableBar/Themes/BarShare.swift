@@ -81,9 +81,10 @@ final class BarShareWindow: NSObject, NSWindowDelegate {
             dock.animator().alphaValue = 1
             if shrinks { window.animator().setFrame(frame, display: true) }
             window.animator().alphaValue = 0
-        } completionHandler: {
+        } completionHandler: { [weak self] in
             Task { @MainActor in
-                window.orderOut(nil)
+                // Show Share My Bar may have brought the panel back already.
+                if self?.dock === dock { window.orderOut(nil) }
                 // Back as it was, for Show Share My Bar.
                 window.setFrame(panel, display: false)
                 window.alphaValue = 1
@@ -334,10 +335,13 @@ final class BarShare {
         return short
     }
 
-    /// Writes `png` to a file in the temporary folder, for the share menu and a drag into a post.
-    func pngFile() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appending(path: "StableBar.png")
-        try png?.write(to: url)
+    /// Writes `png` to a file of its own in the temporary folder, for the share menu and a drag into a post: a later one
+    /// mustn't replace the image that an earlier share or drop still reads.
+    static func pngFile(_ png: Data) throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appending(path: "StableBar.png")
+        try png.write(to: url)
         return url
     }
 
@@ -617,7 +621,7 @@ struct BarShareView: View {
                         }
                         .onHover { overImage = $0 }
                         // Into a post, whose page can't take the image from its link.
-                        .onDrag { (try? share.pngFile()).flatMap(NSItemProvider.init(contentsOf:)) ?? NSItemProvider() }
+                        .onDrag { share.png.flatMap { try? BarShare.pngFile($0) }.flatMap(NSItemProvider.init(contentsOf:)) ?? NSItemProvider() }
                 } else {
                     ProgressView().controlSize(.small)
                 }
@@ -878,9 +882,10 @@ struct BarShareView: View {
     }
 
     private func more() {
+        guard let png = share.png else { return }
         do {
             // With text, the menu leaves out only Add to Photos. With a URL, it would also leave out Notes and Freeform.
-            NSSharingServicePicker(items: [try share.pngFile(), share.postText]).show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+            NSSharingServicePicker(items: [try BarShare.pngFile(png), share.postText]).show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
         } catch {
             NSAlert(error: error).runModal()
         }
@@ -995,7 +1000,7 @@ private struct ImageDragSource: NSViewRepresentable {
         override func mouseDown(with event: NSEvent) {}
 
         override func mouseDragged(with event: NSEvent) {
-            guard let file = try? share.pngFile(), let png = share.png else { return }
+            guard let png = share.png, let file = try? BarShare.pngFile(png) else { return }
             let item = NSPasteboardItem()
             item.setString(file.absoluteString, forType: .fileURL)
             // Beside the file, for a page that only reads image data.
