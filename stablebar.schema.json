@@ -1650,6 +1650,7 @@
                 "controlCenter",
                 "stableBar",
                 "menuBarItems",
+                "quickToggles",
                 "clock",
                 "text",
                 "script",
@@ -1813,6 +1814,41 @@
             ]
           },
           "description": "Menu bar items a menuBarItems widget leaves out of its row, and \"symbol\" to leave out its symbol."
+        },
+        "tiles": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "enum": [
+              "wifi",
+              "bluetooth",
+              "network",
+              "keepAwake",
+              "brightness",
+              "darkMode",
+              "nightShift",
+              "trueTone",
+              "mirror",
+              "desktopIcons",
+              "dockAutohide",
+              "hiddenFiles",
+              "microphone",
+              "lockScreen",
+              "sleepDisplay",
+              "screenSaver",
+              "screenshot",
+              "colorPicker",
+              "cameraMirror",
+              "clearClipboard",
+              "hideApps",
+              "emptyTrash",
+              "ejectDisks"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "The tiles a quickToggles widget's panel shows, each once. The panel puts each in its card (wifi, bluetooth and network; keepAwake; brightness, darkMode, nightShift, trueTone and mirror; desktopIcons, dockAutohide, hiddenFiles and microphone; the tools), the cards in the order of their first tile. Defaults to wifi, bluetooth, keepAwake, brightness, darkMode, nightShift, trueTone, mirror, desktopIcons, dockAutohide, lockScreen, screenshot, colorPicker, cameraMirror, emptyTrash and ejectDisks."
         },
         "text": {
           "$ref": "#/definitions/string"
@@ -2224,6 +2260,7 @@
                 "controlCenter",
                 "stableBar",
                 "menuBarItems",
+                "quickToggles",
                 "clock",
                 "text",
                 "script",

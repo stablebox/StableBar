@@ -250,7 +250,7 @@ private func setupSession(configuration: String = #"{"widgets":[{"id":"clock","t
         #expect(!session.hasChanges)
         session.toggle(.everyday)
         #expect(store.configuration?.bar.belowMenuBar == false)
-        #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "sound", "clock", "menu-bar-items"])
+        #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "sound", "clock", "menu-bar-items", "quick-toggles"])
         await session.place(.top)
         #expect(changes().isEmpty)
         #expect(store.configuration?.bar.belowMenuBar == true)
@@ -351,7 +351,7 @@ func setupLooksAgainForAManagerTheFirstLaunchMissed(completed: Bool, change: Str
     #expect(session.menuBarHides)
     #expect(session.readyToLand)
     #expect(store.configuration?.bar.belowMenuBar == false)
-    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "sound", "clock", "menu-bar-items"])
+    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "sound", "clock", "menu-bar-items", "quick-toggles"])
 }
 
 /// A menu bar that already hides needs no change, so the bar lands at once.

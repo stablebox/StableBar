@@ -31,7 +31,11 @@ enum Bluetooth {
                 lowest = min(lowest ?? level, level)
             }
         }
-        return ScriptOutput(text: rows.isEmpty ? "" : String(rows.count), fields: ["summary": summary.joined(separator: " · ")], lists: ["devices": rows],
+        var fields = ["summary": summary.joined(separator: " · ")]
+        if let state = (controllers.first?["controller_properties"] as? [String: Any])?["controller_state"] as? String {
+            fields["power"] = state == "attrib_on" ? "on" : "off"
+        }
+        return ScriptOutput(text: rows.isEmpty ? "" : String(rows.count), fields: fields, lists: ["devices": rows],
                             values: lowest.map { ["lowestBattery": Double($0) / 100] })
     }
 }

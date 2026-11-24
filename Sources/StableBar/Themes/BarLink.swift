@@ -31,7 +31,7 @@ struct BarLink: Equatable, Sendable {
     private static let widgetProperties: Set<String> = [
         "id", "type", "role", "position", "icon", "tooltip", "style", "format", "text", "layout", "hoverLayout", "overlay",
         "popup", "animation", "workspace", "group", "priority", "overflow", "transition", "expandOnHover", "openOnHover",
-        "shown", "hidden", "details", "hideWhenIdle", "timeZone", "background", "popupBackground", "tooltipBackground"
+        "shown", "hidden", "tiles", "details", "hideWhenIdle", "timeZone", "background", "popupBackground", "tooltipBackground"
     ]
     private static let popupProperties: Set<String> = [
         "height", "style", "layout", "views", "alignment", "offset", "openOnHover", "dismissOnAction", "dismissOnControl",

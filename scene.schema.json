@@ -66,6 +66,76 @@
         }
       }
     },
+    "quickToggles": {
+      "description": "The Quick toggles' panel, as on a Mac with these settings. Without it, the panel shows no toggles and reads nothing from the Mac that draws it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "states": {
+          "description": "Each toggle that shows, on or off. The others hide, as on a Mac without them.",
+          "type": "object",
+          "propertyNames": { "enum": ["bluetooth", "darkMode", "nightShift", "trueTone", "microphone", "desktopIcons", "dockAutohide", "hiddenFiles"] },
+          "additionalProperties": { "type": "boolean" }
+        },
+        "brightness": { "description": "The built-in display's brightness; without it, there's no built-in display.", "type": "number", "minimum": 0, "maximum": 1 },
+        "keepAwakeMinutes": { "description": "The minutes Keep awake has left; without it, Keep awake is off.", "type": "integer", "minimum": 1 },
+        "pickedColor": { "description": "The color the color picker last copied, as #RRGGBB.", "type": "string" },
+        "disks": { "description": "The names of the disks Eject Disks ejects.", "type": "array", "items": { "type": "string" } },
+        "networks": {
+          "description": "What a Wi-Fi scan found.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ssid", "rssi"],
+            "additionalProperties": false,
+            "properties": {
+              "ssid": { "type": "string" },
+              "rssi": { "description": "The signal in dBm.", "type": "integer" },
+              "secure": { "description": "Whether it asks for a password. Secured by default.", "type": "boolean" },
+              "known": { "description": "Whether this Mac saved it.", "type": "boolean" }
+            }
+          }
+        },
+        "asking": { "description": "The network whose password the Wi-Fi card asks for, with its list open.", "type": "string" },
+        "scanning": { "description": "Whether a Wi-Fi scan is under way.", "type": "boolean" },
+        "expanded": { "description": "The tile whose details the panel shows open.", "enum": ["wifi", "bluetooth", "network", "keepAwake"] },
+        "displays": {
+          "description": "The displays, the first being the main one. Without them, brightness is the built-in display's.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "level"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "builtIn": { "type": "boolean" },
+              "level": { "description": "The brightness slider, from 0 to 1.", "type": "number", "minimum": 0, "maximum": 1 },
+              "ownBrightness": { "description": "Whether the slider sets the display's own brightness, as DDC/CI does when the display answers. True by default.", "type": "boolean" },
+              "modes": { "description": "Sizes in points, such as 1512x982, drawn at twice as many pixels, from larger text to more space.", "type": "array", "items": { "type": "string", "pattern": "^[1-9][0-9]{0,4}x[1-9][0-9]{0,4}$" } },
+              "current": { "type": "string" },
+              "defaultMode": { "type": "string" }
+            }
+          }
+        },
+        "expandedDisplay": { "description": "The display whose resolutions the panel shows, by name.", "type": "string" },
+        "mirrored": { "type": "boolean" },
+        "nightShiftStrength": { "description": "Night Shift's warmth, which shows while Night Shift is on.", "type": "number", "minimum": 0, "maximum": 1 },
+        "network": {
+          "description": "The Mac's addresses and its last speed test.",
+          "type": "object",
+          "required": ["interface", "address"],
+          "additionalProperties": false,
+          "properties": {
+            "interface": { "type": "string" },
+            "address": { "type": "string" },
+            "publicAddress": { "type": "string" },
+            "download": { "description": "Bits per second.", "type": "number" },
+            "upload": { "description": "Bits per second.", "type": "number" },
+            "responsiveness": { "description": "Round trips per minute.", "type": "number" }
+          }
+        }
+      }
+    },
     "workspaces": {
       "description": "AeroSpace's list-workspaces --json objects.",
       "type": "array",

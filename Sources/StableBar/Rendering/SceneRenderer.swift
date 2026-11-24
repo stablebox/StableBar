@@ -62,6 +62,7 @@ enum SceneRenderer {
             }
         }
         AudioMixer.shared = AudioMixer(sample: scene.mixer?.state ?? MixerState())
+        QuickToggles.shared = quickToggles(scene.quickToggles)
         // The Sound details read their providers by name, and a provider no widget shows, such as the microphone behind
         // them, takes its sample by name.
         store.widgetScripts.providers = providers
@@ -753,6 +754,42 @@ enum SceneRenderer {
         BarView(store: store, display: display)
             .environment(\.screenKind, .monitor)
             .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    /// The Quick toggles showing the scene's sample, or none of the toggles without one, so a scene never reads the Mac.
+    private static func quickToggles(_ sample: SceneFile.QuickToggles?) -> QuickToggles {
+        var keepAwake = KeepAwakeState()
+        if let minutes = sample?.keepAwakeMinutes {
+            // Turned on earlier for the shortest duration that leaves that many minutes, so the panel shows that duration chosen.
+            let chosen = [15, 60, 240].first { $0 >= minutes } ?? minutes
+            _ = keepAwake.handle(.turnOn(.minutes(chosen), now: DocsImages.date.addingTimeInterval(Double(minutes - chosen) * 60)))
+        }
+        let disks = (sample?.disks ?? []).map { name in
+            DiskVolume(name: name, path: "/Volumes/\(name)", format: "", total: 1, available: 1, isLocal: true, ejectable: true, drive: name)
+        }
+        let samples = sample?.displays.isEmpty == false ? sample!.displays
+            : sample?.brightness.map { [.init(name: "Built-in Retina Display", builtIn: true, level: $0, ownBrightness: true, modes: [])] } ?? []
+        let displays = samples.enumerated().map { index, display in
+            let modes = display.modes.enumerated().map { number, size in
+                let points = size.split(separator: "x").compactMap { Int($0) }
+                return DisplayModeOption(id: Int32(number), width: points[0], height: points[1], pixelWidth: points[0] * 2, pixelHeight: points[1] * 2,
+                                         refreshRate: 60, usable: true, isDefault: size == display.defaultMode)
+            }
+            return DisplayControls.Display(id: CGDirectDisplayID(index + 1), name: display.name, builtIn: display.builtIn, level: display.level,
+                                           ownBrightness: display.ownBrightness, modes: modes,
+                                           mode: display.current.flatMap { display.modes.firstIndex(of: $0) }.map { modes[$0] })
+        }
+        let expandedDisplay = samples.firstIndex { $0.name == sample?.expandedDisplay }.map { CGDirectDisplayID($0 + 1) }
+        let network = sample?.network
+        let toggles = QuickToggles(sample: sample?.states ?? [:],
+                                   displays: DisplayControls(sample: displays, mirrored: sample?.mirrored ?? false, expanded: expandedDisplay),
+                                   nightShiftStrength: sample?.nightShiftStrength,
+                                   keepAwake: keepAwake, pickedColor: sample?.pickedColor.map { NSColor($0.color) }, ejectable: disks,
+                                   networks: sample?.networks, scanning: sample?.scanning ?? false,
+                                   localAddress: network.map { ($0.interface, $0.address) }, publicAddress: network?.publicAddress,
+                                   speedTest: network?.speedTest, expanded: sample?.expanded)
+        if let network = sample?.networks?.first(where: { $0.ssid == sample?.asking }) { toggles.choose(network) }
+        return toggles
     }
 
     /// A script that never runs, showing the scene's output and history for the first of `keys` that

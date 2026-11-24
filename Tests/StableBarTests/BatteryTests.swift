@@ -86,10 +86,13 @@ private func battery(_ extra: [String: Any] = [:]) -> [String: Any] {
         ["name": "Speaker", "kind": "other", "icon": "dot.radiowaves.left.and.right", "battery": "", "level": "", "fraction": ""]
     ])
     #expect(output.fields?["summary"] == "Air75 V3 ISO-1 100% · AirPods Pro 40% · Magic Trackpad 55%")
+    #expect(output.fields?["power"] == "on")
     #expect(output.values == ["lowestBattery": 0.4])
 
     let off = try Bluetooth.output(json: Data(#"{"SPBluetoothDataType": [{"controller_properties": {"controller_state": "attrib_off"}}]}"#.utf8))
     #expect(off.text == "" && off.lists?["devices"] == [] && off.fields?["summary"] == "" && off.values == nil)
+    #expect(off.fields?["power"] == "off")
+    #expect(try Bluetooth.output(json: Data(#"{"SPBluetoothDataType": [{}]}"#.utf8)).fields?["power"] == nil)
 }
 
 @Test func batteryBlocksReadTheChargeFromTheirSource() throws {

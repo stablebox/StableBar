@@ -12,6 +12,15 @@ import Testing
     #expect(PrivateAPI.copyManagedDisplaySpaces != nil)
     #expect(PrivateAPI.copySpacesForWindows != nil)
     #expect(PrivateAPI.lockScreenImmediate != nil)
+    #expect(PrivateAPI.coreBrightnessClass("CBBlueLightClient") != nil)
+    #expect(PrivateAPI.coreBrightnessClass("CBTrueToneClient") != nil)
+    #expect(PrivateAPI.bluetoothPowerState != nil)
+    #expect(PrivateAPI.setBluetoothPowerState != nil)
+    #expect(PrivateAPI.getBrightness != nil)
+    #expect(PrivateAPI.setBrightness != nil)
+    #expect(PrivateAPI.avServiceCreateWithService != nil)
+    #expect(PrivateAPI.avServiceReadI2C != nil)
+    #expect(PrivateAPI.avServiceWriteI2C != nil)
 }
 
 @Test func aCallThisMacOSDoesNotHaveIsNil() {

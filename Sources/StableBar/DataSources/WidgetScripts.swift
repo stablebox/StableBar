@@ -180,12 +180,15 @@ final class WidgetScripts {
         var visible = visibleWidgets.values.reduce(into: Set<String>()) { $0.formUnion($1) }
         if let popupWidgetID { visible.insert(popupWidgetID) }
         if inspectorOpen, let inspectedWidgetID { visible.insert(inspectedWidgetID) }
+        let readByOpenPanel = store.configuration?.widgets.first { $0.id == popupWidgetID }
+            .map { store.configuration!.providerNames(readByPanelOf: $0) } ?? []
         for (name, provider) in providers {
             let definition = store.configuration?.providers[name]
             let sendsSubscribedEvents = store.registry[definition?.type ?? ""]?.events
                 .contains { store.configuration?.subscribedEvents.contains($0.rawValue) == true } == true
-            let hidden = definition?.whenVisible == true && !sendsSubscribedEvents
+            let hidden = !readByOpenPanel.contains(name) && (definition?.whenVisible == true && !sendsSubscribedEvents
                 && !(store.configuration?.widgets.contains { store.configuration!.providerNames(readBy: $0).contains(name) && visible.contains($0.id) } ?? false)
+                || store.configuration?.panelOnlyProviders.contains(name) == true)
             if !pauses.isEmpty || hidden { provider.suspend() } else { provider.resume() }
         }
         for widget in store.configuration?.widgets ?? [] {

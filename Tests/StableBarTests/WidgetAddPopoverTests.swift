@@ -66,9 +66,10 @@ final class WidgetAddPopoverTests: XCTestCase {
         XCTAssertEqual(model.selected, ids[1])
         model.move(by: 1)
         XCTAssertEqual(model.selected, ids[3])
-        model.selected = ids[17]
+        model.selected = ids[19]
         model.move(by: 1)
-        XCTAssertEqual(model.selected, ids[17], "The last row has no row below")
+        XCTAssertEqual(model.selected, ids[19], "The last row has no row below")
+        model.selected = ids[17]
         model.moveColumn(by: 1)
         XCTAssertEqual(model.selected, ids[17], "Right must not wrap to the next row")
         model.moveColumn(by: -1)

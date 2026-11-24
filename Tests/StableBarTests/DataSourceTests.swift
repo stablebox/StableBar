@@ -844,6 +844,34 @@ private func battery(_ state: String) -> ScriptOutput {
     #expect(!monitor.listening)
 }
 
+/// A panel that shows Wi-Fi and Bluetooth runs their providers while it's open, even one that runs only when visible; another
+/// panel without them doesn't.
+@Test @MainActor func quickTogglesReadWiFiAndBluetoothOnlyWhileTheirPanelIsOpen() async throws {
+    let url = try writeTemporaryConfiguration(#"""
+    {"providers":{"wifi":{"type":"wifi","whenVisible":true}},
+     "widgets":[{"id":"toggles","type":"quickToggles","position":"right"},
+                {"id":"dark","type":"quickToggles","position":"right","tiles":["darkMode"]},
+                {"id":"clock","type":"clock","position":"right"}]}
+    """#)
+    defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+    let wifi = FakeSources()
+    let bluetooth = FakeSources()
+    let store = BarStore(configurationURL: url, registry: .builtIn.replacing("wifi") { _, _ in wifi.make() }
+        .replacing("bluetooth") { _, _ in bluetooth.make() })
+    defer { store.stop() }
+    store.configurationStore.reloadConfiguration()
+    for id in ["clock", "dark"] {
+        store.setPopupVisibleWidget(id)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect((wifi.made + bluetooth.made).allSatisfy { $0.started == 0 })
+    }
+    store.setPopupVisibleWidget("toggles")
+    try await awaitCondition { wifi.made.last?.started == 1 && bluetooth.made.last?.started == 1 }
+    store.setPopupVisibleWidget(nil)
+    #expect(store.widgetScripts.providers["wifi"]?.diagnostics.suspended == true)
+    #expect(store.widgetScripts.providers["bluetooth"]?.diagnostics.suspended == true)
+}
+
 @Test @MainActor func aSourceEventRefreshesItsSubscribersButNotTheProviderThatSentIt() async throws {
     let url = try writeTemporaryConfiguration(#"""
     {"widgets":[{"id":"power","type":"battery","position":"right","events":["powerSourceChange"]},

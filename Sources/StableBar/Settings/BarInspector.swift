@@ -148,9 +148,13 @@ struct BarInspector: View {
                             isPresented: Binding(get: { resetting != nil }, set: { if !$0 { resetting = nil } }), presenting: resetting) { widget in
             Button("Reset") { editor.reset(widget) }
         } message: { widget in
-            Text(editor.definedInMainFile(widget)
-                 ? "Its style, role, rules, transition, tooltip, click action, format and workspace options go back to the defaults. What it shows and where it sits stay."
-                 : "Everything you changed goes back to how its package or imported file defines it. Where it sits and the screens it shows on stay.")
+            if case .quickToggles = widget.content, editor.definedInMainFile(widget) {
+                Text("Its tiles go back to the standard ones in their order, and its style, role, rules, transition, tooltip and click action to the defaults. Where it sits stays.")
+            } else {
+                Text(editor.definedInMainFile(widget)
+                     ? "Its style, role, rules, transition, tooltip, click action, format and workspace options go back to the defaults. What it shows and where it sits stay."
+                     : "Everything you changed goes back to how its package or imported file defines it. Where it sits and the screens it shows on stay.")
+            }
         }
     }
 
@@ -379,6 +383,13 @@ struct BarInspector: View {
             style.padding(default: 10, 6)
             style.number("Corner radius", "cornerRadius", default: 14, in: 0...40, slider: true)
             style.number("Border width", "borderWidth", default: 0, in: 0...6, step: 0.5)
+        }
+        if widget.drawsMenuBarItems {
+            SettingsGroup("Menu bar items") {
+                StyleFields(store: store, path: style.path, widgetID: widget.id, values: widget.style.spacing.map { ["spacing": .number($0)] } ?? [:],
+                            set: style.set, unset: style.unset)
+                    .number("Space between icons", "spacing", default: 14, in: 0...30, slider: true)
+            }
         }
         if widget.content == .workspaces {
             SettingsGroup("Workspaces") {
@@ -624,6 +635,11 @@ struct BarInspector: View {
                 SettingsGroup("Menu bar items") {
                     MenuBarItemsSettings(store: store, editor: editor, widget: widget, shown: widget.shownMenuBarItems, hidden: hidden)
                 }
+            case let .quickToggles(tiles):
+                SettingsGroup("Tiles", reset: tiles == QuickTile.standard ? nil : { editor.set(["tiles": .null], for: widget.id) }) {
+                    QuickTogglesSettings(editor: editor, widget: widget, tiles: tiles)
+                }
+                iconGroup(widget)
             case .appleMenu:
                 iconGroup(widget)
             default:
@@ -715,6 +731,8 @@ struct BarInspector: View {
             }
             if case .essentials? = widgetPopup(widget, store: store)?.layout.content {
                 SettingRow(title: "Click") { Text("Show details").foregroundStyle(.secondary) }
+            } else if case .quickToggles? = widgetPopup(widget, store: store)?.layout.content {
+                SettingRow(title: "Click") { Text("Show the toggles").foregroundStyle(.secondary) }
             } else {
                 clickRow(widget)
             }

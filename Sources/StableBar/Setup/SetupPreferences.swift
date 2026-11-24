@@ -16,7 +16,8 @@ struct SetupPreferences: Equatable, Codable, Sendable {
 
     enum WidgetSet: Hashable, Codable, Sendable {
         case appleMenu, appMenu(expandsOnHover: Bool), workspaces(WorkspaceSource, showsApps: Bool = true), system, systemMeters, systemRings,
-             diskMeter, meetings, privacy, sound, battery, batteryLevel, batteryRing, dateAndTime, dayAndTime, menuBarItems
+             diskMeter, meetings, privacy, sound, battery, batteryLevel, batteryRing, dateAndTime, dayAndTime, menuBarItems,
+             quickToggles
         /// A Store package's widget, which setup adds once the package's review has, starting from `settings`.
         case store(id: String, name: String, position: WidgetPosition, settings: [String: String] = [:])
 
@@ -41,6 +42,8 @@ struct SetupPreferences: Equatable, Codable, Sendable {
             switch (template.content, widget.content) {
             case let (.provider(expected), .provider(actual)):
                 matches = configuration.providers[actual]!.type == expected
+            case (.quickToggles, .quickToggles):
+                matches = true
             default:
                 matches = widget.content == template.content
             }
@@ -61,6 +64,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
             case .battery, .batteryLevel, .batteryRing: "Battery"
             case .dateAndTime, .dayAndTime: "Date and time"
             case .menuBarItems: "Menu bar items"
+            case .quickToggles: "Quick toggles"
             case let .store(_, name, _, _): name
             }
         }
@@ -113,6 +117,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
             case .battery: json = #"[{ "id": "battery", "type": "battery", "position": "right", "details": true }]"#
             case .sound: json = #"[{ "id": "sound", "type": "audio", "position": "right", "details": true }]"#
             case .menuBarItems: json = #"[{ "id": "menu-bar-items", "type": "menuBarItems", "position": "right" }]"#
+            case .quickToggles: json = #"[{ "id": "quick-toggles", "type": "quickToggles", "position": "right" }]"#
             }
             return try! JSONDecoder().decode([[String: ConfigurationValue]].self, from: Data(json.utf8))
         }
@@ -153,8 +158,9 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         }
 
         /// The preset's bar where it sits. Below the macOS menu bar, it leaves out what the menu bar right above it
-        /// shows: the Apple menu, the app's menus, the date and time, and Menu bar items. On a Mac without an internal
-        /// battery, Battery would only show a plug and "AC", so the preset leaves it out.
+        /// shows: the Apple menu, the app's menus, the date and time, Menu bar items, and Quick toggles, which its
+        /// Control Center covers. On a Mac without an internal battery, Battery would only show a plug and "AC", so the
+        /// preset leaves it out.
         func preferences(workspaces: WorkspaceSource, placement: Placement, hasBattery: Bool = true) -> SetupPreferences {
             var preferences = SetupPreferences(placement: placement, widgetSets: widgetSets(workspaces: workspaces, below: placement == .belowMenuBar),
                                                workspaces: workspaces)
@@ -170,20 +176,21 @@ struct SetupPreferences: Equatable, Codable, Sendable {
             let nowPlaying = WidgetSet.store(id: "now-playing", name: "Now playing", position: .center)
             let weather = WidgetSet.store(id: "weather", name: "Weather", position: .right)
             let sets: [WidgetSet] = switch self {
-            case .everyday: [.appleMenu, .appMenu(expandsOnHover: false), nowPlaying, weather, .sound, .batteryLevel, .dateAndTime, .menuBarItems]
+            case .everyday:
+                [.appleMenu, .appMenu(expandsOnHover: false), nowPlaying, weather, .sound, .batteryLevel, .dateAndTime, .menuBarItems, .quickToggles]
             case .minimal where below: [.workspaces(workspaces, showsApps: false), .battery]
-            case .minimal: [.appleMenu, .appMenu(expandsOnHover: true), .battery, .dayAndTime, .menuBarItems]
+            case .minimal: [.appleMenu, .appMenu(expandsOnHover: true), .battery, .dayAndTime, .menuBarItems, .quickToggles]
             case .developer:
                 [.appleMenu, .workspaces(workspaces), .appMenu(expandsOnHover: true),
                  .store(id: "dev-servers", name: "Development servers", position: .right),
                  .store(id: "ai-usage", name: "AI usage", position: .right, settings: ["layout": "One line"]),
-                 .systemMeters, .diskMeter, .sound, .battery, .dateAndTime, .menuBarItems]
+                 .systemMeters, .diskMeter, .sound, .battery, .dateAndTime, .menuBarItems, .quickToggles]
             case .workday:
                 [.appleMenu, .appMenu(expandsOnHover: false), .meetings, .store(id: "dock-badges", name: "Dock badges", position: .right), .privacy,
-                 .sound, .battery, .dateAndTime, .menuBarItems]
+                 .sound, .battery, .dateAndTime, .menuBarItems, .quickToggles]
             case .dashboard:
                 [.appleMenu, .workspaces(workspaces), .appMenu(expandsOnHover: true), nowPlaying, weather, .systemRings, .batteryRing, .sound,
-                 .dateAndTime, .menuBarItems]
+                 .dateAndTime, .menuBarItems, .quickToggles]
             }
             guard below else { return sets }
             return sets.filter { set in !set.widgets.contains { SetupPreferences.menuBarWidgetIDs.contains(SetupPreferences.id($0)) } }
@@ -219,14 +226,15 @@ struct SetupPreferences: Equatable, Codable, Sendable {
     }
 
     /// The starter bar on the top edge as Resources/config.json and earlier releases write it, with a 24-hour clock in
-    /// day-month order.
+    /// day-month order. Releases before Quick toggles wrote it without them.
     static let bundledMenuBarStarter = widgets(#"""
         [
           { "id": "apple", "type": "appleMenu", "position": "left" },
           { "id": "app-menu", "type": "appMenu", "position": "left" },
           { "id": "sound", "type": "audio", "position": "right", "details": true },
           { "id": "clock", "type": "clock", "position": "right", "format": "EEE d MMM  HH:mm", "details": true },
-          { "id": "menu-bar-items", "type": "menuBarItems", "position": "right" }
+          { "id": "menu-bar-items", "type": "menuBarItems", "position": "right" },
+          { "id": "quick-toggles", "type": "quickToggles", "position": "right" }
         ]
         """#)
 
@@ -286,7 +294,8 @@ struct SetupPreferences: Equatable, Codable, Sendable {
     private static func starters(remembered: [String]) -> [[[String: ConfigurationValue]]] {
         // Earlier releases' setup wrote its 12-hour choice as EEE d MMM  h:mm a.
         let formats = starterClockFormats() + remembered + ["EEE d MMM  h:mm a"]
-        return [bundledMenuBarStarter] + formats.map { menuBarStarter(clockFormat: $0) }
+        let starters = [bundledMenuBarStarter] + formats.map { menuBarStarter(clockFormat: $0) }
+        return starters + starters.map { $0.filter { $0["type"] != .string("quickToggles") } }
     }
 
     /// StableBar's clock, day, date, two spaces and time, in `locale`'s date order and its hour cycle, or the 24- or
@@ -402,8 +411,8 @@ struct SetupPreferences: Equatable, Codable, Sendable {
         return isBelowMenuBarStarter(widgets) || isMenuBarStarter(widgets)
     }
 
-    /// The widgets of the menu bar starter that repeat the macOS menu bar.
-    static let menuBarWidgetIDs: Set<String> = ["apple", "app-menu", "clock", "menu-bar-items"]
+    /// The widgets of the menu bar starter that repeat the macOS menu bar, its Control Center included.
+    static let menuBarWidgetIDs: Set<String> = ["apple", "app-menu", "clock", "menu-bar-items", "quick-toggles"]
 
     /// `widget` without its layout, which can name the theme's tokens that only the loader has. Telling widgets apart
     /// doesn't need it.

@@ -123,6 +123,29 @@ func appMenuDisplayModeDecodesWithBackwardCompatibleDefault(_ json: String, _ ex
     }
 }
 
+@Test func quickTogglesShowTheirTilesInOrderEachOnce() throws {
+    func widget(_ tiles: String) throws -> StableBar.WidgetConfiguration {
+        try JSONDecoder().decode(WidgetConfiguration.self, from: Data(#"{"id":"toggles","type":"quickToggles","position":"right"\#(tiles)}"#.utf8))
+    }
+    #expect(try widget("").content == .quickToggles(tiles: QuickTile.standard))
+    #expect(try widget(#","tiles":["lockScreen","wifi"]"#).content == .quickToggles(tiles: [.lockScreen, .wifi]))
+    #expect(throws: DecodingError.self) { try widget(#","tiles":["wifi","wifi"]"#) }
+    #expect(throws: DecodingError.self) { try widget(#","tiles":["airDrop"]"#) }
+}
+
+@Test func quickTogglesRunTheProvidersTheirWiFiAndBluetoothShow() throws {
+    func configuration(_ tiles: String) throws -> Configuration {
+        try JSONDecoder().decode(Configuration.self, from: Data(#"{"widgets":[{"id":"toggles","type":"quickToggles","position":"right"\#(tiles)}]}"#.utf8))
+    }
+    #expect(try configuration("").activeProviders.isSuperset(of: ["wifi", "bluetooth"]))
+    #expect(try configuration(#","tiles":["darkMode"]"#).activeProviders.isDisjoint(with: ["wifi", "bluetooth"]))
+    #expect(try configuration("").panelOnlyProviders == ["wifi", "bluetooth"])
+    let withWiFi = try JSONDecoder().decode(Configuration.self, from: Data(#"""
+    {"widgets":[{"id":"toggles","type":"quickToggles","position":"right"},{"id":"network","type":"wifi","position":"right"}]}
+    """#.utf8))
+    #expect(withWiFi.panelOnlyProviders == ["bluetooth"])
+}
+
 @Test func duplicateIdsCannotBreakWidgetIdentity() {
     #expect(throws: DecodingError.self) {
         try JSONDecoder().decode(Configuration.self, from: Data(#"{"widgets":[{"id":"clock","type":"clock","position":"left"},{"id":"clock","type":"clock","position":"right"}]}"#.utf8))
@@ -1095,10 +1118,13 @@ private func starterWithoutTheme() throws -> [String: ConfigurationValue] {
     #expect(try widgetIDs(custom).contains("clock"), "A clock someone set to another format stays")
 }
 
-/// Setup still recognizes the starter in both forms: as this Mac writes it, and as earlier releases did, with the
-/// bundled clock.
+/// Setup still recognizes the starter in each form: as this Mac writes it, as earlier releases did, with the bundled
+/// clock, and as releases before Quick toggles did, without them.
 @Test func setupRecognizesTheStarterWithEitherClock() throws {
-    for starter in [bundledStarter, try SetupPreferences.withMacsClock(bundledStarter)] {
+    let beforeQuickToggles = try [SetupPreferences.bundledMenuBarStarter, SetupPreferences.menuBarStarter].map { widgets in
+        try JSONEncoder().encode(["widgets": widgets.filter { $0["type"] != .string("quickToggles") }])
+    }
+    for starter in [bundledStarter, try SetupPreferences.withMacsClock(bundledStarter)] + beforeQuickToggles {
         let below = try SetupPreferences(placement: .belowMenuBar, workspaces: .yabai).applying(to: starter)
         #expect(try widgetIDs(below) == ["workspaces", "system-monitor", "sound"])
     }
@@ -1152,7 +1178,8 @@ private func starterWithoutTheme() throws -> [String: ConfigurationValue] {
       {"id": "mine", "type": "text", "position": "left", "text": "Hi"},
       {"id": "sound", "type": "audio", "position": "right"},
       {"id": "clock", "type": "clock", "position": "right", "format": "HH:mm"},
-      {"id": "menu-bar-items", "type": "menuBarItems", "position": "right"}
+      {"id": "menu-bar-items", "type": "menuBarItems", "position": "right"},
+      {"id": "quick-toggles", "type": "quickToggles", "position": "right"}
     ]}
     """##.utf8)
     #expect(try widgetIDs(SetupPreferences(placement: .belowMenuBar).applying(to: data)) == ["mine", "sound", "clock"])
@@ -1186,8 +1213,8 @@ private func starterWithoutTheme() throws -> [String: ConfigurationValue] {
     #expect(session.preferences.widgetSets == [nowPlaying, weather, .sound, .batteryLevel])
     await session.place(.top)
     #expect(session.preferences.widgetSets == [.appleMenu, .appMenu(expandsOnHover: false), nowPlaying, weather, .sound, .batteryLevel,
-                                               .dateAndTime, .menuBarItems])
-    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "sound", "battery", "clock", "menu-bar-items"])
+                                               .dateAndTime, .menuBarItems, .quickToggles])
+    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "sound", "battery", "clock", "menu-bar-items", "quick-toggles"])
 }
 
 /// An unchanged starter, on the top edge or below the menu bar, becomes exactly the preset's bar where the bar sits:
@@ -1242,7 +1269,7 @@ func anUnchangedStarterBecomesThePresetsBar(preset: SetupPreferences.Preset) thr
     let updated = try SetupPreferences(placement: .belowMenuBar).applying(to: data, configurationURL: root)
     var loader = ConfigurationLoader()
     let configuration = try loader.load(root, data: updated)
-    #expect(configuration.widgets.map(\.id) == ["apple", "app-menu", "sound", "clock", "menu-bar-items"])
+    #expect(configuration.widgets.map(\.id) == ["apple", "app-menu", "sound", "clock", "menu-bar-items", "quick-toggles"])
     #expect(configuration.bar.belowMenuBar)
 }
 
@@ -1400,7 +1427,8 @@ func setupKeepsStarterWidgetsChangedByOverrides(inProfile: Bool) throws {
     let developer = SetupPreferences.Preset.developer.preferences(workspaces: .spaces, placement: .current)
     let mine = try developer.applying(to: bar(clock: #"{"id":"clock","type":"clock","position":"right","format":"EEE d MMM  HH:mm"}"#))
     let configuration = try JSONDecoder().decode(Configuration.self, from: mine)
-    #expect(configuration.widgets.map(\.id) == ["apple", "workspaces", "app-menu", "system-monitor", "disk", "sound", "battery", "clock", "menu-bar-items"])
+    #expect(configuration.widgets.map(\.id) == ["apple", "workspaces", "app-menu", "system-monitor", "disk", "sound", "battery", "clock", "menu-bar-items",
+                                                "quick-toggles"])
     #expect(configuration.widgets.first { $0.id == "clock" }?.content == .clock(format: "EEE d MMM  HH:mm"))
     #expect(configuration.workspaceSource == .spaces)
 }
@@ -1428,7 +1456,7 @@ func setupKeepsStarterWidgetsChangedByOverrides(inProfile: Bool) throws {
     let bar = Data(#"{ "widgets": [{"id":"battery","type":"battery","position":"right"}] }"#.utf8)
     let dashboard = SetupPreferences.Preset.dashboard.preferences(workspaces: .spaces, placement: .current)
     #expect(try widgetIDs(dashboard.applying(to: bar))
-            == ["apple", "workspaces", "app-menu", "system-monitor", "battery", "sound", "clock", "menu-bar-items"])
+            == ["apple", "workspaces", "app-menu", "system-monitor", "battery", "sound", "clock", "menu-bar-items", "quick-toggles"])
 }
 
 @Test func setupReenablesMatchingWidgetsAndKeepsConflictingIDs() throws {
@@ -1439,7 +1467,8 @@ func setupKeepsStarterWidgetsChangedByOverrides(inProfile: Bool) throws {
       "widgets":[
         {"id":"system-monitor","type":"system","position":"left","enabled":false,"style":{"fontSize":18}},
         {"id":"meeting","type":"provider","provider":"agenda","position":"center","enabled":false},
-        {"id":"workspaces","type":"text","text":"Mine","position":"right","enabled":false}
+        {"id":"workspaces","type":"text","text":"Mine","position":"right","enabled":false},
+        {"id":"quick-toggles","type":"quickToggles","position":"right","enabled":false,"tiles":["darkMode"]}
       ]
     }
     """#.utf8)
@@ -1447,14 +1476,16 @@ func setupKeepsStarterWidgetsChangedByOverrides(inProfile: Bool) throws {
     #expect(SetupPreferences.WidgetSet.system.state(in: original) == .disabled)
     #expect(SetupPreferences.WidgetSet.meetings.state(in: original) == .disabled)
     #expect(SetupPreferences.WidgetSet.workspaces(.yabai).state(in: original) == .conflict)
-    let updated = try SetupPreferences(widgetSets: [.system, .meetings, .workspaces(.yabai)])
+    #expect(SetupPreferences.WidgetSet.quickToggles.state(in: original) == .disabled)
+    let updated = try SetupPreferences(widgetSets: [.system, .meetings, .workspaces(.yabai), .quickToggles])
         .applying(to: data)
     let configuration = try JSONDecoder().decode(Configuration.self, from: updated)
-    #expect(configuration.widgets.map(\.enabled) == [true, true, false])
-    #expect(configuration.widgets.map(\.position) == [.left, .center, .right])
+    #expect(configuration.widgets.map(\.enabled) == [true, true, false, true])
+    #expect(configuration.widgets.map(\.position) == [.left, .center, .right, .right])
     #expect(configuration.widgets[0].style.fontSize == 22)
     #expect(configuration.widgets[1].content == .provider("agenda"))
     #expect(configuration.widgets[2].content == .text("Mine"))
+    #expect(configuration.widgets[3].content == .quickToggles(tiles: [.darkMode]))
     #expect(configuration.workspaceSource == .aerospace)
 }
 

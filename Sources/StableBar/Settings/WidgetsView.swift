@@ -28,6 +28,7 @@ extension WidgetContent {
         case .controlCenter: "switch.2"
         case .stableBar: "gearshape"
         case .menuBarItems: "square.grid.2x2"
+        case .quickToggles: "slider.horizontal.3"
         case .clock: "clock"
         case .text: "textformat"
         case .script: "terminal"

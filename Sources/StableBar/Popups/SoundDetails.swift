@@ -235,7 +235,7 @@ struct SoundDetails: View {
 }
 
 /// A button like Control Center's, as round as the theme's corners, filled with its accent while what it turns on is on.
-private struct RoundButton: View {
+struct RoundButton: View {
     let symbol: String
     let active: Bool
     let label: String
@@ -252,7 +252,7 @@ private struct RoundButton: View {
 }
 
 /// What a round button shows, which lightens under the pointer.
-private struct RoundFace: View {
+struct RoundFace: View {
     let symbol: String
     let active: Bool
     var size: Double = 28
@@ -301,7 +301,7 @@ private struct MediaButton: View {
 }
 
 /// A link in the theme's accent, underlined under the pointer.
-private struct SoundLink: View {
+struct SoundLink: View {
     let title: String
     let appearance: WidgetAppearance
     let action: () -> Void
@@ -319,7 +319,7 @@ private struct SoundLink: View {
 }
 
 /// A device in a Sound details card: a click makes it the default, and the default shows a check in the accent.
-private struct SoundDeviceRow: View {
+struct SoundDeviceRow: View {
     let name: String
     let selected: Bool
     /// The corners of its highlight, the card's.

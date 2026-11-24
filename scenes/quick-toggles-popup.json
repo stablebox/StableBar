@@ -1,0 +1,89 @@
+{
+  "$schema": "../scene.schema.json",
+  "configuration": {
+    "widgets": [
+      {
+        "id": "toggles",
+        "type": "quickToggles",
+        "position": "right"
+      }
+    ]
+  },
+  "outputs": {
+    "wifi": {
+      "text": "Home",
+      "icon": "wifi",
+      "fields": {
+        "ssid": "Home",
+        "interface": "en0",
+        "power": "on",
+        "access": "granted",
+        "rssi": "-54"
+      },
+      "values": {
+        "signal": 0.92,
+        "power": 1
+      }
+    },
+    "bluetooth": {
+      "text": "3",
+      "fields": {
+        "summary": "AirPods Pro 76% · Magic Keyboard 100% · MX Master 3S 54%",
+        "power": "on"
+      },
+      "lists": {
+        "devices": [
+          {
+            "name": "AirPods Pro",
+            "kind": "headphones",
+            "icon": "airpodspro",
+            "battery": "76% · 77% · 90%",
+            "level": "76",
+            "fraction": "0.76"
+          },
+          {
+            "name": "Magic Keyboard",
+            "kind": "keyboard",
+            "icon": "keyboard",
+            "battery": "100%",
+            "level": "100",
+            "fraction": "1"
+          },
+          {
+            "name": "MX Master 3S",
+            "kind": "mouse",
+            "icon": "computermouse",
+            "battery": "54%",
+            "level": "54",
+            "fraction": "0.54"
+          }
+        ]
+      },
+      "values": {
+        "lowestBattery": 0.54
+      }
+    }
+  },
+  "quickToggles": {
+    "states": {
+      "bluetooth": true,
+      "darkMode": true,
+      "nightShift": false,
+      "trueTone": true,
+      "desktopIcons": false,
+      "dockAutohide": true
+    },
+    "brightness": 0.68,
+    "keepAwakeMinutes": 42,
+    "disks": [
+      "Backup"
+    ],
+    "network": {
+      "interface": "en0",
+      "address": "192.168.1.42"
+    }
+  },
+  "draw": "popup",
+  "widget": "toggles",
+  "height": 460
+}

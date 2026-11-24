@@ -141,6 +141,8 @@ indirect enum PopupContent: Sendable {
     case appMenu([AppMenuEntry])
     case menuBarItems([MenuBarItem])
     case essentials(EssentialsPopup, timeZone: String?)
+    /// The Quick toggles widget's panel. Configurations can't use it.
+    case quickToggles([QuickTile])
 }
 
 struct PopupBlock: Decodable, Sendable {

@@ -488,6 +488,7 @@ enum WidgetContent: Equatable, Sendable {
     case controlCenter
     case stableBar
     case menuBarItems(openOnHover: Bool, rightClickInMenuBar: Bool, shown: [MenuBarItemsEntry], hidden: [MenuBarItemsEntry])
+    case quickToggles(tiles: [QuickTile])
     case clock(format: String)
     case text(String)
     case script(command: String, interval: Double?)
@@ -504,7 +505,7 @@ enum AppMenuDisplayMode: String, Decodable, Sendable {
 struct WidgetConfiguration: Decodable, Identifiable, Sendable {
     /// The types besides those of native providers, such as `battery`.
     private static let fixedTypeNames: Set<String> = ["spacer", "provider", "aerospace", "workspaces", "activeApp", "appMenu", "appleMenu",
-                                                      "controlCenter", "stableBar", "menuBarItems", "clock", "text", "script"]
+                                                      "controlCenter", "stableBar", "menuBarItems", "quickToggles", "clock", "text", "script"]
 
     let id: String
     /// The `type` the widget declares, with `aerospace` as `workspaces`.
@@ -548,7 +549,7 @@ struct WidgetConfiguration: Decodable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, role, position, type, icon, tooltip, onClick, open, menu, popup, popupName, style, format, text, command, interval
         case display, layout, hoverLayout, overlay, animation, workspace, events, environment, timeout, actions, enabled, provider, group, priority, overflow, rules, transition
-        case expandOnHover, displayMode, openOnHover, rightClickInMenuBar, shown, hidden, details, hideWhenIdle, timeZone, click, background, popupBackground, tooltipBackground
+        case expandOnHover, displayMode, openOnHover, rightClickInMenuBar, shown, hidden, tiles, details, hideWhenIdle, timeZone, click, background, popupBackground, tooltipBackground
     }
 
     var group: String? { ownGroup ?? joinedGroup }
@@ -630,6 +631,12 @@ struct WidgetConfiguration: Decodable, Identifiable, Sendable {
                                     rightClickInMenuBar: try values.decodeIfPresent(Bool.self, forKey: .rightClickInMenuBar) ?? false,
                                     shown: try values.decodeIfPresent([MenuBarItemsEntry].self, forKey: .shown) ?? [],
                                     hidden: try values.decodeIfPresent([MenuBarItemsEntry].self, forKey: .hidden) ?? [])
+        case "quickToggles":
+            let tiles = try values.decodeIfPresent([QuickTile].self, forKey: .tiles) ?? QuickTile.standard
+            if Set(tiles).count != tiles.count {
+                throw DecodingError.dataCorruptedError(forKey: .tiles, in: values, debugDescription: "Name each tile once.")
+            }
+            content = .quickToggles(tiles: tiles)
         case "clock": content = .clock(format: try values.decodeIfPresent(String.self, forKey: .format) ?? "EEE d MMM  HH:mm")
         case "text": content = .text(try values.decode(String.self, forKey: .text))
         case "script":
@@ -699,6 +706,15 @@ extension Configuration {
     }
 
     static let soundDetailsProviders = [DataSourceType.microphone.name, DataSourceType.nowPlaying.name]
+
+    /// The providers a widget's Quick toggles panel reads: the network for its Wi-Fi tile and the devices for its
+    /// Bluetooth one.
+    func providerNames(readByPanelOf widget: WidgetConfiguration) -> [String] {
+        guard case let .quickToggles(tiles) = widget.content else { return [] }
+        return Self.quickTogglesProviders.filter { tiles.contains($0.tile) && providers[$0.name]?.type == $0.name }.map(\.name)
+    }
+
+    static let quickTogglesProviders = [(tile: QuickTile.wifi, name: DataSourceType.wifi.name), (tile: .bluetooth, name: DataSourceType.bluetooth.name)]
 }
 
 enum BarAppearance: String, Decodable, Sendable {
@@ -900,6 +916,9 @@ struct Configuration: Decodable, Sendable {
     /// for each subscribed event a data source sends, a provider of that source, unless a provider of
     /// another type has its name.
     let activeProviders: Set<String>
+    /// The active providers only Quick toggles panels read, which run while a panel that reads them is open: Wi-Fi's
+    /// first read asks for Location access, and Bluetooth's runs `system_profiler`.
+    let panelOnlyProviders: Set<String>
 
     enum CodingKeys: String, CodingKey, CaseIterable { case workspaceSource, modeAliases, bar, defaults, popupDefaults, groupDefaults, roles, workspaceDefaults, widgets, screens, popups, templates, widgetOverrides, environment, providers, groups }
 
@@ -999,9 +1018,21 @@ struct Configuration: Decodable, Sendable {
                 active.insert(name)
             }
         }
+        // The Quick toggles' Wi-Fi and Bluetooth show the network and the devices these providers read.
+        var panelOnly = Set<String>()
+        for (tile, name) in Self.quickTogglesProviders
+        where (providers[name]?.type ?? name) == name && widgets.contains(where: { widget in
+            guard widget.enabled, case let .quickToggles(tiles) = widget.content else { return false }
+            return tiles.contains(tile)
+        }) {
+            if !active.contains(name) { panelOnly.insert(name) }
+            providers[name] = providers[name] ?? ProviderConfiguration(type: name)
+            active.insert(name)
+        }
         self.providers = providers
         subscribedEvents = subscribed
         activeProviders = active
+        panelOnlyProviders = panelOnly
         groups = (try values.decodeIfPresent([String: WidgetGroupConfiguration].self, forKey: .groups) ?? [:]).mapValues { group in
             var group = group
             group.style = group.style.inheriting(groupDefaults)

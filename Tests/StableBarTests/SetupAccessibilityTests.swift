@@ -11,22 +11,23 @@ import Testing
     func presetLabelsNameWidgets(preset: SetupPreferences.Preset, hasBattery: Bool) {
         let expected: (heading: String, top: [String], below: [String]) = switch preset {
         case .everyday: ("Everyday.",
-                        ["Apple menu", "App menus", "Now playing", "Weather", "Sound", "Battery", "Date and time", "Menu bar items"],
+                        ["Apple menu", "App menus", "Now playing", "Weather", "Sound", "Battery", "Date and time", "Menu bar items",
+                         "Quick toggles"],
                         ["Now playing", "Weather", "Sound", "Battery"])
         case .minimal: ("Minimal.",
-                       ["Apple menu", "App menus", "Battery", "Date and time", "Menu bar items"],
+                       ["Apple menu", "App menus", "Battery", "Date and time", "Menu bar items", "Quick toggles"],
                        ["Workspaces", "Battery"])
         case .developer: ("Developer.",
                          ["Apple menu", "Workspaces", "App menus", "Development servers", "AI usage", "System", "Disk", "Sound", "Battery", "Date and time",
-                          "Menu bar items"],
+                          "Menu bar items", "Quick toggles"],
                          ["Workspaces", "Development servers", "AI usage", "System", "Disk", "Sound", "Battery"])
         case .workday: ("Workday.",
                        ["Apple menu", "App menus", "Meetings", "Dock badges", "Microphone & camera", "Sound", "Battery", "Date and time",
-                        "Menu bar items"],
+                        "Menu bar items", "Quick toggles"],
                        ["Meetings", "Dock badges", "Microphone & camera", "Sound", "Battery"])
         case .dashboard: ("Dashboard.",
                          ["Apple menu", "Workspaces", "App menus", "Now playing", "Weather", "System", "Battery", "Sound", "Date and time",
-                          "Menu bar items"],
+                          "Menu bar items", "Quick toggles"],
                          ["Workspaces", "Now playing", "Weather", "System", "Battery", "Sound"])
         }
         for placement in [SetupPreferences.Placement.top, .belowMenuBar] {

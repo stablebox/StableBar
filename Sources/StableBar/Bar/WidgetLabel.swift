@@ -35,6 +35,9 @@ extension WidgetConfiguration {
         case .controlCenter, .menuBarItems:
             text = ""
             icon = icon ?? content.symbol
+        case .quickToggles:
+            text = output?.text ?? ""
+            icon = icon ?? content.symbol
         case .script, .provider:
             text = output?.text ?? "…"
             icon = output?.icon ?? icon
@@ -103,8 +106,9 @@ extension BarStore {
     /// `widget`'s label from its current output. Only active-app widgets read the frontmost app, so
     /// switching apps redraws no other widget.
     func label(for widget: WidgetConfiguration, date: Date = .now) -> WidgetLabel {
-        widget.label(output: widgetScripts.scripts[widget.id]?.output,
-                     activeApp: widget.content == .activeApp ? appWatcher.activeApp?.localizedName : nil, date: date)
+        let output = if case .quickToggles = widget.content { QuickToggles.shared.keepAwake.barOutput(at: date) }
+            else { widgetScripts.scripts[widget.id]?.output }
+        return widget.label(output: output, activeApp: widget.content == .activeApp ? appWatcher.activeApp?.localizedName : nil, date: date)
     }
 }
 
@@ -125,6 +129,12 @@ extension WidgetConfiguration {
         let icon = label.icon.map { _ in PopupBlock(content: .symbol(name: "", source: "icon")) }
         let text = PopupBlock(content: .field("text"), hideWhenEmpty: "text")
         switch content {
+        case .quickToggles:
+            // While Keep awake is on, a cup and the time it has left.
+            return PopupBlock(content: .row([icon,
+                                             PopupBlock(content: .symbol(name: QuickTile.keepAwake.symbol, source: nil), hideWhenEmpty: "keepAwake"),
+                                             PopupBlock(content: .field("text"), hideWhenEmpty: "text")].compactMap { $0 }),
+                              keepsLineHeight: true)
         case .text, .controlCenter, .menuBarItems:
             return PopupBlock(content: .row([icon, text].compactMap { $0 }), keepsLineHeight: true)
         case .clock:

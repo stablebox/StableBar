@@ -11,6 +11,12 @@ func widgetPopup(_ widget: WidgetConfiguration, store: BarStore) -> PopupConfigu
             layout: PopupBlock(content: .menu)
         )
     }
+    if case let .quickToggles(tiles) = widget.content, widget.onClick == nil, widget.open == nil {
+        var popup = PopupConfiguration(style: WidgetStyle(fontSize: 13, width: 360), layout: PopupBlock(content: .quickToggles(tiles)))
+        // Wi-Fi, Bluetooth and Keep awake open their details in place, and the popup grows and shrinks with them.
+        popup.animation = WidgetAnimation()
+        return popup
+    }
     if widget.details, widget.onClick == nil, widget.open == nil, store.widgetScripts.scripts[widget.id]?.output.onClick == nil,
        let kind = EssentialsPopup.kind(for: widget, providerType: store.configuration?.providerType(of: widget)) {
         return kind.popup(timeZone: widget.timeZone)
@@ -470,6 +476,9 @@ struct WidgetView: View {
             content(fixedDate)
         } else if case let .clock(format) = widget.content {
             TimelineView(clockSchedule(format)) { context in content(context.date) }
+        } else if case .quickToggles = widget.content, case .on(.minutes, _) = QuickToggles.shared.keepAwake.state.mode {
+            // The time Keep awake has left, in minutes.
+            TimelineView(.periodic(from: .now, by: 30)) { context in content(context.date) }
         } else {
             content(.now)
         }

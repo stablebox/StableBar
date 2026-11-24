@@ -47,7 +47,7 @@ struct PopupView: View {
                             guard store.barEditing.allowsWidgetActions else { return }
                             if popup.dismissOnAction { store.popup.close() }
                             target.open()
-                        }, openView: { navigation.view = $0 }, quit: { pid in
+                        }, close: { store.popup.close() }, openView: { navigation.view = $0 }, quit: { pid in
                             guard store.barEditing.allowsWidgetActions else { return }
                             if popup.dismissOnAction { store.popup.close() }
                             confirmQuit(pid)
@@ -67,7 +67,14 @@ struct PopupView: View {
                             guard store.barEditing.allowsWidgetActions else { return }
                             if popup.dismissOnAction { store.popup.close() }
                             store.widgetScripts.selectAudioDevice(id, input: input, widget: widget)
-                        }, providerOutput: { store.widgetScripts.providers[$0]?.output }, openSubmenu: { [screenKind] element, row in
+                        }, providerOutput: { name in
+                            store.configuration!.providers[name]?.type == name ? store.widgetScripts.providers[name]?.output : nil
+                        },
+                           refreshProvider: { name in
+                               if store.configuration!.providers[name]?.type == name {
+                                   store.widgetScripts.providers[name]?.refresh(ScriptEvent(sender: "popup.opened"))
+                               }
+                           }, openSubmenu: { [screenKind] element, row in
                             store.appMenu.openSubmenu(element, beside: row) { submenu in
                                 PopupView(popup: submenu, style: style, store: store, widget: widget).environment(\.screenKind, screenKind)
                             }

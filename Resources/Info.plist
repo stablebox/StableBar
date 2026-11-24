@@ -18,6 +18,8 @@
     <key>NSHighResolutionCapable</key><true/>
     <key>NSAudioCaptureUsageDescription</key><string>Play each app at its own volume and on its own output, from the Sound widget's mixer. StableBar keeps no recording of what it plays.</string>
     <key>NSAppleEventsUsageDescription</key><string>Hide the macOS menu bar when StableBar replaces it, read app status and run actions configured in your widgets.</string>
+    <key>NSBluetoothAlwaysUsageDescription</key><string>Turn Bluetooth on and off from the Quick toggles widget.</string>
+    <key>NSCameraUsageDescription</key><string>Show your camera in a small window from the Quick toggles widget, to check how you look before a call. StableBar records nothing.</string>
     <key>NSCalendarsFullAccessUsageDescription</key><string>Show your next meeting and today's agenda in calendar widgets.</string>
     <key>NSLocationUsageDescription</key><string>Show your Wi-Fi network's name in Wi-Fi widgets: macOS shares it only with apps allowed to use Location Services. StableBar never reads your location.</string>
     <key>SUFeedURL</key><string>https://github.com/stablebox/StableBar/releases/download/appcast/appcast.xml</string>

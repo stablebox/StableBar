@@ -1,0 +1,13 @@
+{
+  "$schema": "../scene.schema.json",
+  "configuration": {
+    "widgets": [
+      { "id": "toggles", "type": "quickToggles", "position": "right" },
+      { "id": "time", "type": "clock", "format": "HH:mm", "position": "right" }
+    ]
+  },
+  "draw": "settings",
+  "widget": "toggles",
+  "tab": "content",
+  "height": 1240
+}

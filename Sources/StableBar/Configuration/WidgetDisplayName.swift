@@ -11,6 +11,7 @@ enum WidgetDisplayName {
         case .controlCenter: type = "controlCenter"
         case .stableBar: type = "stableBar"
         case .menuBarItems: type = "menuBarItems"
+        case .quickToggles: type = "quickToggles"
         case .provider(let name): type = providers[name]?.type ?? name
         case .workspaces: type = "workspaces"
         case .text: type = "text"

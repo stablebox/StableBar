@@ -57,6 +57,122 @@ enum PrivateAPI {
                       as: (@convention(c) (CFString, CFDictionary?, @escaping @convention(block) (Bool) -> Void) -> Void).self)
     }()
 
+    // The Quick toggles' Night Shift and True Tone, as Control Center turns them on and off: CoreBrightness's clients.
+    // Like the login framework, it stays open for good.
+    /// Night Shift's client, on a Mac whose displays support it.
+    @MainActor static let blueLightClient: NSObject? = {
+        guard let type = coreBrightnessClass("CBBlueLightClient"),
+              let supported = implementation("supportsBlueLightReduction", in: object_getClass(type),
+                                              as: (@convention(c) (AnyClass, Selector) -> Bool).self),
+              supported(type, NSSelectorFromString("supportsBlueLightReduction")) else { return nil }
+        return type.init()
+    }()
+    /// True Tone's client, on a Mac whose display supports it.
+    @MainActor static let trueToneClient: NSObject? = {
+        guard let type = coreBrightnessClass("CBTrueToneClient") else { return nil }
+        let client = type.init()
+        return trueTone("supported", client) == true ? client : nil
+    }()
+
+    static func coreBrightnessClass(_ name: String) -> NSObject.Type? {
+        guard dlopen("/System/Library/PrivateFrameworks/CoreBrightness.framework/CoreBrightness", RTLD_LAZY) != nil else { return nil }
+        return NSClassFromString(name) as? NSObject.Type
+    }
+
+    /// Whether Night Shift is on: `getBlueLightStatus:` fills a status whose second byte, `enabled`, says so. Nil when it
+    /// can't tell.
+    @MainActor static func nightShiftEnabled() -> Bool? {
+        guard let client = blueLightClient,
+              let status = implementation("getBlueLightStatus:", in: type(of: client),
+                                           as: (@convention(c) (NSObject, Selector, UnsafeMutableRawPointer) -> Bool).self) else { return nil }
+        // The status is 40 bytes on macOS 14 to 27; the rest leaves room for a later macOS to grow it.
+        var bytes = [UInt8](repeating: 0, count: 128)
+        guard bytes.withUnsafeMutableBytes({ status(client, NSSelectorFromString("getBlueLightStatus:"), $0.baseAddress!) }) else { return nil }
+        return bytes[1] != 0
+    }
+
+    /// Turns Night Shift on or off until its schedule next changes it, as Control Center's button does.
+    @MainActor static func setNightShift(_ on: Bool) -> Bool {
+        guard let client = blueLightClient,
+              let set = implementation("setEnabled:", in: type(of: client), as: (@convention(c) (NSObject, Selector, Bool) -> Bool).self)
+        else { return false }
+        return set(client, NSSelectorFromString("setEnabled:"), on)
+    }
+
+    /// `available` (the display can use it now) or `enabled` (it's on) of True Tone's client `client`.
+    @MainActor static func trueTone(_ property: String, _ client: NSObject? = trueToneClient) -> Bool? {
+        guard let client, let read = implementation(property, in: type(of: client), as: (@convention(c) (NSObject, Selector) -> Bool).self)
+        else { return nil }
+        return read(client, NSSelectorFromString(property))
+    }
+
+    @MainActor static func setTrueTone(_ on: Bool) -> Bool {
+        guard let client = trueToneClient,
+              let set = implementation("setEnabled:", in: type(of: client), as: (@convention(c) (NSObject, Selector, Bool) -> Bool).self)
+        else { return false }
+        return set(client, NSSelectorFromString("setEnabled:"), on)
+    }
+
+    /// The Objective-C method `selector` of `type`, or of a class's metaclass for a class method, as `function`; nil when
+    /// it has none.
+    private static func implementation<Function>(_ selector: String, in type: AnyClass?, as function: Function.Type) -> Function? {
+        guard let type, let method = class_getInstanceMethod(type, NSSelectorFromString(selector)) else { return nil }
+        return unsafeBitCast(method_getImplementation(method), to: function)
+    }
+
+    /// Night Shift's warmth, from 0 to 1. Nil when it can't tell.
+    @MainActor static func nightShiftStrength() -> Double? {
+        guard let client = blueLightClient,
+              let read = implementation("getStrength:", in: type(of: client),
+                                        as: (@convention(c) (NSObject, Selector, UnsafeMutablePointer<Float>) -> Bool).self) else { return nil }
+        var strength: Float = 0
+        return read(client, NSSelectorFromString("getStrength:"), &strength) ? Double(strength) : nil
+    }
+
+    @MainActor static func setNightShiftStrength(_ strength: Double) -> Bool {
+        guard let client = blueLightClient,
+              let set = implementation("setStrength:commit:", in: type(of: client),
+                                       as: (@convention(c) (NSObject, Selector, Float, Bool) -> Bool).self) else { return false }
+        return set(client, NSSelectorFromString("setStrength:commit:"), Float(strength), true)
+    }
+
+    // External displays' brightness over DDC/CI: IOKit's IOAVService calls, which its headers leave out. The service
+    // follows the Create rule, and the I2C calls return 0 on success.
+    static let avServiceCreateWithService: (@convention(c) (CFAllocator?, io_service_t) -> Unmanaged<CFTypeRef>?)? = {
+        guard let iokit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_LAZY) else { return nil }
+        return symbol("IOAVServiceCreateWithService", in: iokit, as: (@convention(c) (CFAllocator?, io_service_t) -> Unmanaged<CFTypeRef>?).self)
+    }()
+    /// Reads `length` bytes from the chip at an address, from an offset.
+    static let avServiceReadI2C: (@convention(c) (CFTypeRef, UInt32, UInt32, UnsafeMutableRawPointer, UInt32) -> IOReturn)? = {
+        guard let iokit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_LAZY) else { return nil }
+        return symbol("IOAVServiceReadI2C", in: iokit, as: (@convention(c) (CFTypeRef, UInt32, UInt32, UnsafeMutableRawPointer, UInt32) -> IOReturn).self)
+    }()
+    static let avServiceWriteI2C: (@convention(c) (CFTypeRef, UInt32, UInt32, UnsafeMutableRawPointer, UInt32) -> IOReturn)? = {
+        guard let iokit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_LAZY) else { return nil }
+        return symbol("IOAVServiceWriteI2C", in: iokit, as: (@convention(c) (CFTypeRef, UInt32, UInt32, UnsafeMutableRawPointer, UInt32) -> IOReturn).self)
+    }()
+
+    // The Quick toggles' Bluetooth power, as Control Center turns it on and off: IOBluetooth's preference calls, which its
+    // headers leave out. 1 is on.
+    static let bluetoothPowerState: (@convention(c) () -> Int32)? = {
+        guard let bluetooth = dlopen("/System/Library/Frameworks/IOBluetooth.framework/IOBluetooth", RTLD_LAZY) else { return nil }
+        return symbol("IOBluetoothPreferenceGetControllerPowerState", in: bluetooth, as: (@convention(c) () -> Int32).self)
+    }()
+    static let setBluetoothPowerState: (@convention(c) (Int32) -> Void)? = {
+        guard let bluetooth = dlopen("/System/Library/Frameworks/IOBluetooth.framework/IOBluetooth", RTLD_LAZY) else { return nil }
+        return symbol("IOBluetoothPreferenceSetControllerPowerState", in: bluetooth, as: (@convention(c) (Int32) -> Void).self)
+    }()
+
+    // The built-in display's brightness, from 0 to 1, as its keys set it: DisplayServices' calls, which return 0 on success.
+    static let getBrightness: (@convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Float>) -> Int32)? = {
+        guard let display = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_LAZY) else { return nil }
+        return symbol("DisplayServicesGetBrightness", in: display, as: (@convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Float>) -> Int32).self)
+    }()
+    static let setBrightness: (@convention(c) (CGDirectDisplayID, Float) -> Int32)? = {
+        guard let display = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_LAZY) else { return nil }
+        return symbol("DisplayServicesSetBrightness", in: display, as: (@convention(c) (CGDirectDisplayID, Float) -> Int32).self)
+    }()
+
     /// A symbol macOS keeps for its own menus, such as the Apple menu's App Store one, from the bundle AppKit loads it from.
     static func privateSymbol(_ name: String) -> NSImage? {
         Bundle(path: "/System/Library/CoreServices/CoreGlyphsPrivate.bundle").flatMap { NSImage(symbolName: name, bundle: $0, variableValue: 1) }

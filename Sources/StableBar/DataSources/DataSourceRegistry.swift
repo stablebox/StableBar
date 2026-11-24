@@ -62,7 +62,7 @@ extension SourcePermission {
                                                   detail: "Menu bar items shown as in the menu bar are copied from it. StableBar records nothing else.",
                                                   symbol: "rectangle.dashed.badge.record", privacyPane: "Privacy_ScreenCapture")
     static let location = SourcePermission(title: "Location",
-                                           detail: "Wi-Fi widgets show your network's name, which macOS shares only with apps allowed to use Location Services. macOS asks for access the first time one updates.",
+                                           detail: "Wi-Fi widgets and the Quick toggles' Wi-Fi list show your network's name, which macOS shares only with apps allowed to use Location Services. macOS asks for access the first time one shows a network.",
                                            symbol: "location", privacyPane: "Privacy_LocationServices")
 }
 

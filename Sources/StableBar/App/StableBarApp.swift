@@ -661,5 +661,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         store.stop()
         store.appMenu.hidesMenuBar = false
         endMenuBarReveals()
+        QuickToggles.existing?.keepAwake.turnOff()
+        QuickToggles.existing?.displays.restore()
     }
 }

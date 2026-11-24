@@ -58,6 +58,11 @@
         "id": "menu-bar-items",
         "type": "menuBarItems",
         "position": "right"
+      },
+      {
+        "id": "quick-toggles",
+        "type": "quickToggles",
+        "position": "right"
       }
     ]
   },

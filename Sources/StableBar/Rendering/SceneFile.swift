@@ -66,6 +66,8 @@ struct SceneFile: Decodable {
     var menu: [MenuItem]?
     /// The Sound details' mixer, as on a Mac where its apps play.
     var mixer: Mixer?
+    /// The Quick toggles' panel, as on a Mac with these settings.
+    var quickToggles: QuickToggles?
     var draw: Draw
     /// The widget whose popup or Settings page to draw, or whose popup the bar shows open.
     var widget: String?
@@ -114,7 +116,7 @@ struct SceneFile: Decodable {
     var height: Double?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case configuration, packages, packageOrigins, outputs, history, workspaces, windows, yabaiSpaces, yabaiWindows, yabaiApps, focusedWindow, dockBadges, desktopShortcuts, activeApp, menu, mixer, draw, widget, group, view, section, tab, package, uninstall,
+        case configuration, packages, packageOrigins, outputs, history, workspaces, windows, yabaiSpaces, yabaiWindows, yabaiApps, focusedWindow, dockBadges, desktopShortcuts, activeApp, menu, mixer, quickToggles, draw, widget, group, view, section, tab, package, uninstall,
              themeLink, barLink, untickedWidgets, starRequest, setup, applicationMove, windowsUnderBar, workspaceManagers, shareScreen, sharePreset, macOSMajorVersion, appearances,
              accessibilityDisplay, wallpaper, width, height
     }
@@ -180,6 +182,52 @@ struct SceneFile: Decodable {
         }
     }
 
+    /// What the Quick toggles' panel shows, without reading or changing the Mac that draws it.
+    struct QuickToggles: Equatable {
+        /// Each toggle that shows, on or off. The others hide, as on a Mac without them.
+        var states: [QuickTile: Bool]
+        var brightness: Double?
+        /// The minutes Keep awake has left; nil while it's off.
+        var keepAwakeMinutes: Int?
+        var pickedColor: HexColor?
+        /// The names of the disks Eject Disks ejects.
+        var disks: [String]
+        /// What a Wi-Fi scan found.
+        var networks: [WiFiNetwork]?
+        /// The network whose password the Wi-Fi card asks for, with its list open.
+        var asking: String?
+        /// Whether a Wi-Fi scan is under way.
+        var scanning: Bool
+        /// The tile whose details the panel shows open: wifi, bluetooth, network or keepAwake.
+        var expanded: QuickTile?
+        /// The displays, the first being the main one; without them, `brightness` is the built-in display's.
+        var displays: [Display]
+        /// The display whose resolutions the panel shows, by name.
+        var expandedDisplay: String?
+        var mirrored: Bool
+        var nightShiftStrength: Double?
+        var network: Network?
+
+        struct Display: Equatable {
+            var name: String
+            var builtIn: Bool
+            var level: Double
+            /// Whether the slider sets the display's own brightness, as DDC/CI does when the display answers.
+            var ownBrightness: Bool
+            /// Sizes in points, such as `1512x982`, drawn at twice as many pixels, from larger text to more space.
+            var modes: [String]
+            var current: String?
+            var defaultMode: String?
+        }
+
+        struct Network: Equatable {
+            var interface: String
+            var address: String
+            var publicAddress: String?
+            var speedTest: NetworkDetails.SpeedTest?
+        }
+    }
+
     /// An item of a sample menu, with the values Accessibility gives a menu item. An empty title is a separator.
     struct MenuItem: Equatable {
         var title: String
@@ -226,6 +274,7 @@ struct SceneFile: Decodable {
         activeApp = try values.decodeIfPresent(String.self, forKey: .activeApp)
         menu = try values.decodeIfPresent([MenuItem].self, forKey: .menu)
         mixer = try values.decodeIfPresent(Mixer.self, forKey: .mixer)
+        quickToggles = try values.decodeIfPresent(QuickToggles.self, forKey: .quickToggles)
         draw = try values.decode(Draw.self, forKey: .draw)
         widget = try values.decodeIfPresent(String.self, forKey: .widget)
         group = try values.decodeIfPresent(String.self, forKey: .group)
@@ -402,6 +451,86 @@ extension SceneFile.Mixer: Decodable {
         if Set(apps.map(\.id)).count != apps.count {
             throw DecodingError.dataCorruptedError(forKey: .apps, in: values, debugDescription: "The mixer names each app once.")
         }
+    }
+}
+
+extension SceneFile.QuickToggles: Decodable {
+    enum CodingKeys: String, CodingKey, CaseIterable { case states, brightness, keepAwakeMinutes, pickedColor, disks, networks, asking, scanning, expanded, displays, expandedDisplay,
+                                                       mirrored, nightShiftStrength, network }
+
+    init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self)
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        states = [:]
+        for (name, on) in try values.decodeIfPresent([String: Bool].self, forKey: .states) ?? [:] {
+            guard let tile = QuickTile(rawValue: name), ![.wifi, .network, .keepAwake, .brightness, .mirror].contains(tile), tile.group != .tools else {
+                throw DecodingError.dataCorruptedError(forKey: .states, in: values, debugDescription: "\(name) isn't a toggle.")
+            }
+            states[tile] = on
+        }
+        brightness = try values.decodeIfPresent(Double.self, forKey: .brightness)
+        keepAwakeMinutes = try values.decodeIfPresent(Int.self, forKey: .keepAwakeMinutes)
+        pickedColor = try values.decodeIfPresent(HexColor.self, forKey: .pickedColor)
+        disks = try values.decodeIfPresent([String].self, forKey: .disks) ?? []
+        networks = try values.decodeIfPresent([WiFiNetwork].self, forKey: .networks)
+        asking = try values.decodeIfPresent(String.self, forKey: .asking)
+        scanning = try values.decodeIfPresent(Bool.self, forKey: .scanning) ?? false
+        expanded = try values.decodeIfPresent(QuickTile.self, forKey: .expanded)
+        displays = try values.decodeIfPresent([Display].self, forKey: .displays) ?? []
+        expandedDisplay = try values.decodeIfPresent(String.self, forKey: .expandedDisplay)
+        mirrored = try values.decodeIfPresent(Bool.self, forKey: .mirrored) ?? false
+        nightShiftStrength = try values.decodeIfPresent(Double.self, forKey: .nightShiftStrength)
+        network = try values.decodeIfPresent(Network.self, forKey: .network)
+    }
+}
+
+extension SceneFile.QuickToggles.Display: Decodable {
+    enum CodingKeys: String, CodingKey, CaseIterable { case name, builtIn, level, ownBrightness, modes, current, defaultMode }
+
+    init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self)
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        name = try values.decode(String.self, forKey: .name)
+        builtIn = try values.decodeIfPresent(Bool.self, forKey: .builtIn) ?? false
+        level = try values.decode(Double.self, forKey: .level)
+        ownBrightness = try values.decodeIfPresent(Bool.self, forKey: .ownBrightness) ?? true
+        modes = try values.decodeIfPresent([String].self, forKey: .modes) ?? []
+        if let size = modes.first(where: { $0.range(of: "^[1-9][0-9]{0,4}x[1-9][0-9]{0,4}$", options: .regularExpression) == nil }) {
+            throw DecodingError.dataCorruptedError(forKey: .modes, in: values, debugDescription: "\(size) isn't a size such as 1512x982.")
+        }
+        current = try values.decodeIfPresent(String.self, forKey: .current)
+        defaultMode = try values.decodeIfPresent(String.self, forKey: .defaultMode)
+        if let size = ([current, defaultMode].compactMap { $0 }).first(where: { !modes.contains($0) }) {
+            throw DecodingError.dataCorruptedError(forKey: .modes, in: values, debugDescription: "\(size) isn't one of the modes.")
+        }
+    }
+}
+
+extension SceneFile.QuickToggles.Network: Decodable {
+    enum CodingKeys: String, CodingKey, CaseIterable { case interface, address, publicAddress, download, upload, responsiveness }
+
+    init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self)
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        interface = try values.decode(String.self, forKey: .interface)
+        address = try values.decode(String.self, forKey: .address)
+        publicAddress = try values.decodeIfPresent(String.self, forKey: .publicAddress)
+        let test = NetworkDetails.SpeedTest(download: try values.decodeIfPresent(Double.self, forKey: .download),
+                                            upload: try values.decodeIfPresent(Double.self, forKey: .upload),
+                                            responsiveness: try values.decodeIfPresent(Double.self, forKey: .responsiveness))
+        speedTest = test == NetworkDetails.SpeedTest() ? nil : test
+    }
+}
+
+extension WiFiNetwork: Decodable {
+    enum CodingKeys: String, CodingKey, CaseIterable { case ssid, rssi, secure, known }
+
+    init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self)
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(ssid: try values.decode(String.self, forKey: .ssid), rssi: try values.decode(Int.self, forKey: .rssi),
+                  secure: try values.decodeIfPresent(Bool.self, forKey: .secure) ?? true,
+                  known: try values.decodeIfPresent(Bool.self, forKey: .known) ?? false)
     }
 }
 

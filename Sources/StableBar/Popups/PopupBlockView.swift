@@ -22,6 +22,8 @@ struct BlockContext {
     var fillsWidth = true
     /// Opens an `open` or `openField` block's target; a popup's also closes the popup when its actions dismiss it.
     let open: (OpenTarget) -> Void
+    /// Closes the popup, before an action that acts on the whole screen.
+    var close: () -> Void = {}
     /// Shows the popup's view of this name in place of its layout.
     var openView: (String) -> Void = { _ in }
     /// Asks to quit a `quitField` block's process; a popup's also closes the popup when its actions dismiss it.
@@ -38,8 +40,11 @@ struct BlockContext {
     /// Makes a `selectOutputDeviceField` block's audio device the default output, or with `true` a
     /// `selectInputDeviceField` block's the default input.
     var selectAudioDevice: (String, Bool) -> Void = { _, _ in }
-    /// The latest output of another running provider, by its name, such as the microphone's for the Sound details.
+    /// The latest output of the provider named after its type, such as `microphone` for the Sound details; nil when the
+    /// provider of that name has another type.
     var providerOutput: (String) -> ScriptOutput? = { _ in nil }
+    /// Reads another running provider again, by its name, such as Bluetooth's as the Quick toggles open.
+    var refreshProvider: (String) -> Void = { _ in }
     /// Opens the submenu of an app menu block's item beside the item's row, or without an item, closes the one open
     /// beside the block.
     var openSubmenu: (AXUIElement?, NSView) -> Void = { _, _ in }
@@ -549,6 +554,8 @@ struct PopupBlockView: View {
                             hover: context.hoverMenuBarItem, press: context.pressMenuItem, place: context.placeMenuBarItem)
         case let .essentials(kind, timeZone):
             EssentialsDetails(kind: kind, timeZone: timeZone, style: inheritedStyle, fields: fields, context: context, appearance: appearance)
+        case let .quickToggles(tiles):
+            QuickTogglesDetails(tiles: tiles, style: inheritedStyle, context: context, appearance: appearance)
         }
     }
 }

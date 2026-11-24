@@ -9,6 +9,7 @@
 | `controlCenter` | Control Center icon; click to open macOS Control Center | — |
 | `stableBar` | StableBar's menu bar icon; click to open Settings | — |
 | `menuBarItems` | Grid symbol; rest the pointer on it or click it to list the items in the macOS menu bar, with their apps' icons, and open one | `openOnHover`: list them when the pointer rests on it (default `true`); `false` lists them only on click. `rightClickInMenuBar`: experimental, right-click items as in the macOS menu bar (default `false`) |
+| `quickToggles` | A panel of switches and tools like Control Center's: Wi-Fi, Bluetooth, Keep Awake, brightness, Dark Mode and more; see [Quick toggles](#quick-toggles) | `tiles`: the tiles it shows, in order |
 | `clock` | Local date/time, updated each minute, or each second when the format shows seconds | `format`: DateFormatter format. A layout can show its date and time apart, with the `date` and `time` fields |
 | `text` | Static text and optional icon | `text` |
 | `script` | Output of a shell command | `command`, `interval` in seconds or `null` for event-only updates |
@@ -17,7 +18,7 @@
 | `inputSource` | The keyboard input source, such as `FR`; clicking it switches to the next enabled one, unless it has its own `onClick`, `open`, popup or menu | — |
 | `privacy` | A microphone and a camera, lit orange and green while an app records from the default input device or uses a camera, as macOS's privacy indicators show; see [`privacy`](providers.md) for macOS 14.0 and 14.1 | `hideWhenIdle`: show only what is in use, and hide while nothing is (default `false`) |
 
-**Add widget** includes Clock & date, Active app, Apple menu, App menus, Control Center, StableBar, Menu bar items, Battery, Sound, Input source, Microphone & camera, System monitor, Network, Disk, Calendar, Workspaces, Text and Spacer. Text starts with “New widget”. App menus, Control Center, Menu bar items and an Apple menu that opens the menu need Accessibility access; Calendar asks for Calendar access; Workspaces needs AeroSpace, yabai, [OmniWM](#omniwm-workspaces) or [macOS Spaces](#macos-spaces-workspaces); adding it picks the window manager [as setup does](getting-started.md#install-and-set-up), and macOS Spaces when none is running. Script starts with a clock command you can change through **More → Edit as JSON…**.
+**Add widget** includes Clock & date, Active app, Apple menu, App menus, Control Center, StableBar, Menu bar items, Battery, Sound, Quick toggles, Input source, Microphone & camera, System monitor, Network, Disk, Calendar, Workspaces, Text and Spacer. Text starts with “New widget”. App menus, Control Center, Menu bar items and an Apple menu that opens the menu need Accessibility access; Calendar asks for Calendar access; Workspaces needs AeroSpace, yabai, [OmniWM](#omniwm-workspaces) or [macOS Spaces](#macos-spaces-workspaces); adding it picks the window manager [as setup does](getting-started.md#install-and-set-up), and macOS Spaces when none is running. Script starts with a clock command you can change through **More → Edit as JSON…**.
 
 The AeroSpace connection subscribes to workspace, monitor, window and focus events. It loads an initial snapshot, coalesces pending events and reconnects after a disconnect with exponential backoff, capped at five minutes, and at once when AeroSpace launches. Ten seconds of connection resets the backoff. The accent color marks the focused workspace; an outline marks a workspace visible on another monitor. Empty, inactive workspaces are hidden. App icons are deduplicated per workspace unless `workspace.windows` is enabled. Active-app updates come from NSWorkspace notifications.
 
@@ -58,6 +59,38 @@ Data settings belong to the widget’s provider. Widgets sharing that provider s
 ```
 
 A System monitor widget with details creates a default system provider sampling every 2 seconds and listing 5 apps, unless that provider is already configured. Other provider defaults are unchanged. For an older widget, turn on Details and set the app count in Content to show its app list.
+
+## Quick toggles
+
+A click on the Quick toggles widget opens a panel in the theme's colors, in cards like the Sound details':
+
+- **Wi-Fi** and **Bluetooth**: the button turns each on or off. Click Wi-Fi's name for the network joined, then **Known Networks** and **Other Networks** in range, with their signal and a lock for a secured one; click one to join it. The list shows at once, from the last scan, and a new scan updates it in place while a spinner turns. A secured network asks for its password in the panel, a saved one too: macOS joins with a saved password only from its own Wi-Fi menu and settings. Network names need Location access, as the [`wifi`](providers.md) provider's do. Bluetooth shows whether it's on and how many devices are connected, and its name lists them with their battery, from the [`bluetooth`](providers.md) provider, which reads them again as the panel opens. Unless another widget shows them, the `wifi` and `bluetooth` providers run only while the panel is open, so macOS asks for Location the first time you open it, not when StableBar starts. Turning Bluetooth on or off asks for Bluetooth access the first time; without it, the panel says where to allow it.
+- **Network** shows the Mac's IP address on the network it uses, Wi-Fi or Ethernet. Click it for the interface, the public IP address and a speed test; each IP address has a copy button. **Show** asks [api.ipify.org](https://www.ipify.org) for the public address, only when you click it. **Test Speed** runs macOS's `networkQuality`, which uses data for about 20 seconds, and shows the download and upload speeds and the responsiveness in round trips per minute. The panel keeps the last result until StableBar quits.
+- **Keep Awake** keeps the Mac from going to sleep until you turn it off. Click its name to choose 15 minutes, 1 hour, 4 hours, until turned off or until an app quits, whether the display may sleep, and whether it only keeps the Mac awake on power. While it's on, the bar shows a cup with the time left. It stops when the time runs out, when that app quits and when StableBar quits. Closing a laptop's lid still puts it to sleep, which only an administrator's `pmset` can change.
+- **Display**: each display's brightness, then **Dark Mode**, **Night Shift**, **True Tone** and, with two displays or more, **Mirror**, which mirrors the main display on the others. While Night Shift is on, a slider sets its warmth.
+  - The built-in display's brightness is its own. An external display's goes over DDC/CI, as the display's buttons set it; a display behind a dock, or on some Macs' built-in HDMI port, doesn't answer, and its slider dims it in software instead.
+  - The bottom of each slider goes darker than the display can, with a black window over the apps' windows that clicks go through and screenshots leave out. StableBar's bar and popups stay above it, and so do the Dock and the macOS menu bar. It doesn't fight Night Shift or True Tone, and it's gone when StableBar quits: a relaunch starts undimmed.
+  - Click a display's resolution for the others, as System Settings lists them, from **Larger Text** to **More Space**. A resolution or mirroring you choose stays, as in System Settings.
+- **Hide Icons** hides the desktop's icons, **Hide Dock** hides the Dock until the pointer reaches it, **Dotfiles** shows hidden files in Finder and **Mute Mic** mutes the microphone. Hide Icons and Dotfiles restart Finder, which reads them only as it starts.
+- **Tools**, whose names show when the pointer rests on them: Lock Screen, Sleep Display, Screen Saver, Screenshot, Color Picker, which copies the color's hex code, Camera, Clear Clipboard, Hide Apps, Empty Trash, which asks first, and Eject Disks, shown while a disk can be ejected. **Camera** shows the camera as a mirror in a small window over every app, which you can drag; click it again or the window's close button to turn the camera off. It asks for camera access the first time.
+
+The panel reads each setting when it opens and every second while it's open, so changes made elsewhere show. Dark Mode and Hide Dock go through System Events, and Empty Trash through Finder, which macOS asks you to allow once. A tile the Mac can't use hides, such as True Tone on a Mac without it, and so does the built-in display's brightness slider while the lid is closed. Night Shift and its warmth, True Tone, the built-in display's brightness and DDC/CI use private macOS calls, so what needs them also hides on a macOS without them. Bluetooth's button uses one too: without it, Bluetooth still lists its devices, but only macOS turns it on or off.
+
+`tiles` chooses the tiles and their order, each once. The panel puts each tile in its card, and the cards in the order of their first tile. **Settings → Bar → Content** lists the tiles shown, by card in the panel's order, then the others under **Not shown**: add or remove a tile with its button, and drag a shown tile to move it within its card, or use VoiceOver's **Move up** and **Move down**. A tile you add goes last in its card.
+
+| Card | Tiles |
+| --- | --- |
+| Connections | `wifi`, `bluetooth`, `network` |
+| Keep Awake | `keepAwake` |
+| Display | `brightness`, `darkMode`, `nightShift`, `trueTone`, `mirror` |
+| Desktop | `desktopIcons`, `dockAutohide`, `hiddenFiles`, `microphone` |
+| Tools | `lockScreen`, `sleepDisplay`, `screenSaver`, `screenshot`, `colorPicker`, `cameraMirror`, `clearClipboard`, `hideApps`, `emptyTrash`, `ejectDisks` |
+
+Without `tiles`, it shows `wifi`, `bluetooth`, `keepAwake`, `brightness`, `darkMode`, `nightShift`, `trueTone`, `mirror`, `desktopIcons`, `dockAutohide`, `lockScreen`, `screenshot`, `colorPicker`, `cameraMirror`, `emptyTrash` and `ejectDisks`.
+
+```json
+{ "id": "toggles", "type": "quickToggles", "position": "right", "tiles": ["wifi", "bluetooth", "keepAwake", "darkMode", "lockScreen", "screenshot"] }
+```
 
 ## App menus
 
@@ -257,6 +290,8 @@ Items you use all day can sit on the bar beside the grid symbol, as they do in t
 The grid symbol moves the same way: drag it to either end of **On the bar** or between items, or into **Hidden** to leave it out. Select it to choose another SF Symbol for it. Without the grid symbol, the bar has no way to open the row, and right-clicking an item acts on the item, so edit the widget from **Settings → Bar**. The items in the row stay listed in Settings.
 
 On the bar itself, right-click an icon in the row for **Show on Bar** or **Hide**, and right-click the grid symbol for the same commands as in Settings, followed by **Edit Widget…** and the bar's menu.
+
+Icons on the bar sit 14 points apart. To fit more of them, such as beside the notch, set **Space between icons** in the widget's **Style** inspector, or the widget's own `style.spacing`, for example `"style": { "spacing": 6 }`. A `spacing` in `defaults` doesn't change it.
 
 An item on the bar shows its app's icon. To see what the item itself shows, such as MeetingBar's next meeting, select it in **Content** and choose **As in the menu bar** under **Show**. The bar then draws a copy of the item as macOS draws it, updated every two seconds; an item drawn in one color takes your bar's text color. This needs macOS 27 or later and Screen Recording access, which StableBar asks for when you choose it. Until then, and while macOS folds the item behind **«** in its menu bar, the item shows its icon.
 

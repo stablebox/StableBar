@@ -135,7 +135,7 @@ final class WidgetSetupTests: XCTestCase {
         let setup = WidgetSetup(store: store, client: PackageStoreClient(packages: fixture.packages, indexURL: fixture.directory.appending(path: "missing.json")))
         await setup.load()
         XCTAssertTrue(setup.storeUnavailable)
-        XCTAssertEqual(setup.choices.count, 19)
+        XCTAssertEqual(setup.choices.count, 20)
         let before = try Data(contentsOf: fixture.url)
         let text = try XCTUnwrap(setup.choices.first { $0.id == "text" })
         let addedLeft = await setup.add(text, to: WidgetPlacement.destination(selectedID: "left", widgets: store.configuration!.widgets))
@@ -702,7 +702,8 @@ final class WidgetSetupTests: XCTestCase {
     session.endReview()
     #expect(session.review == nil)
     #expect(session.storeWidgetsToAdd.map(\.entry.id) == ["weather"])
-    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "now-playing", "sound", "battery", "clock", "menu-bar-items"])
+    #expect(store.configuration?.widgets.map(\.id) == ["apple", "app-menu", "now-playing", "sound", "battery", "clock", "menu-bar-items",
+                                                       "quick-toggles"])
     #expect(store.configuration?.widgets.first { $0.id == "now-playing" }?.position == .center)
     session.finish()
     #expect(session.error == nil)

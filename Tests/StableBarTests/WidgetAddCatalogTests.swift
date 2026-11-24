@@ -8,7 +8,7 @@ final class WidgetAddCatalogTests: XCTestCase {
         var loader = ConfigurationLoader()
         loader.themesDirectory = fixture.themes
         let choices = WidgetAddCatalog.compose()
-        XCTAssertEqual(choices.map(\.name), ["Clock & date", "Active app", "Apple menu", "App menus", "Control Center", "StableBar", "Menu bar items", "Battery", "Sound", "Input source", "Microphone & camera", "System monitor", "Network", "Disk", "Calendar", "Workspaces", "Text", "Spacer", "Script"])
+        XCTAssertEqual(choices.map(\.name), ["Clock & date", "Active app", "Apple menu", "App menus", "Control Center", "StableBar", "Menu bar items", "Battery", "Sound", "Quick toggles", "Input source", "Microphone & camera", "System monitor", "Network", "Disk", "Calendar", "Workspaces", "Text", "Spacer", "Script"])
         XCTAssertEqual(Set(choices.map(\.id)).count, choices.count)
         XCTAssertTrue(choices.last!.isScript)
         for choice in choices {
