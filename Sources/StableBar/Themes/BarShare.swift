@@ -17,6 +17,8 @@ final class BarShareWindow: NSObject, NSWindowDelegate {
         self.store = store
         store.barEditing.end()
         closeDock()
+        // The last share's images, which no post reads anymore. The first share finds no folder.
+        try? FileManager.default.removeItem(at: BarShare.pngFolder)
         let display = BarDisplay(screen: screen)
         let share = BarShare(store: store, display: display, screen: screen.frame.size, menuBar: screen.menuBarHeight,
                              wallpaper: NSWorkspace.shared.desktopImageURL(for: screen).flatMap(NSImage.init(contentsOf:)),
@@ -335,10 +337,13 @@ final class BarShare {
         return short
     }
 
-    /// Writes `png` to a file of its own in the temporary folder, for the share menu and a drag into a post: a later one
-    /// mustn't replace the image that an earlier share or drop still reads.
+    /// Where the shared images go, emptied each time Share My Bar opens.
+    static let pngFolder = FileManager.default.temporaryDirectory.appending(path: "Share My Bar", directoryHint: .isDirectory)
+
+    /// Writes `png` to a file of its own in `pngFolder`, for the share menu and a drag into a post: a later one mustn't
+    /// replace the image that an earlier share or drop still reads.
     static func pngFile(_ png: Data) throws -> URL {
-        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let folder = pngFolder.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appending(path: "StableBar.png")
         try png.write(to: url)
