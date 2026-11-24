@@ -387,9 +387,8 @@ enum SceneRenderer {
                 }
                 editor.showGroup(group)
             } else if let tab = scene.tab, tab.isBarTab {
-                editor.section = .widgets
-                editor.barItem = .bar
-                editor.barTab = tab == .placement ? .placement : .look
+                editor.section = .appearance
+                editor.appearanceTab = .bar
             } else {
                 switch scene.section ?? .general {
                 case .general: editor.section = .general

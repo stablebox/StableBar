@@ -54,7 +54,7 @@ struct HelpQuestion: Identifiable {
 
     ## How do I hide the macOS menu bar, or keep it?
 
-    To hide it, turn on **Settings → General → Native menu bar → Automatically hide the menu bar**; StableBar then sits on the top edge in its place. To keep it, turn that switch off and turn on **Below the menu bar** in **Settings → Bar → Bar → Placement**, so StableBar sits under it. Setup's **Allow** hides the menu bar for you; if you click it and then don't allow StableBar when macOS asks, the bar sits below the menu bar.
+    To hide it, turn on **Settings → General → Native menu bar → Automatically hide the menu bar**; StableBar then sits on the top edge in its place. To keep it, turn that switch off and turn on **Below the menu bar** in **Settings → Appearance → Bar**, so StableBar sits under it. Setup's **Allow** hides the menu bar for you; if you click it and then don't allow StableBar when macOS asks, the bar sits below the menu bar.
 
     This changes the macOS setting itself, so it stays after StableBar quits. The first time, macOS asks to let StableBar control System Events; if you said no, turn on **System Events** under StableBar in **System Settings → Privacy & Security → Automation**.
 
@@ -103,11 +103,11 @@ struct HelpQuestion: Identifiable {
 
     ## How do I change the theme?
 
-    Open **Settings → Theme** and click a theme card: it applies and saves at once, and **Undo** brings back the one before. Filter the cards by **Store** for more themes, and choose **Get** to install and use one.
+    Open **Settings → Appearance** and click a theme card: it applies and saves at once, and **Undo** brings back the one before. Filter the cards by **Store** for more themes, and choose **Get** to install and use one.
 
     To try themes on the bar itself, choose **Try Themes…** from the bar's right-click menu or the menu-bar icon. Press ← and → to go through them, then Return to keep the one shown, or Esc to go back to your old look.
 
-    **Light** and **Dark** in **Settings → Theme** keep the bar in one appearance, and **Automatic** follows your Mac's. See [Themes](themes.md).
+    **Light** and **Dark** in **Settings → Appearance** keep the bar in one appearance, **Automatic** follows your Mac's, and **Wallpaper** follows each display's menu bar. See [Themes](themes.md).
 
     ## Can my laptop and my external monitor show different widgets?
 

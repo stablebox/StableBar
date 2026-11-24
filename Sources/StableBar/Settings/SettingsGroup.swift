@@ -44,48 +44,6 @@ struct SettingsGroup<Content: View>: View {
     }
 }
 
-/// A section's row in a card: a click opens or closes the section under it. `detail` sits on the right, with Reset when
-/// there's one.
-struct DisclosureRow: View {
-    let title: String
-    let detail: String?
-    let isOpen: Bool
-    let reset: (() -> Void)?
-    let toggle: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Button {
-                withAnimation(.snappy(duration: 0.2)) { toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
-                    Text(title).fontWeight(.semibold)
-                    Spacer(minLength: 8)
-                    if let detail { Text(detail).font(.system(size: 12)).foregroundStyle(.secondary) }
-                }
-                .padding(.leading, 16)
-                .frame(minHeight: 46)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(title)
-            .accessibilityValue(isOpen ? "Expanded" : "Collapsed")
-            if let reset {
-                Button("Reset", action: reset)
-                    .buttonStyle(.link)
-                    .font(.system(size: 12))
-                    .accessibilityLabel("Reset \(title)")
-            }
-        }
-        .padding(.trailing, 16)
-        .overlay(alignment: .top) { SettingsPalette.separator.frame(height: 1) }
-    }
-}
-
 struct GroupRowStyle: LabeledContentStyle {
     func makeBody(configuration: LabeledContentStyleConfiguration) -> some View {
         HStack(spacing: 10) {

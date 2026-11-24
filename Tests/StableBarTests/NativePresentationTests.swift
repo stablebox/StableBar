@@ -796,7 +796,7 @@ private func indicatorConfiguration(gap: Int, scale: Double = 1, placement: Stri
       "mode":{"offsetY":4,"states":{"mode.command":{"height":5}}}}}
     """#.utf8))
     #expect(style.maximumOutsideExtent == 9)
-    let geometry = BarGeometry(layoutHeight: 38, margin: 3, outsideExtent: 9)
+    let geometry = BarGeometry(layoutHeight: 38, verticalMargin: 3, horizontalMargin: 3, outsideExtent: 9)
     #expect(geometry.panelHeight == 44)
     #expect(geometry.visibleRect(width: 300) == CGRect(x: 3, y: 3, width: 294, height: 32))
     let rect = belowBarIndicatorRect(cell: CGRect(x: -10, y: 5, width: 50, height: 22),
@@ -819,7 +819,7 @@ private func indicatorConfiguration(gap: Int, scale: Double = 1, placement: Stri
         window: CGRect(x: 0, y: 1680, width: 2560, height: 44), geometry: geometry, position: .top) == 1680)
     #expect(popupAttachmentEdge(anchor: CGRect(x: 100, y: 1690, width: 40, height: 22),
         window: CGRect(x: 0, y: 1682, width: 2560, height: 38),
-        geometry: BarGeometry(layoutHeight: 38, margin: 3, outsideExtent: 0), position: .top) == 1685)
+        geometry: BarGeometry(layoutHeight: 38, verticalMargin: 3, horizontalMargin: 3, outsideExtent: 0), position: .top) == 1685)
     #expect(popupAttachmentEdge(anchor: CGRect(x: 100, y: 8, width: 40, height: 22),
         window: CGRect(x: 0, y: 0, width: 2560, height: 44), geometry: geometry, position: .bottom) == 44)
     #expect(popupAttachmentEdge(anchor: CGRect(x: 100, y: 500, width: 40, height: 22),

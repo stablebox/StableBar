@@ -3,18 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum BarItem {
-    case bar, everyWidget, everyGroup, widget, group
-}
-
-enum BarTab: CaseIterable {
-    case look, placement
-
-    var title: String {
-        switch self {
-        case .look: "Look"
-        case .placement: "Placement"
-        }
-    }
+    case bar, widget, group
 }
 
 enum WidgetTab: CaseIterable {
@@ -58,7 +47,6 @@ struct BarInspector: View {
     @State private var editingWebPage = false
     @State private var clickError: String?
     @State private var explainingSetup = false
-    @State private var barOnScreen = false
     @State private var resetting: WidgetConfiguration?
     private var store: BarStore { editor.store }
 
@@ -66,7 +54,7 @@ struct BarInspector: View {
         let widget = editor.barItem == .widget ? store.configuration?.onScreen(screen).widgets.first { $0.id == editor.selectedID } : nil
         let group = editor.barItem == .group ? editor.selectedGroup.flatMap { store.configuration?.groups[$0] != nil ? $0 : nil } : nil
         let key = widget.map { "widget/\($0.id)/\(editor.widgetTab)" } ?? group.map { "group/\($0)" }
-            ?? (editor.barItem == .everyWidget ? "everyWidget" : editor.barItem == .everyGroup ? "everyGroup" : "bar/\(editor.barTab)")
+            ?? "bar"
         VStack(spacing: 0) {
             Group {
                 if let widget {
@@ -75,14 +63,6 @@ struct BarInspector: View {
                     header(Image(systemName: WidgetGrouping.symbol).font(.system(size: 18)), title: friendly(group)) {
                         Text(groupMembers(group).isEmpty ? "Group"
                              : "Group of \(groupMembers(group).map { names[$0.id] ?? $0.id }.formatted(.list(type: .and)))")
-                    }
-                } else if editor.barItem == .everyWidget {
-                    header(Text("Aa").font(.system(size: 17, weight: .medium)), title: "Every widget") {
-                        Text("Widgets use this look unless you style them yourself")
-                    }
-                } else if editor.barItem == .everyGroup {
-                    header(Image(systemName: WidgetGrouping.symbol).font(.system(size: 18)), title: "Every group") {
-                        Text("Groups use this look unless you style them yourself")
                     }
                 } else {
                     header(Image(systemName: "menubar.rectangle").font(.system(size: 18)), title: "Bar") { Text("The strip itself") }
@@ -95,10 +75,6 @@ struct BarInspector: View {
                 SettingsSegments(selection: $editor.widgetTab, options: WidgetTab.allCases.map { ($0, $0.title) })
                     .frame(maxWidth: 330)
                     .padding(.horizontal, 20).padding(.bottom, 8)
-            } else if editor.barItem == .bar {
-                SettingsSegments(selection: $editor.barTab, options: BarTab.allCases.map { ($0, $0.title) })
-                    .frame(maxWidth: 330)
-                    .padding(.horizontal, 20).padding(.bottom, 8)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -107,17 +83,6 @@ struct BarInspector: View {
                         widgetPanel(widget)
                     } else if let group {
                         groupPanel(group)
-                    } else if editor.barItem == .everyWidget {
-                        WidgetsLookSection(editor: editor, style: defaultsStyle, fontFamilies: fontFamilies)
-                        SettingsCallout(systemImage: "sparkle",
-                                        text: Text("Widgets with their own values keep them. Use the revert arrow beside a value to follow this shared look again."))
-                            .padding(.top, 12)
-                    } else if editor.barItem == .everyGroup {
-                        GroupsLookSection(editor: editor, style: groupDefaultsStyle, flared: store.configuration?.groupDefaults.flare != nil,
-                                          spacing: store.configuration?.onScreen(screen).bar.spacing ?? 0)
-                        SettingsCallout(systemImage: "sparkle",
-                                        text: Text("Groups with their own values keep them. Use the revert arrow beside a value to follow this shared look again."))
-                            .padding(.top, 12)
                     } else {
                         barPanel
                     }
@@ -238,62 +203,28 @@ struct BarInspector: View {
 
 
     @ViewBuilder private var barPanel: some View {
-        let target = barOnScreen ? screen : nil
-        let values = target.map(barValues) ?? document("bar")
-        let bar = StyleFields(store: store, path: target.map { "screens.\($0.rawValue).bar" } ?? "bar", defaultsPath: barOnScreen ? "bar" : nil,
-                              values: values, set: { setBar($0, on: target) }, unset: { unsetBar($0, on: target) })
-        let barStyle = StyleFields(store: store, path: bar.path + ".style", defaultsPath: barOnScreen ? "bar.style" : nil,
-                                   values: (try? values["style"]?.decoded([String: ConfigurationValue].self)) ?? [:],
-                                   set: { setBar(["style": .object($0)], on: target) },
-                                   unset: { unsetBar(["style": .object($0)], on: target) })
-        let divider = StyleFields(store: store, path: bar.path + ".divider", defaultsPath: barOnScreen ? "bar.divider" : nil,
-                                  values: (try? values["divider"]?.decoded([String: ConfigurationValue].self)) ?? [:],
-                                  set: { setBar(["divider": .object($0)], on: target) },
-                                  unset: { unsetBar(["divider": .object($0)], on: target) })
-        if kinds.count > 1 || store.configuration?.screenLooks[screen.rawValue] != nil {
-            SettingsSegments(selection: $barOnScreen, options: [(false, "Every screen"), (true, screen.screenTitle)], stretches: false)
-                .fixedSize()
-                .padding(.bottom, 12)
-        }
-        switch editor.barTab {
-        case .look:
-            BarLookSection(editor: editor, bar: bar, style: barStyle, divider: divider)
-            SettingsCallout(systemImage: "arrow.left.and.right",
-                            text: Text("Drag a label or a **↔** handle to change a value; hold Shift for steps of 10. The preview and your real bar follow as you drag."))
-                .padding(.top, 12)
-        case .placement:
-            SettingsGroup("Position") {
-                let position = (target.map { store.configuration?.bar(on: $0) } ?? store.configuration?.bar)?.position ?? .top
-                bar.row("Edge", "position") { _ in
-                    SettingsSegments(selection: bar.stringBinding("position", default: BarPosition.top.rawValue),
-                                     options: BarPosition.allCases.map { ($0.rawValue, $0.rawValue.capitalized) }, stretches: false)
-                }
-                if position == .top {
-                    bar.toggle("Below the menu bar", "belowMenuBar", default: false,
-                               hint: "Starts the bar under each display's macOS menu bar. Where the menu bar hides, the bar stays on the top edge.")
-                    bar.number("Offset from top", "offset", default: 0, in: 0...200,
-                               hint: "Below the menu bar, the offset counts from the bottom of the menu bar.")
-                } else {
-                    bar.number("Offset from bottom", "offset", default: 0, in: 0...200,
-                               hint: "Counts from the bottom edge of the display, under the Dock if it shows there.")
-                }
+        SettingsCallout(systemImage: "paintpalette", text: Text("The bar’s position, size, colors and Liquid Glass are in Appearance.")) {
+            Button("Open Appearance") {
+                editor.appearanceTab = .bar
+                editor.section = .appearance
             }
-            if let setup = store.configurationStore.screenSetup {
-                let ownsBar = store.configurationStore.configurationURL != store.configurationStore.sharedConfigurationURL
-                let screens = kinds.map(\.name).joined(separator: " + ")
-                SettingsGroup("These screens") {
-                    SettingRow(title: ownsBar ? "\(screens) \(setup.kinds.count == 1 ? "has its" : "have their") own bar"
-                                              : "\(screens) \(setup.kinds.count == 1 ? "uses" : "use") the shared bar",
-                               hint: "Each set of connected screens can have its own widgets, theme and size.") {
-                        Button(ownsBar ? "Manage…" : "Give them their own bar…") { explainingSetup = true }
-                            .controlSize(.small)
-                            .popover(isPresented: $explainingSetup, arrowEdge: .bottom) {
-                                ScreenSetupPopover(editor: editor, setup: setup, title: screens) {
-                                    explainingSetup = false
-                                    useSharedBar($0)
-                                }
+            .controlSize(.small)
+        }
+        if let setup = store.configurationStore.screenSetup {
+            let ownsBar = store.configurationStore.configurationURL != store.configurationStore.sharedConfigurationURL
+            let screens = kinds.map(\.name).joined(separator: " + ")
+            SettingsGroup("These screens") {
+                SettingRow(title: ownsBar ? "\(screens) \(setup.kinds.count == 1 ? "has its" : "have their") own bar"
+                                          : "\(screens) \(setup.kinds.count == 1 ? "uses" : "use") the shared bar",
+                           hint: "Each set of connected screens can have its own widgets, theme and size.") {
+                    Button(ownsBar ? "Manage…" : "Give them their own bar…") { explainingSetup = true }
+                        .controlSize(.small)
+                        .popover(isPresented: $explainingSetup, arrowEdge: .bottom) {
+                            ScreenSetupPopover(editor: editor, setup: setup, title: screens) {
+                                explainingSetup = false
+                                useSharedBar($0)
                             }
-                    }
+                        }
                 }
             }
         }
@@ -335,18 +266,6 @@ struct BarInspector: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 12)
             .help(grouping.ungroupBlocker(group) ?? "Take every widget out of this group")
-    }
-
-    private var defaultsStyle: StyleFields {
-        StyleFields(store: store, path: "defaults", values: document("defaults"),
-                    set: { editor.changeLook(ConfigurationEdit(action: .defaults, properties: $0)) },
-                    unset: { unset(["defaults": .object($0)]) })
-    }
-
-    private var groupDefaultsStyle: StyleFields {
-        StyleFields(store: store, path: "groupDefaults", values: document("groupDefaults"),
-                    set: { editor.changeLook(ConfigurationEdit(action: .groupDefaults, properties: $0)) },
-                    unset: { unset(["groupDefaults": .object($0)]) })
     }
 
     @ViewBuilder private func stylePanel(_ style: StyleFields, widget: WidgetConfiguration) -> some View {
@@ -854,28 +773,6 @@ struct BarInspector: View {
     private func string(_ key: String, for widget: WidgetConfiguration, fallback: String = "") -> Binding<String> {
         let value = if case let .string(value) = editor.properties(for: widget.id)[key] { value } else { fallback }
         return Binding(get: { value }, set: { if $0 != value { editor.set([key: .string($0)], for: widget.id) } })
-    }
-
-    private func document(_ key: String) -> [String: ConfigurationValue] {
-        (try? store.effectiveDocument[key]?.decoded([String: ConfigurationValue].self)) ?? [:]
-    }
-
-    private func barValues(_ kind: ScreenKind) -> [String: ConfigurationValue] {
-        let screens = (try? store.effectiveDocument["screens"]?.decoded([String: [String: ConfigurationValue]].self)) ?? [:]
-        let own = screens[kind.rawValue]?["bar"] ?? .object([:])
-        return (try? own.overriding(.object(document("bar"))).decoded([String: ConfigurationValue].self)) ?? [:]
-    }
-
-    private func setBar(_ properties: [String: ConfigurationValue], on kind: ScreenKind?) {
-        if let kind {
-            editor.change(ConfigurationEdit(action: .screens, properties: [kind.rawValue: .object(["bar": .object(properties)])]))
-        } else {
-            editor.changeLook(ConfigurationEdit(action: .bar, properties: properties))
-        }
-    }
-
-    private func unsetBar(_ properties: [String: ConfigurationValue], on kind: ScreenKind?) {
-        unset(kind.map { ["screens": .object([$0.rawValue: .object(["bar": .object(properties)])])] } ?? ["bar": .object(properties)])
     }
 
     private func unset(_ properties: [String: ConfigurationValue]) {

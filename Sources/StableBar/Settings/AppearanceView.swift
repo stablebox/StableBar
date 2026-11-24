@@ -6,12 +6,9 @@ struct AppearanceView: View {
     @State private var advanced: AdvancedSheet?
     @State private var screen: ScreenKind?
     @State private var fontFamilies: [String] = []
-    /// Customize's sections opened or closed by hand; the others are open while they have edits.
-    @State private var expanded: [String: Bool] = [:]
 
     private var store: BarStore { editor.store }
     private var gallery: ThemeGallery { editor.gallery }
-    private var kinds: [ScreenKind] { ScreenKind.allCases.filter { store.configurationStore.screenSetup?.kinds.contains($0) == true } }
     private var document: [String: ConfigurationValue] { screen.flatMap { store.screenDocuments[$0.rawValue] } ?? store.effectiveDocument }
     private var screenTheme: WidgetPackageSelection? {
         let screens = (try? store.effectiveDocument["screens"]?.decoded([String: [String: ConfigurationValue]].self)) ?? [:]
@@ -25,93 +22,133 @@ struct AppearanceView: View {
     }
 
     var body: some View {
-        let appearance = gallery.previewAppearance
         VStack(spacing: 0) {
-            ScrollViewReader { scroll in
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                scopeLine
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 230)
+                    .background(SettingsPalette.sidebar)
+                Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        header
-                        scopeLine
-                        themes(appearance)
-                        if screen == nil, editor.editingProfile == nil, !gallery.linkedThemeIsActive, let theme = gallery.selectedChoice {
-                            ThemeEditsLine(editor: editor, theme: theme).padding(.top, 12)
+                        if editor.appearanceTab != .themes, screen == nil, editor.editingProfile == nil, let theme = gallery.selectedChoice {
+                            ThemeEditsLine(editor: editor, theme: theme, showsEdits: !gallery.linkedThemeIsActive)
                         }
-                        if screen == nil, editor.editingProfile == nil, let theme = gallery.selectedChoice {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Customize \(theme.manifest.name)").font(.system(size: 14, weight: .semibold))
-                                Text("Your changes stay with \(theme.manifest.name). Other themes keep their own look.")
-                                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                            }
-                            .padding(.top, 28)
-                        }
-                        customize
+                        page
                     }
                     .frame(maxWidth: 780)
                     .padding(.horizontal, 24)
+                    .padding(.top, 16)
                     .padding(.bottom, 28)
                     .frame(maxWidth: .infinity)
                 }
-                .task(id: store.pendingLinks.theme?.choice.directory) {
-                    fontFamilies = NSFontManager.shared.availableFontFamilies
-                    await gallery.refresh()
-                    await gallery.loadStore()
-                }
-                .task(id: editor.searchTarget) {
-                    if let target = editor.searchTarget {
-                        advanced = AdvancedSheet(rawValue: target)
-                        let sections = [SettingsSearchResult.colors.id: "Colors", SettingsSearchResult.popups.id: "Popups",
-                                        SettingsSearchResult.workspaceStyle.id: "Workspaces", SettingsSearchResult.glass.id: "Liquid Glass"]
-                        let section = advanced == nil ? sections[target] : "Advanced"
-                        if let section { expanded[section] = true }
-                        await Task.yield()
-                        if Task.isCancelled { return }
-                        scroll.scrollTo(section ?? target, anchor: .top)
-                        editor.searchTarget = nil
-                    }
-                }
+                .id(editor.appearanceTab)
             }
+            .overlay(alignment: .top) { Divider() }
+        }
+        .task(id: store.pendingLinks.theme?.choice.directory) {
+            fontFamilies = NSFontManager.shared.availableFontFamilies
+            await gallery.refresh()
+            await gallery.loadStore()
+        }
+        .task(id: editor.searchTarget) {
+            guard let target = editor.searchTarget else { return }
+            advanced = AdvancedSheet(rawValue: target)
+            let tabs: [SettingsSearchResult: AppearanceTab] = [.theme: .themes, .colors: .colors, .barSize: .bar, .barLook: .bar,
+                                                               .barPlacement: .bar, .glass: .bar, .everyWidget: .widgets,
+                                                               .workspaceStyle: .widgets, .everyGroup: .groups, .popups: .popups]
+            if let tab = advanced == nil ? SettingsSearchResult(rawValue: target).flatMap({ tabs[$0] }) : .advanced { editor.appearanceTab = tab }
+            editor.searchTarget = nil
         }
         .sheet(item: $advanced) { ThemeAdvancedSheet(editor: editor, sheet: $0, screen: screen) }
-        .onChange(of: kinds) { if let screen, !kinds.contains(screen) { self.screen = nil } }
         .onChange(of: store.effectiveDocument) { _, _ in gallery.configurationChanged() }
         // Moving a value between the main file and the theme's edits changes no value the bar draws.
         .onChange(of: store.profiles) { _, _ in gallery.configurationChanged() }
         .onChange(of: store.configurationError) { _, _ in gallery.contextChanged() }
         .onChange(of: store.configurationStore.context) { _, _ in gallery.contextChanged() }
-        .onChange(of: store.pendingLinks.theme?.choice.directory) { _, _ in gallery.contextChanged() }
+        .onChange(of: store.pendingLinks.theme?.choice.directory) { _, directory in
+            gallery.contextChanged()
+            if directory != nil { editor.appearanceTab = .themes }
+        }
+        .onChange(of: store.pendingLinks.bar?.look.choice.directory) { _, directory in
+            if directory != nil { editor.appearanceTab = .themes }
+        }
         .onChange(of: store.pendingLinks.theme?.state) { _, _ in gallery.contextChanged() }
+    }
+
+    /// The theme, then a row for each part of its look, each with the theme's edits in it.
+    private var sidebar: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ListTitle("Theme")
+                sidebarRow(.themes, name: gallery.selectedChoice?.manifest.name ?? "Themes", subtitle: AppearanceTab.themes.subtitle)
+                ListTitle("Customize")
+                ForEach(AppearanceTab.allCases.filter { $0 != .themes }, id: \.self) { tab in
+                    let changes = editor.lookChanges(under: paths(for: tab)).count
+                    sidebarRow(tab, name: tab.title, subtitle: changeCount(changes) ?? tab.subtitle)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            .padding(.bottom, 10)
+        }
+    }
+
+    private func sidebarRow(_ tab: AppearanceTab, name: String, subtitle: String) -> some View {
+        let selected = editor.appearanceTab == tab
+        return ListRow(selected: selected) { _ in
+            WidgetRowLabel(symbol: tab.symbol, text: tab.symbol == nil ? "Aa" : nil, name: name, subtitle: subtitle, selected: selected)
+        }
+        .onTapGesture { editor.appearanceTab = tab }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// The look paths a tab edits, for its count of the theme's edits.
+    private func paths(for tab: AppearanceTab) -> [String] {
+        let paths = switch tab {
+        case .themes: [String]()
+        case .colors: ["tokens", "bar.textFollowsBackground"]
+        case .bar: ["bar.style", "bar.glass", "bar.divider"] + ["height", "inset", "spacing", "margin", "marginHorizontal", "marginVertical"].map { "bar.\($0)" }
+        case .widgets: ["defaults", "workspaceDefaults"]
+        case .groups: ["groupDefaults"]
+        case .popups: ["popupDefaults", "bar.popupOffset"]
+        case .advanced: ["roles"]
+        }
+        return paths.map { (screen.map { "screens.\($0.rawValue)." } ?? "") + $0 }
     }
 
     private var header: some View {
         let bar = editor.fields(["bar"], on: screen, values: editor.values("bar", on: screen))
         let source = store.propertySources(path: bar.path, key: "appearance", defaultsPath: bar.defaultsPath, values: bar.values)
         let saved = try? source.editingValue?.decoded(BarAppearance.self)
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Text("Theme").font(.system(size: 15, weight: .semibold))
-                if let screen, screenTheme != nil {
-                    Button("Use the theme of every screen") {
-                        editor.unset(["screens": .object([screen.rawValue: .object(["theme": .null])])])
-                    }
-                    .buttonStyle(.link)
-                    .font(.system(size: 12))
+        let wallpaper = bar.values["followsWallpaper"] == .bool(true)
+        let choice: LightOrDark = saved == .light ? .light : saved == .dark ? .dark : wallpaper ? .wallpaper : .automatic
+        return HStack(spacing: 10) {
+            editingMenu
+            if let screen, screenTheme != nil {
+                Button("Use the theme of every screen") {
+                    editor.unset(["screens": .object([screen.rawValue: .object(["theme": .null])])])
                 }
-                Spacer()
-                if kinds.count > 1 || hasSetups || !themeProfiles.isEmpty { editingMenu }
-                RevertSettingButton(title: "Appearance", property: source, reset: source.saved.map { saved in { reset(saved) } })
-                SettingsSegments(selection: Binding(get: { saved }, set: {
-                    if $0 != saved { bar.set(["appearance": $0.map { .string($0.rawValue) } ?? .null]) }
-                }), options: [(nil, "Automatic"), (.light, "Light"), (.dark, "Dark")], stretches: false)
-                .fixedSize()
+                .buttonStyle(.link)
+                .font(.system(size: 12))
             }
-            if saved == nil {
-                bar.toggle("Follow the wallpaper", "followsWallpaper", default: false,
-                           hint: "On each display, the bar turns light or dark with the menu bar, which follows the wallpaper.")
-            }
+            Spacer()
+            RevertSettingButton(title: "Appearance", property: source, reset: source.saved.map { saved in { reset(saved) } })
+            SettingsSegments(selection: Binding(get: { choice }, set: { next in
+                guard next != choice else { return }
+                var properties: [String: ConfigurationValue] = ["appearance": next.appearance.map { .string($0.rawValue) } ?? .null]
+                if next.appearance == nil, wallpaper != (next == .wallpaper) { properties["followsWallpaper"] = .bool(next == .wallpaper) }
+                bar.set(properties)
+            }), options: [(.automatic, "Automatic"), (.wallpaper, "Wallpaper"), (.light, "Light"), (.dark, "Dark")], stretches: false)
+            .fixedSize()
+            .help("Wallpaper: on each display, the bar turns light or dark with the menu bar, which follows the wallpaper.")
         }
-        .padding(.top, 18)
-        .padding(.horizontal, 2)
-        .id(SettingsSearchResult.theme.id)
     }
 
     private var hasSetups: Bool { editor.editingProfile == nil && !store.configurationStore.screenSetupsWithOwnBars.isEmpty }
@@ -129,14 +166,15 @@ struct AppearanceView: View {
 
     private var editingMenu: some View {
         Menu {
-            if kinds.count > 1 {
-                Section("Screens") {
-                    Picker("Screens", selection: $screen) {
-                        Text("All screens").tag(ScreenKind?.none)
-                        ForEach(kinds, id: \.self) { Text($0.screenTitle).tag(Optional($0)) }
+            Section("Screens") {
+                let connected = Set(NSScreen.screens.map { ScreenKind(BarDisplay(screen: $0)) })
+                Picker("Screens", selection: $screen) {
+                    Text("All screens").tag(ScreenKind?.none)
+                    ForEach(ScreenKind.allCases, id: \.self) { kind in
+                        Text(connected.contains(kind) ? kind.screenTitle : "\(kind.screenTitle) (not connected)").tag(Optional(kind))
                     }
-                    .pickerStyle(.inline).labelsHidden()
                 }
+                .pickerStyle(.inline).labelsHidden()
             }
             if hasSetups {
                 Section("Screen setups") {
@@ -199,7 +237,7 @@ struct AppearanceView: View {
             ForEach(sections, id: \.title) { section in
                 Text(section.title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(.secondary)
                     .padding(.top, 8).padding(.horizontal, 2)
-                let columns = [GridItem(.adaptive(minimum: section.title == "Included" ? 220 : 150), spacing: 10)]
+                let columns = [GridItem(.adaptive(minimum: 200), spacing: 10)]
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(section.items) { card($0, appearance: appearance) }
                 }
@@ -236,16 +274,16 @@ struct AppearanceView: View {
         switch item {
         case let .installed(choice):
             let selected = screenTheme.map { $0.enabled ? $0.key : "built-in" } ?? gallery.selectedKey
-            return ThemeCard(title: choice.title, look: look, appearance: appearance,
+            return ThemeCard(title: choice.isLegacy ? choice.title : choice.manifest.name, look: look, appearance: appearance,
                              isSelected: selected == choice.key,
-                             isEdited: gallery.editedThemes.contains(choice.manifest.id), showsPopup: choice.isBundled,
+                             isEdited: gallery.editedThemes.contains(choice.manifest.id), showsPopup: true,
                              progress: gallery.progress[item.id], error: gallery.error(for: item.id), source: gallery.source(of: choice),
                              showInFinder: choice.isBundled ? nil : { NSWorkspace.shared.activateFileViewerSelecting([choice.directory]) },
                              delete: choice.isBundled ? nil : { Task { await gallery.delete(choice) } }, inUse: themesInUse.contains(choice.key)) {
                 gallery.select(choice, on: screen, everyBar: editor.themeChangesEveryBar)
             }
         case let .store(entry):
-            return ThemeCard(title: entry.name, look: look, appearance: appearance,
+            return ThemeCard(title: entry.name, look: look, appearance: appearance, showsPopup: true,
                              progress: gallery.progress[item.id],
                              error: gallery.error(for: item.id), isStore: true,
                              source: entry.sourceID == PackageSource.storeID ? nil : .privateSource(gallery.sourceName(entry.sourceID))) {
@@ -254,67 +292,95 @@ struct AppearanceView: View {
         }
     }
 
-    /// Customize's sections, each a card whose row opens its rows under it.
-    private var customize: some View {
-        let everyBar = editor.themeChangesEveryBar
-        return VStack(spacing: 10) {
-            ForEach(customizeSections, id: \.title) { section in
-                let isOpen = expanded[section.title] ?? !section.changes.isEmpty
-                VStack(spacing: 0) {
-                    DisclosureRow(title: section.title, detail: changeCount(section.changes.count) ?? section.note, isOpen: isOpen,
-                                  reset: editor.reset(section.changes, everyBar: everyBar)) { expanded[section.title] = !isOpen }
-                    if isOpen { section.rows() }
-                }
-                .padding(.top, -1)
-                .settingsCard()
-                .id(section.title)
+    /// The page the sidebar selects: the themes, or one part of the look. Look values stay with the theme; the bar's
+    /// position doesn't.
+    @ViewBuilder private var page: some View {
+        let look = screen.map { store.configuration?.onScreen($0) } ?? store.configuration
+        let bar = editor.fields(["bar"], on: screen, values: editor.values("bar", on: screen))
+        switch editor.appearanceTab {
+        case .themes:
+            themes(gallery.previewAppearance)
+        case .bar:
+            barTab(bar)
+        case .widgets:
+            let widgets = WidgetsLookSection(style: editor.fields(["defaults"], on: screen, values: editor.values("defaults", on: screen)),
+                                             fontFamilies: fontFamilies)
+            let workspaces = editor.fields(["workspaceDefaults"], on: screen, values: editor.values("workspaceDefaults", on: screen))
+            lookGroup("Every widget", paths: widgets.paths) { widgets.rows }
+            lookGroup("Workspaces", paths: [workspaces.path]) {
+                WorkspacePresentationFields(store: store, path: workspaces.path, values: workspaces.values, set: workspaces.set, unset: workspaces.unset)
             }
+        case .groups:
+            let groups = GroupsLookSection(editor: editor,
+                                           style: editor.fields(["groupDefaults"], on: screen, values: editor.values("groupDefaults", on: screen)),
+                                           flared: look?.groupDefaults.flare != nil, spacing: look?.bar.spacing ?? 8)
+            lookGroup("Every group", paths: groups.paths) { groups.rows }
+        case .popups:
+            let popups = PopupsLookSection(style: editor.fields(["popupDefaults"], on: screen, defaultsPath: "defaults",
+                                                                values: editor.values("defaults", on: screen).merging(editor.values("popupDefaults", on: screen)) { $1 }),
+                                           spacing: editor.fields(["popupDefaults"], on: screen, values: editor.values("popupDefaults", on: screen)),
+                                           bar: bar, fontFamilies: fontFamilies)
+            lookGroup("Every popup", paths: popups.paths) { popups.rows }
+        case .colors:
+            let tokens = editor.fields(["tokens"], on: screen, values: editor.values("tokens", on: screen))
+            lookGroup("Colors", paths: [tokens.path, "\(bar.path).textFollowsBackground"]) { colors(tokens, bar: bar) }
+        case .advanced:
+            let roles = editor.fields(["roles"], on: screen, values: [:])
+            lookGroup("Advanced", paths: [roles.path]) { advancedRows }
         }
-        .labeledContentStyle(GroupRowStyle())
-        .padding(.top, 14)
     }
 
-    /// The sections for the screens Editing names, the look ones the same as the bar editor's.
-    private var customizeSections: [CustomizeSection] {
-        let look = screen.map { store.configuration?.onScreen($0) } ?? store.configuration
-        let bar = editor.values("bar", on: screen)
-        let barFields = editor.fields(["bar"], on: screen, values: bar)
-        let tokens = editor.fields(["tokens"], on: screen, values: editor.values("tokens", on: screen))
-        let widgets = WidgetsLookSection(editor: editor, style: editor.fields(["defaults"], on: screen, values: editor.values("defaults", on: screen)),
-                                         fontFamilies: fontFamilies)
-        let groups = GroupsLookSection(editor: editor,
-                                       style: editor.fields(["groupDefaults"], on: screen, values: editor.values("groupDefaults", on: screen)),
-                                       flared: look?.groupDefaults.flare != nil, spacing: look?.bar.spacing ?? 8)
-        let popups = PopupsLookSection(editor: editor,
-                                       style: editor.fields(["popupDefaults"], on: screen, defaultsPath: "defaults",
-                                                            values: editor.values("defaults", on: screen).merging(editor.values("popupDefaults", on: screen)) { $1 }),
-                                       spacing: editor.fields(["popupDefaults"], on: screen, values: editor.values("popupDefaults", on: screen)),
-                                       bar: barFields, fontFamilies: fontFamilies)
-        let barLook = BarLookSection(editor: editor, bar: barFields,
-                                     style: editor.fields(["bar", "style"], on: screen, values: (try? bar["style"]?.decoded([String: ConfigurationValue].self)) ?? [:]),
-                                     divider: editor.fields(["bar", "divider"], on: screen, values: (try? bar["divider"]?.decoded([String: ConfigurationValue].self)) ?? [:]))
-        let workspaces = editor.fields(["workspaceDefaults"], on: screen, values: editor.values("workspaceDefaults", on: screen))
-        let glass = editor.fields(["bar", "glass"], on: screen, values: (try? bar["glass"]?.decoded([String: ConfigurationValue].self)) ?? [:])
-        let roles = editor.fields(["roles"], on: screen, values: [:])
-        return [
-            CustomizeSection(title: "Colors", changes: editor.lookChanges(under: [tokens.path, "\(barFields.path).textFollowsBackground"])) {
-                AnyView(colors(tokens, bar: barFields))
-            },
-            CustomizeSection(title: "Widgets", changes: editor.lookChanges(under: widgets.paths)) { AnyView(widgets.rows) },
-            CustomizeSection(title: "Groups", changes: editor.lookChanges(under: groups.paths)) { AnyView(groups.rows) },
-            CustomizeSection(title: "Popups", changes: editor.lookChanges(under: popups.paths)) { AnyView(popups.rows) },
-            CustomizeSection(title: "Bar", changes: editor.lookChanges(under: barLook.paths)) { AnyView(barLook.rows) },
-            CustomizeSection(title: "Workspaces", changes: editor.lookChanges(under: [workspaces.path])) {
-                AnyView(WorkspacePresentationFields(store: store, path: workspaces.path, values: workspaces.values,
-                                                    set: workspaces.set, unset: workspaces.unset))
-            },
-            CustomizeSection(title: "Liquid Glass", changes: editor.lookChanges(under: [glass.path]), note: "Experimental") {
-                AnyView(self.glass(glass))
-            },
-            CustomizeSection(title: "Advanced", changes: editor.lookChanges(under: [roles.path]), note: "Roles, AeroSpace mode names") {
-                AnyView(advancedRows)
+    /// The bar's position, saved for every theme, then the parts of its look.
+    @ViewBuilder private func barTab(_ bar: StyleFields) -> some View {
+        let style = editor.fields(["bar", "style"], on: screen, values: (try? bar.values["style"]?.decoded([String: ConfigurationValue].self)) ?? [:])
+        let divider = editor.fields(["bar", "divider"], on: screen, values: (try? bar.values["divider"]?.decoded([String: ConfigurationValue].self)) ?? [:])
+        let glass = editor.fields(["bar", "glass"], on: screen, values: (try? bar.values["glass"]?.decoded([String: ConfigurationValue].self)) ?? [:])
+        SettingsGroup("Position", detail: "The same with every theme") {
+            let position = (screen.map { store.configuration?.bar(on: $0) } ?? store.configuration?.bar)?.position ?? .top
+            bar.row("Edge", "position") { _ in
+                SettingsSegments(selection: bar.stringBinding("position", default: BarPosition.top.rawValue),
+                                 options: BarPosition.allCases.map { ($0.rawValue, $0.rawValue.capitalized) }, stretches: false)
             }
-        ]
+            if position == .top {
+                bar.toggle("Below the menu bar", "belowMenuBar", default: false,
+                           hint: "Starts the bar under each display's macOS menu bar. Where the menu bar hides, the bar stays on the top edge.")
+                bar.number("Offset from top", "offset", default: 0, in: 0...200,
+                           hint: "Below the menu bar, the offset counts from the bottom of the menu bar.")
+            } else {
+                bar.number("Offset from bottom", "offset", default: 0, in: 0...200,
+                           hint: "Counts from the bottom edge of the display, under the Dock if it shows there.")
+            }
+        }
+        lookGroup("Background", paths: [style.path]) {
+            LightDarkHeader()
+            style.color("Background", "background")
+            style.color("Border color", "borderColor")
+            style.number("Border width", "borderWidth", default: 0, in: 0...6, step: 0.5)
+            style.row("Border edges", "borderEdges") { _ in
+                SettingsSegments(selection: style.stringBinding("borderEdges", default: BarBorderEdges.bottom.rawValue),
+                                 options: BarBorderEdges.allCases.map { ($0.rawValue, $0.rawValue.capitalized) }, stretches: false)
+            }
+            style.number("Corner radius", "cornerRadius", default: 0, in: 0...40, slider: true)
+        }
+        lookGroup("Liquid Glass", paths: [glass.path]) { self.glass(glass) }
+        lookGroup("Size", paths: ["height", "inset", "spacing", "margin", "marginHorizontal", "marginVertical"].map { "\(bar.path).\($0)" }) {
+            bar.number("Height", "height", default: 40, in: 16...100, slider: true)
+            bar.number("Side inset", "inset", default: 12, in: 0...100, hint: "Space between the bar’s ends and its first and last widgets")
+            bar.number("Space between widgets", "spacing", default: 8, in: 0...50)
+            bar.margin()
+        }
+        lookGroup("Divider", paths: [divider.path]) {
+            LightDarkHeader()
+            divider.color("Color", "background")
+            divider.number("Width", "width", default: 1, in: 0...6, step: 0.5)
+            divider.number("Height", "height", default: 16, in: 0...100, slider: true)
+        }
+    }
+
+    /// A group of look rows, with the count of the selected theme's edits under `paths` and Reset while there are some.
+    private func lookGroup<Rows: View>(_ title: String, paths: [String], @ViewBuilder rows: () -> Rows) -> some View {
+        let changes = editor.lookChanges(under: paths)
+        return SettingsGroup(title, detail: changeCount(changes.count), reset: editor.reset(changes, everyBar: editor.themeChangesEveryBar), content: rows)
     }
 
     @ViewBuilder private func colors(_ tokens: StyleFields, bar: StyleFields) -> some View {
@@ -331,7 +397,7 @@ struct AppearanceView: View {
     }
 
     @ViewBuilder private func glass(_ glass: StyleFields) -> some View {
-        glass.toggle("Use Liquid Glass", "enabled", default: false, hint: "Experimental. Needs macOS 26 or later.")
+        glass.toggle("Use Liquid Glass", "enabled", default: false, hint: "Experimental. Needs macOS 26 or later. The bar’s background tints its glass.")
         if glass.values["enabled"] == .bool(true) {
             glass.percentage("See-through", "transparency", default: 0.3)
             glass.toggle("Widgets", "widgets", default: true)
@@ -355,14 +421,58 @@ struct AppearanceView: View {
     }
 }
 
-/// One of Customize's sections, with the selected theme's edits in it.
-private struct CustomizeSection {
-    let title: String
-    let changes: [ThemeEdit]
-    /// What its row says while it's closed and has no edits.
-    var note: String?
-    /// Built only while the section is open.
-    let rows: () -> AnyView
+/// The bar's light or dark: `appearance`, else the system's, or with `followsWallpaper` each display's menu bar's.
+private enum LightOrDark: Hashable {
+    case automatic, wallpaper, light, dark
+
+    var appearance: BarAppearance? {
+        switch self {
+        case .light: .light
+        case .dark: .dark
+        case .automatic, .wallpaper: nil
+        }
+    }
+}
+
+enum AppearanceTab: CaseIterable {
+    case themes, colors, bar, widgets, groups, popups, advanced
+
+    var title: String {
+        switch self {
+        case .themes: "Themes"
+        case .colors: "Theme colors"
+        case .bar: "Bar"
+        case .widgets: "Widgets"
+        case .groups: "Groups"
+        case .popups: "Popups"
+        case .advanced: "Advanced"
+        }
+    }
+
+    /// The sidebar row's symbol; Widgets shows "Aa" instead.
+    @MainActor var symbol: String? {
+        switch self {
+        case .themes: "photo.on.rectangle"
+        case .colors: "paintpalette"
+        case .bar: "menubar.rectangle"
+        case .widgets: nil
+        case .groups: WidgetGrouping.symbol
+        case .popups: "bubble.middle.top"
+        case .advanced: "slider.horizontal.3"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .themes: "Choose another theme"
+        case .colors: "Shared by the whole look"
+        case .bar: "Position, background, size"
+        case .widgets: "Every widget, workspaces"
+        case .groups: "Every group"
+        case .popups: "Background, text, spacing"
+        case .advanced: "Roles, mode names"
+        }
+    }
 }
 
 private enum ThemeItem: Identifiable {

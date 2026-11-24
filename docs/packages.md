@@ -78,7 +78,7 @@ StableBar --install-package nord
 StableBar --install-package clock --source acme
 ```
 
-**Settings → Theme** also shows uninstalled themes under **Store**. Their cards show a sample bar styled by the downloaded theme. Choose **Get** to download, check, install and select a theme in one step; progress and any error appear on its card. Themes run no commands and skip the command review; **Get** refuses themes that declare hosts, permissions, required tools or secret settings. Store previews and downloads are cached while StableBar runs. If the Store is unavailable, your installed themes still work.
+**Settings → Appearance** also shows uninstalled themes under **Store**. Their cards show a sample bar styled by the downloaded theme. Choose **Get** to download, check, install and select a theme in one step; progress and any error appear on its card. Themes run no commands and skip the command review; **Get** refuses themes that declare hosts, permissions, required tools or secret settings. Store previews and downloads are cached while StableBar runs. If the Store is unavailable, your installed themes still work.
 
 A store package with a newer version is marked **Update available**. Choose **Review update**, review its setup and access, then add the new version; the old version stays installed so you can roll back. When the new version runs commands, contacts hosts or uses macOS permissions that the enabled version does not, StableBar lists them and asks before enabling it.
 
@@ -103,11 +103,11 @@ StableBar shows `requires`, `permissions` and `hosts`. It enforces `hosts` only 
 
 **Copy link** on a package's page copies a `stablebar://package` link to it, such as `stablebar://package/nord`, or `stablebar://package/clock?source=acme` for a package from a [private source](#private-sources). Put it in a README, a web page or a team chat: opening it in macOS opens **Settings → Store** on that package. An installed package opens its installed copy, and a Store widget that is now included with StableBar opens the Store, where it's under **Included with StableBar**. Otherwise the link opens the package's page in the source it names; a link without a source opens the Store's page, or the first private source that lists the package. Nothing is installed until you review the page and choose **Add to bar** or **Use theme**. When none of your sources lists the package, or the source the link names is unavailable or not added, the Store says so above its cards; for a source you haven't added, ask for its [join link](#joining-with-a-link). **Copy link** appears on packages that a source lists, not on folders, and you can write a link by hand from a package's `id`.
 
-A [`stablebar://theme` link](themes.md) carries a theme's two files and opens a preview card in **Settings → Theme**, where you can try it before installing it.
+A [`stablebar://theme` link](themes.md) carries a theme's two files and opens a preview card in **Settings → Appearance**, where you can try it before installing it.
 
 ## Private sources
 
-A private source is a package index that your team hosts, for packages that can't go in the public Store, such as widgets for an internal GitLab or company tools. Its packages appear in the Store, **Settings → Theme** and **Add widget** beside the Store's. The StableBar Store is always on.
+A private source is a package index that your team hosts, for packages that can't go in the public Store, such as widgets for an internal GitLab or company tools. Its packages appear in the Store, **Settings → Appearance** and **Add widget** beside the Store's. The StableBar Store is always on.
 
 To add one, open **Settings → Store → Sources…** and choose **Add source…**. Enter a name, the index URL and, if the index needs one, your token. When you pause typing, StableBar loads the index and shows how many packages it found, or what went wrong, with **Check again** to retry. **Add source** is available after a successful check. A URL you already have is reported with that source's name. The sheet lists the StableBar Store, then each private source with its package count or error, whether a token is saved, and the file that defines it when it comes from an include. **Edit** changes a source's name, URL and token; **Remove token** deletes its token and **Remove source** removes it from your configuration, with Undo. A source from an include keeps its name and URL; change those in that file.
 

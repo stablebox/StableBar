@@ -80,7 +80,7 @@ struct BarView: View {
                         UnevenRoundedRectangle(bottomLeadingRadius: 11, bottomTrailingRadius: 11)
                             .fill(.black)
                             .frame(width: notch.upperBound - notch.lowerBound, height: display.notchHeight)
-                            .offset(x: notch.lowerBound - config.bar.margin, y: -config.bar.offset - config.bar.margin)
+                            .offset(x: notch.lowerBound - config.bar.horizontalMargin, y: -config.bar.offset - config.bar.verticalMargin)
                             .allowsHitTesting(false)
                     }
                 }
@@ -94,7 +94,8 @@ struct BarView: View {
                         .help("\(error)\nClick to open Settings.")
                     }
                 }
-                .padding(config.bar.margin)
+                .padding(.horizontal, config.bar.horizontalMargin)
+                .padding(.vertical, config.bar.verticalMargin)
                 .frame(height: barGeometry.layoutHeight)
                 .modifier(BarDecorationLayer(geometry: barGeometry, scale: scale, native: nativeDecorations))
                 .frame(height: nativeDecorations ? barGeometry.layoutHeight : barGeometry.panelHeight,

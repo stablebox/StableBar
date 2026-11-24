@@ -114,7 +114,7 @@ final class ConfigurationEditorTests: XCTestCase {
         XCTAssertEqual(editor.style(for: "b")["fontSize"], .number(19))
         XCTAssertNil(editor.selected["style"])
         pending = 21
-        editor.barItem = .everyWidget
+        editor.barItem = .bar
         editor.widgetTab = .style
         editor.showWidget("a")
         XCTAssertEqual(committedIDs, ["a", "b", added!])
@@ -125,7 +125,7 @@ final class ConfigurationEditorTests: XCTestCase {
         XCTAssertEqual(editor.style(for: added!)["fontSize"], .number(21))
         XCTAssertEqual(editor.style(for: "a")["fontSize"], .number(17))
         pending = 23
-        editor.barItem = .everyWidget
+        editor.barItem = .bar
         editor.widgetTab = .behavior
         editor.showWidget("a")
         XCTAssertEqual(committedIDs, ["a", "b", added!, "a"])

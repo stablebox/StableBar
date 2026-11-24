@@ -73,7 +73,7 @@ final class BarEditControlsTests: XCTestCase {
         }
         let bar = try XCTUnwrap(bars[1])
         let panel = try XCTUnwrap(presented.first { abs($0.frame.midX - bar.frame.midX) < 1 })
-        bar.barGeometry = BarGeometry(layoutHeight: 90, margin: 4, outsideExtent: 0)
+        bar.barGeometry = BarGeometry(layoutHeight: 90, verticalMargin: 4, horizontalMargin: 4, outsideExtent: 0)
         bar.setFrame(CGRect(x: 0, y: 780, width: 1200, height: 90), display: false)
         controls.update(store: store, bars: bars, visibleFrames: visibleFrames)
         XCTAssertEqual(presented.count, 2, "Moving a bar must reuse its controls")
@@ -365,7 +365,7 @@ final class BarEditControlsTests: XCTestCase {
                                           backing: .buffered, defer: false)
             bar.isReleasedWhenClosed = false
             bar.isEditingBar = true
-            bar.barGeometry = BarGeometry(layoutHeight: 64, margin: 4, outsideExtent: 0)
+            bar.barGeometry = BarGeometry(layoutHeight: 64, verticalMargin: 4, horizontalMargin: 4, outsideExtent: 0)
             bar.level = .floating
             bar.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenNone]
             return bar

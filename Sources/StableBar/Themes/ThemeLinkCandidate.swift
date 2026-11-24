@@ -166,7 +166,7 @@ final class ThemeLinkCandidate {
     private static let barNumberRanges: [String: ClosedRange<Double>] = {
         var ranges: [String: ClosedRange<Double>] = [
             "bar.height": 16...100, "bar.inset": 0...100, "bar.spacing": 0...50,
-            "bar.margin": 0...40, "bar.style.borderWidth": 0...6, "bar.style.cornerRadius": 0...40,
+            "bar.margin": 0...40, "bar.marginHorizontal": 0...40, "bar.marginVertical": 0...40, "bar.style.borderWidth": 0...6, "bar.style.cornerRadius": 0...40,
             "bar.style.fontSize": 6...40,
             "bar.style.paddingHorizontal": 0...40, "bar.style.paddingVertical": 0...40,
             "bar.style.opacity": 0...1, "bar.popupOffset": 0...40, "bar.glass.transparency": 0...1,

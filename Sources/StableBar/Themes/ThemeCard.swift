@@ -6,7 +6,7 @@ struct ThemeCard: View {
     var appearance: BarAppearance = .light
     var isSelected = false
     var isEdited = false
-    /// Draws the battery's popup under the sample bar, at the bar's scale.
+    /// Draws the system popup under the sample bar, at the bar's scale: its graph and meter show the theme's accent.
     var showsPopup = false
     var progress: String?
     var error: String?
@@ -115,10 +115,10 @@ struct ThemeCard: View {
                         .overlay(alignment: .topTrailing) {
                             if showsPopup {
                                 let sample = ThemeSampleBar(look: look)
-                                let style = sample.popupStyle(.battery).resolved(for: StyleStates())
+                                let style = sample.popupStyle(.system).resolved(for: StyleStates())
                                 let shadow = WidgetAppearance(style, defaults: WidgetStyle())
                                 let room = CGFloat(shadow.shadowRadius * 2 + 1 + max(abs(shadow.shadowOffsetX), abs(shadow.shadowOffsetY)))
-                                sample.popup(.battery)
+                                sample.popup(.system)
                                     .modifier(PopupBackground(style: style, glass: look.bar.glass, backgrounds: PopupBackgrounds()))
                                     .background {
                                         PopupShadowView(cornerRadius: shadow.cornerRadius, color: shadow.shadowColor,
@@ -126,8 +126,8 @@ struct ThemeCard: View {
                                                         inset: room)
                                             .padding(-room)
                                     }
-                                    .padding(.top, look.bar.height - look.bar.margin + look.bar.popupOffset)
-                                    .padding(.trailing, look.bar.margin + look.bar.inset)
+                                    .padding(.top, look.bar.height - look.bar.verticalMargin + look.bar.popupOffset)
+                                    .padding(.trailing, look.bar.horizontalMargin + look.bar.inset)
                             }
                         }
                         .scaleEffect(scale, anchor: .topLeading)
@@ -182,7 +182,7 @@ struct ThemeSampleBar: View {
         """#.utf8))
 
     var barStyle: WidgetStyle { look.bar.style.resolved(for: StyleStates()) }
-    var stripHeight: Double { max(0, look.bar.height - 2 * look.bar.margin) }
+    var stripHeight: Double { max(0, look.bar.height - 2 * look.bar.verticalMargin) }
     private let workspace: WorkspaceConfiguration?
 
     init(look: Configuration, widgets: [WidgetConfiguration]? = nil, date: Date = WidgetSampleContent.sampleDate) {
@@ -196,7 +196,8 @@ struct ThemeSampleBar: View {
         row
             .background(background, in: RoundedRectangle(cornerRadius: barStyle.cornerRadius ?? 0))
             .overlay { BarBorder(style: barStyle) }
-            .padding(look.bar.margin)
+            .padding(.horizontal, look.bar.horizontalMargin)
+            .padding(.vertical, look.bar.verticalMargin)
             .frame(minWidth: 0, maxWidth: .infinity)
             .allowsHitTesting(false)
     }

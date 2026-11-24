@@ -91,7 +91,7 @@ final class CustomizationWindow: NSObject, NSWindowDelegate {
 }
 
 enum CustomizationSection: String, CaseIterable, Identifiable {
-    case general = "General", widgets = "Bar", appearance = "Theme", packages = "Store", profiles = "Profiles", diagnostics = "Status", help = "Help"
+    case general = "General", widgets = "Bar", appearance = "Appearance", packages = "Store", profiles = "Profiles", diagnostics = "Status", help = "Help"
 
     var id: Self { self }
 
@@ -502,14 +502,44 @@ struct StyleFields {
         }
     }
 
-    private func paddingField(_ label: String, _ key: String, default fallback: Double) -> some View {
+    /// The bar's margin: one value for every side, or the sides and the top and bottom each their own once set apart.
+    func margin() -> some View {
+        let apart = values["marginHorizontal"] != nil || values["marginVertical"] != nil
+        let margin = if case let .number(value) = property("margin").editingValue { value } else { 0.0 }
+        return Group {
+            if apart {
+                SettingRow(title: "Margin", hint: "Floats the bar in from the screen edges") {
+                    HStack(spacing: 8) {
+                        paddingField("Sides", "marginHorizontal", default: margin, in: 0...40)
+                        paddingField("Top and bottom", "marginVertical", default: margin, in: 0...40)
+                    }
+                }
+            } else {
+                number("Margin", "margin", default: 0, in: 0...40, hint: "Floats the bar in from the screen edges")
+            }
+            SettingRow(title: "Separate sides and top and bottom") {
+                Toggle("Separate sides and top and bottom", isOn: Binding(get: { apart }, set: { apart in
+                    if apart {
+                        set(["marginHorizontal": .number(margin), "marginVertical": .number(margin)])
+                    } else {
+                        unset(["marginHorizontal": .null, "marginVertical": .null])
+                    }
+                }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
+        }
+    }
+
+    private func paddingField(_ label: String, _ key: String, default fallback: Double, in range: ClosedRange<Double> = 0...30) -> some View {
         let property = property(key)
         let title = styleTitle([key])
         return NumberDraft(value: numberBinding(key, property, default: fallback)) { value in
             HStack(spacing: 6) {
                 RevertSettingButton(title: title, property: property, reset: property.saved.map { saved in { reset(saved) } })
-                Text(label).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize().scrubbing(Scrub(value: value, range: 0...30))
-                NumberField(title: title, value: value, range: 0...30)
+                Text(label).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize().scrubbing(Scrub(value: value, range: range))
+                NumberField(title: title, value: value, range: range)
             }
         }
     }

@@ -47,17 +47,10 @@ struct ScreenBand: View {
                     ScreenThumbnail(store: store, kind: kind, selected: kind == screen) { editor.barScreen = kind }
                 }
             }
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Editing the bar on").font(.system(size: 11)).foregroundStyle(.secondary)
-                Text(screen.screenTitle).font(.system(size: 15, weight: .semibold)).padding(.top, 1).padding(.bottom, 3)
-                if let setup = store.configurationStore.screenSetup {
-                    HStack(spacing: 8) {
-                        setupMenu(setup)
-                        ProfilePicker(editor: editor)
-                    }
-                    if setup != ScreenSetup(NSScreen.screens.map(BarDisplay.init)) {
-                        Text("Previewing a setup that isn’t connected").font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 3)
-                    }
+            VStack(alignment: .leading, spacing: 3) {
+                editingMenu
+                if let setup = store.configurationStore.screenSetup, setup != ScreenSetup(NSScreen.screens.map(BarDisplay.init)) {
+                    Text("Previewing a setup that isn’t connected").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
             Spacer()
@@ -79,34 +72,63 @@ struct ScreenBand: View {
             .disabled(!store.barEditing.isAvailable)
     }
 
-    private func setupMenu(_ setup: ScreenSetup) -> some View {
-        let displays = NSScreen.screens.map(BarDisplay.init)
-        let connected = ScreenSetup(displays)
+    /// What the page edits: the screen whose bar shows, the setup whose bar it is, and the profile, as Appearance's menu says it.
+    private var editingMenu: some View {
+        let setup = store.configurationStore.screenSetup
         let ownBars = store.configurationStore.screenSetupsWithOwnBars
-        let name = { (setup: ScreenSetup) in setup.title + (setup == connected ? " (connected)" : "") }
+        let themeEdits = ProfileGroups(store: store).themeEdits.map(\.name)
+        let profile = editor.editingProfile
+        var parts = [screen.screenTitle]
+        if let setup { parts.append(ownBars.contains(setup) ? "own bar" : "shared bar") }
+        if let profile { parts.append("profile \(profile)") }
         return Menu {
-            ForEach(store.configurationStore.screenSetupsToEdit(connected: displays), id: \.fileName) { option in
-                Toggle("\(name(option)) · \(ownBars.contains(option) ? "own bar" : "shared bar")",
-                       isOn: Binding(get: { option == setup }, set: { _ in store.configurationStore.showScreenSetup(option) }))
-            }
-            Divider()
-            if ownBars.contains(setup) {
-                Button("Use the shared bar again…") { useSharedBar(setup) }
-            } else {
-                Button("Give it its own bar") { giveOwnBar() }
-                Menu("Copy bar from") {
-                    Button("The shared bar") { giveOwnBar() }
-                    ForEach(ownBars, id: \.fileName) { other in
-                        Button(other.title) { giveOwnBar(copying: store.configurationStore.ownBarURL(for: other)) }
+            if kinds.count > 1 {
+                Section("Screens") {
+                    Picker("Screens", selection: Binding(get: { screen }, set: { editor.barScreen = $0 })) {
+                        ForEach(kinds, id: \.self) { Text($0.screenTitle).tag($0) }
                     }
+                    .pickerStyle(.inline).labelsHidden()
                 }
             }
+            if let setup { Section("Screen setups") { setupItems(setup) } }
+            Section("Profile") {
+                Picker("Profile", selection: Binding(get: { profile ?? "" }, set: {
+                    if $0 != (profile ?? "") { $0.isEmpty ? editor.endProfileEditing() : editor.editBar(for: $0) }
+                })) {
+                    Text("No profile").tag("")
+                    ForEach(store.profiles.filter { !themeEdits.contains($0.name) }, id: \.name) { Text($0.name).tag($0.name) }
+                }
+                .pickerStyle(.inline).labelsHidden()
+            }
         } label: {
-            Text("\(name(setup)) · \(ownBars.contains(setup) ? "own bar" : "shared bar")")
+            Text("Editing: \(parts.joined(separator: ", "))")
         }
         .menuStyle(.button)
         .controlSize(.small)
         .fixedSize()
+    }
+
+    @ViewBuilder private func setupItems(_ setup: ScreenSetup) -> some View {
+        let displays = NSScreen.screens.map(BarDisplay.init)
+        let connected = ScreenSetup(displays)
+        let ownBars = store.configurationStore.screenSetupsWithOwnBars
+        let name = { (setup: ScreenSetup) in setup.title + (setup == connected ? " (connected)" : "") }
+        ForEach(store.configurationStore.screenSetupsToEdit(connected: displays), id: \.fileName) { option in
+            Toggle("\(name(option)) · \(ownBars.contains(option) ? "own bar" : "shared bar")",
+                   isOn: Binding(get: { option == setup }, set: { _ in store.configurationStore.showScreenSetup(option) }))
+        }
+        Divider()
+        if ownBars.contains(setup) {
+            Button("Use the shared bar again…") { useSharedBar(setup) }
+        } else {
+            Button("Give it its own bar") { giveOwnBar() }
+            Menu("Copy bar from") {
+                Button("The shared bar") { giveOwnBar() }
+                ForEach(ownBars, id: \.fileName) { other in
+                    Button(other.title) { giveOwnBar(copying: store.configurationStore.ownBarURL(for: other)) }
+                }
+            }
+        }
     }
 
     private func giveOwnBar(copying source: URL? = nil) {

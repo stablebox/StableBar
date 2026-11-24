@@ -29,11 +29,11 @@ final class ThemeTrialPanelTests: XCTestCase {
         let screen = CGRect(x: -1920, y: 0, width: 1920, height: 1056)
         let size = CGSize(width: 340, height: 110)
         let first = ThemeTrialPlacement.frame(size: size, bar: CGRect(x: -1920, y: 1010, width: 1920, height: 40),
-                                               geometry: BarGeometry(layoutHeight: 40, margin: 4, outsideExtent: 0), position: .top, visibleFrame: screen)
+                                               geometry: BarGeometry(layoutHeight: 40, verticalMargin: 4, horizontalMargin: 4, outsideExtent: 0), position: .top, visibleFrame: screen)
         XCTAssertEqual(first.midX, screen.midX)
         XCTAssertEqual(first.maxY, 1006)
         let second = ThemeTrialPlacement.frame(size: size, bar: CGRect(x: -1920, y: 990, width: 1920, height: 60),
-                                                geometry: BarGeometry(layoutHeight: 60, margin: 0, outsideExtent: 6, outsideHeight: 2),
+                                                geometry: BarGeometry(layoutHeight: 60, verticalMargin: 0, horizontalMargin: 0, outsideExtent: 6, outsideHeight: 2),
                                                 position: .top, visibleFrame: screen)
         XCTAssertEqual(second.midX, first.midX)
         XCTAssertEqual(second.maxY, 976)

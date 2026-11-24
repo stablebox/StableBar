@@ -1,15 +1,11 @@
 import SwiftUI
 
-struct WidgetsLookSection: View {
-    let editor: ConfigurationEditor
+@MainActor
+struct WidgetsLookSection {
     let style: StyleFields
     let fontFamilies: [String]
 
     var paths: [String] { [style.path] }
-
-    var body: some View {
-        LookSection(title: "Widgets", editor: editor, paths: paths) { rows }
-    }
 
     @ViewBuilder var rows: some View {
         LightDarkHeader()
@@ -62,18 +58,14 @@ struct GroupsLookSection: View {
 
 /// `style` sets popups over the widgets' look; `spacing` sets their padding and spacing, which popups don't take from
 /// widgets; `bar` sets their gap below the bar.
-struct PopupsLookSection: View {
-    let editor: ConfigurationEditor
+@MainActor
+struct PopupsLookSection {
     let style: StyleFields
     let spacing: StyleFields
     let bar: StyleFields
     let fontFamilies: [String]
 
     var paths: [String] { [style.path, "\(bar.path).popupOffset"] }
-
-    var body: some View {
-        LookSection(title: "Popups", editor: editor, paths: paths) { rows }
-    }
 
     @ViewBuilder var rows: some View {
         let padding = PopupConfiguration.defaultPadding
@@ -92,39 +84,6 @@ struct PopupsLookSection: View {
                        hint: "Unset, a popup's blocks sit 12 apart and the items of a row, column or list 6. A value sets both.")
         bar.number("Gap below the bar", "popupOffset", default: BarSettings().popupOffset, in: 0...40,
                    hint: "Also moves tooltips and hover controls. A popup's own offset wins.")
-    }
-}
-
-/// `bar` sets the bar's size and margin, `style` its background and border, `divider` the line between its widgets.
-struct BarLookSection: View {
-    let editor: ConfigurationEditor
-    let bar: StyleFields
-    let style: StyleFields
-    let divider: StyleFields
-
-    var paths: [String] { [style.path, divider.path] + ["height", "inset", "spacing", "margin"].map { "\(bar.path).\($0)" } }
-
-    var body: some View {
-        LookSection(title: "Bar", editor: editor, paths: paths) { rows }
-    }
-
-    @ViewBuilder var rows: some View {
-        LightDarkHeader()
-        style.color("Background", "background")
-        style.color("Border color", "borderColor")
-        style.number("Border width", "borderWidth", default: 0, in: 0...6, step: 0.5)
-        style.row("Border edges", "borderEdges") { _ in
-            SettingsSegments(selection: style.stringBinding("borderEdges", default: BarBorderEdges.bottom.rawValue),
-                             options: BarBorderEdges.allCases.map { ($0.rawValue, $0.rawValue.capitalized) }, stretches: false)
-        }
-        style.number("Corner radius", "cornerRadius", default: 0, in: 0...40, slider: true)
-        bar.number("Height", "height", default: 40, in: 16...100, slider: true)
-        bar.number("Side inset", "inset", default: 12, in: 0...100)
-        bar.number("Space between widgets", "spacing", default: 8, in: 0...50)
-        divider.color("Divider color", "background")
-        divider.number("Divider width", "width", default: 1, in: 0...6, step: 0.5)
-        divider.number("Divider height", "height", default: 16, in: 0...100, slider: true)
-        bar.number("Margin", "margin", default: 0, in: 0...40, hint: "Floats the bar in from the screen edges")
     }
 }
 

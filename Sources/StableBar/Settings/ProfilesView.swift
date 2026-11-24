@@ -190,7 +190,7 @@ struct ProfilesView: View {
             HStack(spacing: 6) {
                 Text(profile.name).fontWeight(.semibold).lineLimit(1)
                 Spacer(minLength: 0)
-                Button("Edit in Theme") { editor.section = .appearance }
+                Button("Edit in Appearance") { editor.section = .appearance }
                     .controlSize(.small)
             }
             Text("\(sentence(profile)) · \(count) \(count == 1 ? "change" : "changes")")

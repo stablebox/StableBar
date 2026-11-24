@@ -251,7 +251,7 @@ struct SetupDemo: View {
         guard let widget = frames[part], let height = popupHeights[kind] else { return nil }
         let width = kind.popup(timeZone: nil).style.width!
         let left = min(max(widget.midX - width / 2, 8), size.width - width - 8)
-        return CGRect(x: left, y: size.height - look.bar.margin + look.bar.popupOffset, width: width, height: height)
+        return CGRect(x: left, y: size.height - look.bar.verticalMargin + look.bar.popupOffset, width: width, height: height)
     }
 
     /// The popup the pointer's clicks open, with the bar's popup motion and transition. A click on another widget while
@@ -416,7 +416,7 @@ struct SetupDemo: View {
     private func strip(_ look: Configuration) -> (rect: CGRect, radius: Double) {
         let sample = ThemeSampleBar(look: look)
         let height = sample.stripHeight
-        return (CGRect(x: look.bar.margin, y: (size.height - height) / 2, width: size.width - 2 * look.bar.margin, height: height),
+        return (CGRect(x: look.bar.horizontalMargin, y: (size.height - height) / 2, width: size.width - 2 * look.bar.horizontalMargin, height: height),
                 min(sample.barStyle.cornerRadius ?? 0, height / 2))
     }
 

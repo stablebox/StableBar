@@ -3,5 +3,6 @@
   "configuration": "../Tests/Fixtures/theme-edits/config.json",
   "draw": "settings",
   "section": "theme",
+  "tab": "look",
   "height": 2600
 }

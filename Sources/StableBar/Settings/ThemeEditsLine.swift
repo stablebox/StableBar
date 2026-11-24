@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// The selected theme's edits, under the gallery: how many there are, each one, Save as Theme and Revert, and the look
-/// values of the main file that apply under every theme.
+/// Customize's heading for the selected theme, with its edits on the same row: how many there are, Save as Theme and
+/// Revert. Show Changes lists each one, then the look values of the main file that apply under every theme.
 struct ThemeEditsLine: View {
     let editor: ConfigurationEditor
     let theme: ThemeChoice
+    /// False while a linked theme is tried: its edits aren't the selected theme's.
+    let showsEdits: Bool
     @State private var showsChanges = false
-    @State private var showsEveryTheme = false
     @State private var reverting = false
     @State private var naming: SaveAsTheme?
 
@@ -15,24 +16,33 @@ struct ThemeEditsLine: View {
     private var name: String { theme.manifest.name }
 
     var body: some View {
-        if !edits.changes.isEmpty || !edits.everyTheme.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                if edits.changes.isEmpty {
-                    everyTheme.padding(.horizontal, 14).padding(.vertical, 10)
-                } else {
-                    HStack(spacing: 10) {
-                        Image(systemName: "pencil").foregroundStyle(.teal).accessibilityHidden(true)
-                        Text("\(Text(name).fontWeight(.semibold)) \(Text("· \(count(edits.changes.count))").foregroundStyle(.secondary))")
-                            .font(.system(size: 13))
-                        Spacer(minLength: 8)
-                        Button(showsChanges ? "Hide Changes" : "Show Changes") { withAnimation(.snappy) { showsChanges.toggle() } }
-                            .buttonStyle(.link)
-                        Button("Save as Theme…") { naming = SaveAsTheme(theme: theme, selecting: true) }
-                        Button("Revert to \(name)…") { reverting = true }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    if showsChanges {
+        let listed = showsEdits && !(edits.changes.isEmpty && edits.everyTheme.isEmpty)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Customize theme “\(name)”").font(.system(size: 14, weight: .semibold))
+                    Text("Your changes stay with \(name). Other themes keep their own look.")
+                        .font(.system(size: 11.5)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                if listed {
+                    Text(([edits.changes.isEmpty ? nil : count(edits.changes.count),
+                           edits.everyTheme.isEmpty ? nil : "\(edits.everyTheme.count) for every theme"] as [String?])
+                        .compactMap { $0 }.joined(separator: " · "))
+                        .foregroundStyle(.secondary)
+                    Button(showsChanges ? "Hide Changes" : "Show Changes") { withAnimation(.snappy) { showsChanges.toggle() } }
+                        .buttonStyle(.link)
+                }
+                if showsEdits, !edits.changes.isEmpty {
+                    Button("Save as Theme…") { naming = SaveAsTheme(theme: theme, selecting: true) }
+                    Button("Revert to \(name)…") { reverting = true }
+                }
+            }
+            .font(.system(size: 12))
+            .controlSize(.small)
+            if listed, showsChanges {
+                VStack(alignment: .leading, spacing: 0) {
+                    if !edits.changes.isEmpty {
                         ThemeEditList(store: editor.store, changes: edits.changes, theme: name) { change in
                             if let edit = edits.removal(of: [change]) { editor.change(edit, everyBar: editor.themeChangesEveryBar) }
                         } actions: { change in
@@ -43,68 +53,53 @@ struct ThemeEditsLine: View {
                                 } catch { editor.error = errorMessage(error) }
                             }
                         }
-                        .padding(.leading, 14)
-                        .padding(.trailing, 8)
-                        .padding(.bottom, 10)
-                        .overlay(alignment: .top) { SettingsPalette.separator.frame(height: 1) }
                     }
                     if !edits.everyTheme.isEmpty {
-                        everyTheme
-                            .padding(10)
-                            .background(SettingsPalette.background, in: RoundedRectangle(cornerRadius: 8))
-                            .padding([.horizontal, .bottom], 10)
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("For every theme").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                                Text("Your configuration sets these outside any theme, so every theme uses them.")
+                                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 8)
+                            Button("Keep All with \(name) Only") {
+                                editor.change(edits.keepingWithTheme(edits.everyTheme, theme: name), everyBar: editor.themeChangesEveryBar)
+                            }
+                        }
+                        .padding(.top, 12)
+                        ThemeEditList(store: editor.store, changes: edits.everyTheme, theme: name) { change in
+                            editor.change(change.removal, everyBar: editor.themeChangesEveryBar)
+                        } actions: { change in
+                            Button("Keep with \(name) Only") {
+                                editor.change(edits.keepingWithTheme([change], theme: name), everyBar: editor.themeChangesEveryBar)
+                            }
+                        }
                     }
                 }
-            }
-            .font(.system(size: 12))
-            .controlSize(.small)
-            .settingsCard()
-            .sheet(isPresented: $reverting) {
-                RevertThemeSheet(edits: edits, theme: name) {
-                    reverting = false
-                    naming = SaveAsTheme(theme: theme, selecting: false)
-                } revert: {
-                    reverting = false
-                    if let edit = edits.revertEdit { editor.change(edit, everyBar: editor.themeChangesEveryBar) }
-                }
-            }
-            .sheet(item: $naming) { saving in
-                SaveAsThemeSheet(gallery: gallery, saving: saving, everyBar: editor.themeChangesEveryBar) { naming = nil }
+                .font(.system(size: 12))
+                .controlSize(.small)
+                .padding(.leading, 14)
+                .padding(.trailing, 8)
+                .padding(.bottom, 10)
+                .settingsCard()
             }
         }
-    }
-
-    /// The look values of the main file that apply under every theme, with the way to keep them with this theme.
-    private var everyTheme: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Text("\(count(edits.everyTheme.count, of: "setting")) \(edits.everyTheme.count == 1 ? "applies" : "apply") to every theme: \(summary(edits.everyTheme))")
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                Button(showsEveryTheme ? "Hide" : "Show") { withAnimation(.snappy) { showsEveryTheme.toggle() } }.buttonStyle(.link)
-                Button("Keep with \(name) Only") {
-                    editor.change(edits.keepingWithTheme(edits.everyTheme, theme: name), everyBar: editor.themeChangesEveryBar)
-                }
+        .sheet(isPresented: $reverting) {
+            RevertThemeSheet(edits: edits, theme: name) {
+                reverting = false
+                naming = SaveAsTheme(theme: theme, selecting: false)
+            } revert: {
+                reverting = false
+                if let edit = edits.revertEdit { editor.change(edit, everyBar: editor.themeChangesEveryBar) }
             }
-            if showsEveryTheme {
-                ThemeEditList(store: editor.store, changes: edits.everyTheme, theme: name) { change in
-                    editor.change(change.removal, everyBar: editor.themeChangesEveryBar)
-                } actions: { change in
-                    Button("Keep with \(name) Only") {
-                        editor.change(edits.keepingWithTheme([change], theme: name), everyBar: editor.themeChangesEveryBar)
-                    }
-                }
-            }
+        }
+        .sheet(item: $naming) { saving in
+            SaveAsThemeSheet(gallery: gallery, saving: saving, everyBar: editor.themeChangesEveryBar) { naming = nil }
         }
     }
 
     private func count(_ number: Int, of noun: String = "change") -> String {
         "\(number) \(noun)\(number == 1 ? "" : "s")"
-    }
-
-    private func summary(_ values: [ThemeEdit]) -> String {
-        let names = values.prefix(3).map(\.title).joined(separator: ", ")
-        return values.count > 3 ? "\(names) and \(values.count - 3) more" : names
     }
 }
 

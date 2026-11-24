@@ -153,7 +153,8 @@ struct BarEditView: View {
                 .scaleEffect(scale, anchor: .topLeading)
             }
             .modifier(BarSurface(store: store, settings: config.bar, kind: ScreenKind(display)))
-            .padding(config.bar.margin)
+            .padding(.horizontal, config.bar.horizontalMargin)
+            .padding(.vertical, config.bar.verticalMargin)
             .frame(height: config.barGeometry(for: display).layoutHeight)
             .onAppear { opened = true }
             // macOS shows no tooltips during a drag, so the zone under a dragged widget names itself.

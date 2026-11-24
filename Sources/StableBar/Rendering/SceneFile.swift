@@ -8,7 +8,8 @@ struct SceneFile: Decodable {
     enum Appearance: String, Decodable, CaseIterable { case dark, light }
     /// A Settings section, named as the toolbar names it, `feedback` for Send feedback in Help, or `crashes` for Crashes in Status.
     enum Section: String, Decodable, CaseIterable { case general, bar, theme, profiles, packages, help, feedback, crashes }
-    /// A tab of a widget's Settings page (content, style, behavior), or of the bar's in the Bar section (look, placement).
+    /// A tab of a widget's Settings page (content, style, behavior), or, without a widget in the Bar or Theme section, Appearance's
+    /// Bar page, which holds what the bar's look and placement tabs held (look, placement).
     enum Tab: String, Decodable, CaseIterable {
         case content, style, behavior, look, placement
 
@@ -394,9 +395,9 @@ struct SceneFile: Decodable {
             throw DecodingError.dataCorruptedError(forKey: .wallpaper, in: values,
                                                    debugDescription: "wallpaper belongs to a bar, popup, settings or setup scene.")
         }
-        if let tab, tab.isBarTab, widget != nil || section != .bar {
+        if let tab, tab.isBarTab, widget != nil || ![.bar, .theme].contains(section) {
             throw DecodingError.dataCorruptedError(forKey: .tab, in: values,
-                                                   debugDescription: "\(tab.rawValue) is a tab of the bar's settings, in the bar section without a widget.")
+                                                   debugDescription: "\(tab.rawValue) draws Appearance's Bar page, in the bar or theme section without a widget.")
         }
         if let tab, !tab.isBarTab, widget == nil {
             throw DecodingError.dataCorruptedError(forKey: .tab, in: values, debugDescription: "\(tab.rawValue) is a tab of a widget's Settings page.")

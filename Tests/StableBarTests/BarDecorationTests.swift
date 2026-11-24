@@ -41,7 +41,7 @@ import Testing
     let geometry = config.barGeometry(for: display)
     #expect(abs(geometry.inputHeight - CGFloat(config.bar.height * config.bar.scale(for: display))) < 1e-9)
     #expect(geometry.panelHeight == geometry.layoutHeight)
-    let decorated = BarGeometry(layoutHeight: 50 * 1.1, margin: 0, outsideExtent: 2, outsideHeight: 2)
+    let decorated = BarGeometry(layoutHeight: 50 * 1.1, verticalMargin: 0, horizontalMargin: 0, outsideExtent: 2, outsideHeight: 2)
     #expect(decorated.inputHeight == 55)
     #expect(decorated.panelHeight == 57)
     let rect = belowBarIndicatorRect(cell: CGRect(x: 12, y: 0, width: 36, height: 22),

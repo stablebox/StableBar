@@ -5,12 +5,13 @@ import SwiftUI
 /// existing margin on the display's side.
 struct BarGeometry: Equatable {
     let layoutHeight: CGFloat
-    let margin: CGFloat
+    let verticalMargin: CGFloat
+    let horizontalMargin: CGFloat
     let outsideExtent: CGFloat
     var outsideHeight: CGFloat = 0
     var position = BarPosition.top
 
-    var visibleBottom: CGFloat { layoutHeight - margin }
+    var visibleBottom: CGFloat { layoutHeight - verticalMargin }
     /// Opt-out setups retain the original native height, including fractional display scales.
     var inputHeight: CGFloat { outsideExtent > 0 ? roundedEdge(layoutHeight, .up) : layoutHeight }
     var drawingBottom: CGFloat {
@@ -21,7 +22,7 @@ struct BarGeometry: Equatable {
     }
 
     func visibleRect(width: CGFloat) -> CGRect {
-        CGRect(x: margin, y: margin, width: max(0, width - 2 * margin), height: max(0, layoutHeight - 2 * margin))
+        CGRect(x: horizontalMargin, y: verticalMargin, width: max(0, width - 2 * horizontalMargin), height: max(0, layoutHeight - 2 * verticalMargin))
     }
 }
 
@@ -30,7 +31,7 @@ extension Configuration {
         let configuration = onScreen(ScreenKind(display))
         let bar = configuration.bar
         let scale = bar.scale(for: display)
-        let bottom = bar.height * scale - bar.margin
+        let bottom = bar.height * scale - bar.verticalMargin
         let candidates = configuration.widgets.filter {
             $0.enabled && $0.content == .workspaces && $0.layout == nil
                 && $0.display.includes(display, activeID: display.id)
@@ -40,7 +41,7 @@ extension Configuration {
             roundedEdge(bottom + $0.gap * scale, .up) + roundedEdge($0.height * scale, .up)
                 < roundedEdge(bottom + $1.gap * scale, .up) + roundedEdge($1.height * scale, .up)
         }
-        return BarGeometry(layoutHeight: bar.height * scale, margin: bar.margin,
+        return BarGeometry(layoutHeight: bar.height * scale, verticalMargin: bar.verticalMargin, horizontalMargin: bar.horizontalMargin,
                            outsideExtent: bounds.map { ($0.gap + $0.height) * scale } ?? 0,
                            outsideHeight: bounds.map { $0.height * scale } ?? 0, position: bar.position)
     }

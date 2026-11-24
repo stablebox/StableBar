@@ -109,25 +109,14 @@ struct WidgetsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         ListRow(selected: editor.barItem == .bar) { _ in
-                            WidgetRowLabel(symbol: "menubar.rectangle", name: "Bar", subtitle: "Size, background, placement", selected: editor.barItem == .bar)
+                            WidgetRowLabel(symbol: "menubar.rectangle", name: "Bar", subtitle: "Its screens and setups", selected: editor.barItem == .bar)
                         }
                         .onTapGesture { select(.bar) }
-                        .accessibilityAddTraits(.isButton)
-                        ListRow(selected: editor.barItem == .everyWidget) { _ in
-                            WidgetRowLabel(text: "Aa", name: "Every widget", subtitle: "The shared look", selected: editor.barItem == .everyWidget)
-                        }
-                        .onTapGesture { select(.everyWidget) }
-                        .accessibilityAddTraits(.isButton)
-                        ListRow(selected: editor.barItem == .everyGroup) { _ in
-                            WidgetRowLabel(symbol: WidgetGrouping.symbol, name: "Every group", subtitle: "The shared group look",
-                                           selected: editor.barItem == .everyGroup)
-                        }
-                        .onTapGesture { select(.everyGroup) }
                         .accessibilityAddTraits(.isButton)
                         ForEach(positions, id: \.self) { position in
                             let section = shown.filter { $0.position == position }
                             HStack(alignment: .bottom, spacing: 0) {
-                                groupTitle(position.title)
+                                ListTitle(position.title)
                                 Spacer(minLength: 0)
                                 Button { openAdd(at: position) } label: {
                                     Image(systemName: "plus").font(.system(size: 11, weight: .medium)).frame(width: 20, height: 20).contentShape(Rectangle())
@@ -170,7 +159,7 @@ struct WidgetsView: View {
                             .accessibilityHidden(!section.isEmpty)
                         }
                         if !hidden.isEmpty {
-                            groupTitle("Not on this screen · \(hidden.count)")
+                            ListTitle("Not on this screen · \(hidden.count)")
                             ForEach(hidden) { widget in
                                 let selected = selectedWidget == widget.id
                                 ListRow(selected: selected, dimmed: true,
@@ -227,14 +216,6 @@ struct WidgetsView: View {
         }
     }
 
-    private func groupTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, 6)
-            .padding(.top, 10)
-            .padding(.bottom, 4)
-    }
 
     private func groupRow(_ group: String, id: String, members: [WidgetConfiguration], position: WidgetPosition, listed: [WidgetConfiguration],
                           grouping: WidgetGrouping) -> some View {
@@ -434,14 +415,9 @@ struct WidgetsView: View {
         guard let target = editor.searchTarget.flatMap(SettingsSearchResult.init(rawValue:)) else { return }
         var scroll = "top"
         switch target {
-        case .barSize, .barLook: editor.barTab = .look; select(.bar)
-        case .barPlacement: editor.barTab = .placement; select(.bar)
         case .screenSetups:
-            editor.barTab = .placement
             select(.bar)
             scroll = "These screens"
-        case .everyWidget: select(.everyWidget)
-        case .everyGroup: select(.everyGroup)
         case .widgetContent, .widgetStyle, .widgetBehavior:
             if let id = editor.selectedID ?? widgets.first?.id { select(id) }
             editor.widgetTab = target == .widgetContent ? .content : target == .widgetStyle ? .style : .behavior
@@ -449,9 +425,7 @@ struct WidgetsView: View {
         default: return
         }
         switch editor.barItem {
-        case .bar: scrollPositions["bar/\(editor.barTab)"] = scroll
-        case .everyWidget: scrollPositions["everyWidget"] = scroll
-        case .everyGroup: scrollPositions["everyGroup"] = scroll
+        case .bar: scrollPositions["bar"] = scroll
         case .widget:
             if let id = editor.selectedID { scrollPositions["widget/\(id)/\(editor.widgetTab)"] = scroll }
         case .group:
@@ -461,7 +435,23 @@ struct WidgetsView: View {
     }
 }
 
-private struct ListRow<Content: View>: View {
+/// A section's title in a Settings list.
+struct ListTitle: View {
+    let title: String
+
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.tertiary)
+            .padding(.horizontal, 6)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+    }
+}
+
+struct ListRow<Content: View>: View {
     let selected: Bool
     var dimmed = false
     var eye: (symbol: String, help: String, action: () -> Void)?
@@ -494,7 +484,7 @@ private struct ListRow<Content: View>: View {
     }
 }
 
-private struct WidgetRowLabel: View {
+struct WidgetRowLabel: View {
     var symbol: String?
     var text: String?
     let name: String

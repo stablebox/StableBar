@@ -734,6 +734,8 @@ struct BarSettings: Decodable, Sendable {
     var offset = 0.0
     var belowMenuBar = false
     var margin = 0.0
+    var marginHorizontal: Double?
+    var marginVertical: Double?
     var keepWindowsClear = false
     var keepNotificationsClear = false
     var menuBarRevealDelay = 0.0
@@ -746,6 +748,10 @@ struct BarSettings: Decodable, Sendable {
     var motion = BarMotion.smooth
     var popupTransition: PopupTransition?
     var morphPopups = true
+    /// `marginHorizontal`, else `margin`: the space left and right of the bar's background.
+    var horizontalMargin: Double { marginHorizontal ?? margin }
+    /// `marginVertical`, else `margin`: the space above and below the bar's background, inside its height.
+    var verticalMargin: Double { marginVertical ?? margin }
     /// The gap between the bar and the popups, tooltips and hover controls that open from it.
     var popupOffset = 6.0
     var inlineHoverControls = false
@@ -762,7 +768,7 @@ struct BarSettings: Decodable, Sendable {
     var glass = GlassSettings()
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case height, displayScale, position, offset, belowMenuBar, margin, keepWindowsClear, keepNotificationsClear, menuBarRevealDelay, hideMenuBar, hidden, hoverDelay, inset, spacing, background, motion, popupTransition, morphPopups, popupOffset, inlineHoverControls, animationDuration, notchWidth, notchSpacing, fillNotch, style, divider, appearance, followsWallpaper, textFollowsBackground, glass
+        case height, displayScale, position, offset, belowMenuBar, margin, marginHorizontal, marginVertical, keepWindowsClear, keepNotificationsClear, menuBarRevealDelay, hideMenuBar, hidden, hoverDelay, inset, spacing, background, motion, popupTransition, morphPopups, popupOffset, inlineHoverControls, animationDuration, notchWidth, notchSpacing, fillNotch, style, divider, appearance, followsWallpaper, textFollowsBackground, glass
     }
 
     init() {}
@@ -784,6 +790,8 @@ struct BarSettings: Decodable, Sendable {
         offset = try values.decodeIfPresent(Double.self, forKey: .offset) ?? offset
         belowMenuBar = try values.decodeIfPresent(Bool.self, forKey: .belowMenuBar) ?? belowMenuBar
         margin = try values.decodeIfPresent(Double.self, forKey: .margin) ?? margin
+        marginHorizontal = try values.decodeIfPresent(Double.self, forKey: .marginHorizontal)
+        marginVertical = try values.decodeIfPresent(Double.self, forKey: .marginVertical)
         keepWindowsClear = try values.decodeIfPresent(Bool.self, forKey: .keepWindowsClear) ?? keepWindowsClear
         keepNotificationsClear = try values.decodeIfPresent(Bool.self, forKey: .keepNotificationsClear) ?? keepNotificationsClear
         menuBarRevealDelay = try values.decodeIfPresent(Double.self, forKey: .menuBarRevealDelay) ?? menuBarRevealDelay
@@ -828,7 +836,7 @@ struct BarSettings: Decodable, Sendable {
     func layoutNotch(on display: BarDisplay) -> ClosedRange<CGFloat>? {
         let scale = CGFloat(scale(for: display))
         return notch(on: display).map { range in
-            let range: ClosedRange<CGFloat> = ((range.lowerBound - margin) / scale)...((range.upperBound - margin) / scale)
+            let range: ClosedRange<CGFloat> = ((range.lowerBound - horizontalMargin) / scale)...((range.upperBound - horizontalMargin) / scale)
             return notchWidth.map { width in
                 let center = (range.lowerBound + range.upperBound) / 2
                 return (center - width / 2)...(center + width / 2)
@@ -863,7 +871,7 @@ struct BarSettings: Decodable, Sendable {
 }
 
 struct ScreenConfiguration: Decodable, Sendable {
-    static let barKeys: Set<String> = ["height", "position", "offset", "belowMenuBar", "margin", "inset", "spacing", "background", "notchWidth", "notchSpacing", "fillNotch", "style",
+    static let barKeys: Set<String> = ["height", "position", "offset", "belowMenuBar", "margin", "marginHorizontal", "marginVertical", "inset", "spacing", "background", "notchWidth", "notchSpacing", "fillNotch", "style",
                                        "divider", "glass", "appearance", "followsWallpaper", "textFollowsBackground", "motion", "popupTransition", "morphPopups", "popupOffset"]
     let bar: [String: ConfigurationValue]?
     let layout: [String: [String]]?

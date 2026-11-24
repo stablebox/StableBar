@@ -266,6 +266,7 @@ func styleTitle(_ path: [String]) -> String {
         ["foreground": "Text color", "background": "Background", "borderColor": "Border color",
          "shadowColor": "Shadow color", "hoverBackground": "Hover background", "hoverForeground": "Hover text color",
          "fontName": "Font", "fontSize": "Text size", "fontWeight": "Weight", "inset": "Side inset",
+         "marginHorizontal": "Side margin", "marginVertical": "Top and bottom margin",
          "paddingHorizontal": "Horizontal padding", "paddingVertical": "Vertical padding",
          "paddingLeading": "Leading padding", "paddingTrailing": "Trailing padding", "paddingTop": "Top padding",
          "paddingBottom": "Bottom padding", "offsetX": "Horizontal offset", "offsetY": "Vertical offset",

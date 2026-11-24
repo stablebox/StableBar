@@ -2345,6 +2345,14 @@
           "$ref": "#/definitions/number",
           "description": "Insets the bar's background and widgets on every side, in points."
         },
+        "marginHorizontal": {
+          "$ref": "#/definitions/number",
+          "description": "Insets the bar's background and widgets from the left and right edges, in points. Defaults to margin."
+        },
+        "marginVertical": {
+          "$ref": "#/definitions/number",
+          "description": "Insets the bar's background and widgets from the top and bottom of the bar's height, in points. Defaults to margin."
+        },
         "keepWindowsClear": {
           "$ref": "#/definitions/boolean",
           "description": "Move ordinary windows below the bar using Accessibility access. Disabled by default."
@@ -2636,6 +2644,12 @@
             },
             "margin": {
               "$ref": "#/definitions/bar/properties/margin"
+            },
+            "marginHorizontal": {
+              "$ref": "#/definitions/bar/properties/marginHorizontal"
+            },
+            "marginVertical": {
+              "$ref": "#/definitions/bar/properties/marginVertical"
             },
             "inset": {
               "$ref": "#/definitions/bar/properties/inset"
