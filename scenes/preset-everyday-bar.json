@@ -103,5 +103,6 @@
     }
   },
   "activeApp": "com.apple.Safari",
+  "appearances": ["dark"],
   "draw": "bar"
 }

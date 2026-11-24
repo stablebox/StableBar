@@ -11,6 +11,7 @@
       }
     ]
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "widget": "workspaces",
   "tab": "content"

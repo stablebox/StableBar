@@ -52,6 +52,7 @@
       "fields": { "status": "Keeping awake indefinitely", "minutesLabel": "165m", "lastStepLabel": "240m", "endStopLabel": "∞" }
     }
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "awake",
   "height": 260

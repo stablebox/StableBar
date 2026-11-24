@@ -25,6 +25,7 @@
     "local-clock": "9:41 AM",
     "weather": { "text": "21", "fields": { "unit": "°C" } }
   },
+  "appearances": ["dark"],
   "draw": "shareLink",
   "height": 701
 }

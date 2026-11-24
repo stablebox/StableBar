@@ -278,5 +278,6 @@
   ],
   "focusedWindow": 2,
   "activeApp": "com.apple.Notes",
+  "appearances": ["dark"],
   "draw": "bar"
 }

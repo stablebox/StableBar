@@ -24,6 +24,7 @@
     ]
   },
   "packages": ["../Tests/Fixtures/vpn-status"],
+  "appearances": ["dark"],
   "draw": "settings",
   "section": "profiles"
 }

@@ -294,5 +294,6 @@
     }
   },
   "activeApp": "com.apple.mail",
+  "appearances": ["dark"],
   "draw": "bar"
 }

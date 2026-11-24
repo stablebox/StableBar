@@ -18,6 +18,7 @@
       { "id": "task", "type": "text", "text": "Review", "position": "left" }
     ]
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 700
 }

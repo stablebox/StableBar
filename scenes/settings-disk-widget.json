@@ -80,6 +80,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "widget": "disk",
   "height": 1180

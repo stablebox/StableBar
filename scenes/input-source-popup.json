@@ -31,6 +31,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "keyboard",
   "height": 128

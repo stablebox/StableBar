@@ -403,5 +403,6 @@
   ],
   "focusedWindow": 2,
   "activeApp": "com.mitchellh.ghostty",
+  "appearances": ["dark"],
   "draw": "bar"
 }

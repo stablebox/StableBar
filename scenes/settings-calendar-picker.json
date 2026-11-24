@@ -27,6 +27,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "widget": "calendar",
   "height": 1100

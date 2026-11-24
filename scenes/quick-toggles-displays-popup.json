@@ -111,6 +111,7 @@
     "expandedDisplay": "Built-in Retina Display",
     "nightShiftStrength": 0.6
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "toggles",
   "height": 820

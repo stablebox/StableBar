@@ -48,6 +48,7 @@
   },
   "windowsUnderBar": "aerospace",
   "activeApp": "com.apple.Safari",
+  "appearances": ["dark"],
   "draw": "setup",
   "setup": {
     "step": "allow",

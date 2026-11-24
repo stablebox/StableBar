@@ -71,6 +71,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 600
 }

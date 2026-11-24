@@ -107,6 +107,7 @@
     },
     "expanded": "network"
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "toggles",
   "height": 600

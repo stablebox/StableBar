@@ -22,5 +22,6 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "sharePost"
 }

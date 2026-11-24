@@ -29,6 +29,7 @@
   "outputs": {
     "focus": { "text": "Focus", "fields": { "status": "Running · 2 h left", "awake": "true" } }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "widget": "focus",
   "width": 900,

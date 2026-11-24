@@ -19,6 +19,7 @@
       { "id": "date", "type": "clock", "format": "EEE d MMM", "position": "right" }
     ]
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 700
 }

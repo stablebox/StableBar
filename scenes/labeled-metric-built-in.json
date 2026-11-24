@@ -425,6 +425,7 @@
       "fields": {"memory": "100"}
     }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 1280
 }

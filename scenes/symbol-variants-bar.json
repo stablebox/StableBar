@@ -15,6 +15,7 @@
         "style": { "symbolVariant": "fill" } }
     ]
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 900
 }

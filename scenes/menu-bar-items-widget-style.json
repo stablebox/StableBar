@@ -11,6 +11,7 @@
       { "id": "clock", "type": "clock", "position": "right" }
     ]
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "widget": "items",
   "tab": "style",

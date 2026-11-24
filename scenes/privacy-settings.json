@@ -27,6 +27,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "section": "bar",
   "widget": "privacy",

@@ -19,6 +19,7 @@
     { "window-id": 4, "window-title": "Music", "workspace": "2", "app-name": "Music", "app-bundle-id": "com.apple.Music" }
   ],
   "focusedWindow": 2,
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 600
 }

@@ -32,6 +32,7 @@
     { "window-id": 3, "window-title": "zsh", "workspace": "2", "app-name": "Terminal", "app-bundle-id": "com.apple.Terminal" },
     { "window-id": 4, "window-title": "Inbox", "workspace": "3", "app-name": "Mail", "app-bundle-id": "com.apple.mail" }
   ],
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 500
 }

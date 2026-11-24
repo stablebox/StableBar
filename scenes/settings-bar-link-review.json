@@ -1,1 +1,1 @@
-{"$schema":"../scene.schema.json","configuration":{},"packages":["../examples/packages/weather","../Tests/Fixtures/linked-bar-uptime"],"draw":"barLinkReview","barLink":"../Tests/Fixtures/linked-bar.json","height":1720}
+{"$schema":"../scene.schema.json","configuration":{},"packages":["../examples/packages/weather","../Tests/Fixtures/linked-bar-uptime"],"appearances":["dark"],"draw":"barLinkReview","barLink":"../Tests/Fixtures/linked-bar.json","height":1720}

@@ -19,6 +19,7 @@
       "values": { "volume": 0.45 }
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "section": "bar",
   "tab": "placement"

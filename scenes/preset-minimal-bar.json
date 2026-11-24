@@ -73,5 +73,6 @@
     }
   },
   "activeApp": "com.apple.Notes",
+  "appearances": ["dark"],
   "draw": "bar"
 }

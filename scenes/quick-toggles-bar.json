@@ -7,6 +7,7 @@
     ]
   },
   "quickToggles": { "keepAwakeMinutes": 42 },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 400
 }

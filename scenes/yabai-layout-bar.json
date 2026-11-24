@@ -30,6 +30,7 @@
     "14": "com.apple.iCal",
     "15": "com.apple.Music"
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 600
 }

@@ -2,6 +2,7 @@
   "$schema": "../scene.schema.json",
   "configuration": {},
   "packages": ["../Tests/Fixtures/theme-versions/1.0.0", "../Tests/Fixtures/theme-versions/1.1.0"],
+  "appearances": ["dark"],
   "draw": "settings", "height": 2000,
   "section": "theme"
 }

@@ -29,6 +29,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "widget": "calendar",
   "tab": "content"

@@ -39,6 +39,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "badges",
   "height": 128

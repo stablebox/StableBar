@@ -214,6 +214,7 @@
     1,
     2
   ],
+  "appearances": ["dark"],
   "draw": "setup",
   "setup": {
     "step": "allow",

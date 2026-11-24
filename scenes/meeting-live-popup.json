@@ -326,6 +326,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "widget": "meeting",
   "width": 560,

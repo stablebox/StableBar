@@ -134,6 +134,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "sound",
   "height": 400

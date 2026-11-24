@@ -8,6 +8,7 @@
     ]
   },
   "workspaceManagers": ["kiwidesk"],
+  "appearances": ["dark"],
   "draw": "settings",
   "section": "general",
   "height": 1920

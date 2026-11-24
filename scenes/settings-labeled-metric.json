@@ -101,6 +101,7 @@
       "fields": {"memory": "100"}
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "width": 680,
   "widget": "disk-100",

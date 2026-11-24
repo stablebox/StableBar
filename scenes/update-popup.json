@@ -1,5 +1,6 @@
 {
   "$schema": "../scene.schema.json",
   "configuration": "../Resources/config.json",
+  "appearances": ["dark"],
   "draw": "update"
 }

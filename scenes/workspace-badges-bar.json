@@ -21,6 +21,7 @@
     { "window-id": 5, "window-title": "Terminal", "workspace": "2", "app-name": "Terminal", "app-bundle-id": "com.apple.Terminal" }
   ],
   "dockBadges": { "com.apple.mail": "3", "com.apple.MobileSMS": "128", "com.apple.reminders": "•" },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 900
 }

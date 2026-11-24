@@ -33,6 +33,7 @@
       "values": { "download": 1258291, "upload": 245760 }
     }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 700
 }

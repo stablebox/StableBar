@@ -326,6 +326,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 560
 }

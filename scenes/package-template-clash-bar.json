@@ -7,5 +7,6 @@
     ]
   },
   "packages": ["../Tests/Fixtures/template-clash/now-playing", "../Tests/Fixtures/template-clash/other"],
+  "appearances": ["dark"],
   "draw": "bar"
 }

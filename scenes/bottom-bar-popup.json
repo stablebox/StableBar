@@ -16,6 +16,7 @@
     { "workspace": "2", "workspace-is-focused": true, "workspace-is-visible": true, "monitor-appkit-nsscreen-screens-id": 1 },
     { "workspace": "3", "workspace-is-focused": false, "workspace-is-visible": false, "monitor-appkit-nsscreen-screens-id": 1 }
   ],
+  "appearances": ["dark"],
   "draw": "bar",
   "widget": "time",
   "width": 900,

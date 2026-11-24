@@ -13,6 +13,7 @@
   "outputs": {
     "battery": { "text": "82%", "values": { "percent": 0.82 }, "fields": { "percent": "82", "state": "battery" } }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 500
 }

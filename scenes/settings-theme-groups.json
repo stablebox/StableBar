@@ -27,6 +27,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "section": "theme",
   "height": 2300

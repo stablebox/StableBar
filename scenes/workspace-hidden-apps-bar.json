@@ -26,6 +26,7 @@
     { "window-id": 5, "window-title": "Music", "workspace": "3", "app-name": "Music", "app-bundle-id": "com.apple.Music" },
     { "window-id": 6, "window-title": "Finder", "workspace": "S", "app-name": "Finder", "app-bundle-id": "com.apple.finder" }
   ],
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 600
 }

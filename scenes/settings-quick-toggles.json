@@ -6,6 +6,7 @@
       { "id": "time", "type": "clock", "format": "HH:mm", "position": "right" }
     ]
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "widget": "toggles",
   "tab": "content",

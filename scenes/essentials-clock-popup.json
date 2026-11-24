@@ -191,6 +191,7 @@
       0.351
     ]
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "clock",
   "height": 460

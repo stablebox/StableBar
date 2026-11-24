@@ -15,5 +15,6 @@
       { "id": "clock", "type": "clock", "position": "right", "format": "EEE d MMM  HH:mm" }
     ]
   },
+  "appearances": ["dark"],
   "draw": "editBar"
 }

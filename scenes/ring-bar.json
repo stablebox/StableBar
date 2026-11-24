@@ -71,6 +71,7 @@
       "values": { "cpu": 0.38, "memory": 0.61 }
     }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 500
 }

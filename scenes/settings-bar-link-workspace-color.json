@@ -1,1 +1,1 @@
-{"$schema":"../scene.schema.json","configuration":{},"draw":"settings","section":"theme","barLink":"../Tests/Fixtures/linked-bar-workspace-color.json"}
+{"$schema":"../scene.schema.json","configuration":{},"appearances":["dark"],"draw":"settings","section":"theme","barLink":"../Tests/Fixtures/linked-bar-workspace-color.json"}

@@ -25,6 +25,7 @@
       "values": { "download": 1258291, "upload": 245760 }
     }
   },
+  "appearances": ["dark"],
   "draw": "settings",
   "group": "status",
   "height": 900

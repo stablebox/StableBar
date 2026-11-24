@@ -50,6 +50,7 @@
       "values": { "power.percent": 0.62, "sound.volume": 0.5, "machine.strain": 0.82 }
     }
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 500
 }

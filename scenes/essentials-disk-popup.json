@@ -90,6 +90,7 @@
       }
     }
   },
+  "appearances": ["dark"],
   "draw": "popup",
   "widget": "disk",
   "height": 560

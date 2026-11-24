@@ -8,6 +8,7 @@
       { "id": "clock", "type": "clock", "position": "right" }
     ]
   },
+  "appearances": ["dark"],
   "draw": "bar",
   "width": 400
 }

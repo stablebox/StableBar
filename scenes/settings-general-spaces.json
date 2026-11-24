@@ -15,6 +15,7 @@
     { "window-id": 1, "window-title": "Safari", "workspace": "1", "app-name": "Safari", "app-bundle-id": "com.apple.Safari" },
     { "window-id": 2, "window-title": "Terminal", "workspace": "2", "app-name": "Terminal", "app-bundle-id": "com.apple.Terminal" }
   ],
+  "appearances": ["dark"],
   "draw": "settings",
   "section": "general",
   "height": 1920

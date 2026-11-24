@@ -279,6 +279,7 @@
     }
   },
   "activeApp": "com.apple.mail",
+  "appearances": ["dark"],
   "draw": "setup",
   "setup": {
     "step": "allow",

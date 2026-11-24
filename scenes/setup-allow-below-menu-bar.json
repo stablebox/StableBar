@@ -62,6 +62,7 @@
       "monitor-appkit-nsscreen-screens-id": 1
     }
   ],
+  "appearances": ["dark"],
   "draw": "setup",
   "setup": {
     "step": "allow",
