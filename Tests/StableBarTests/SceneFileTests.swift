@@ -130,7 +130,7 @@ func sceneRejectsUnsupportedMacOSVersions(version: Int) throws {
     (#"{"configuration": {}, "draw": "popup"}"#, "widget"),
     (#"{"configuration": {}, "draw": "settings"}"#, "section"),
     (#"{"configuration": {}, "draw": "settings", "section": "theme", "tab": "style"}"#, "tab"),
-    (#"{"configuration": {}, "draw": "settings", "section": "theme", "tab": "placement"}"#, "tab"),
+    (#"{"configuration": {}, "draw": "settings", "section": "general", "tab": "placement"}"#, "tab"),
     (#"{"configuration": {}, "draw": "settings", "widget": "clock", "tab": "placement"}"#, "tab"),
     (#"{"configuration": {}, "draw": "bar", "menu": [{"title": "Copy"}]}"#, "menu"),
     (#"{"configuration": {}, "draw": "bar", "view": "network"}"#, "view"),

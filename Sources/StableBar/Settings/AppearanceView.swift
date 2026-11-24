@@ -34,20 +34,42 @@ struct AppearanceView: View {
                     .frame(width: 230)
                     .background(SettingsPalette.sidebar)
                 Divider()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        if editor.appearanceTab != .themes, screen == nil, editor.editingProfile == nil, let theme = gallery.selectedChoice {
-                            ThemeEditsLine(editor: editor, theme: theme, showsEdits: !gallery.linkedThemeIsActive)
+                ScrollViewReader { scroll in
+                    VStack(spacing: 0) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
+                                if editor.appearanceTab != .themes, screen == nil, editor.editingProfile == nil, let theme = gallery.selectedChoice {
+                                    ThemeEditsLine(editor: editor, theme: theme, showsEdits: !gallery.linkedThemeIsActive)
+                                }
+                                page
+                            }
+                            .frame(maxWidth: 780)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 16)
+                            .padding(.bottom, 28)
+                            .frame(maxWidth: .infinity)
                         }
-                        page
+                        .id(editor.appearanceTab)
                     }
-                    .frame(maxWidth: 780)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
-                    .padding(.bottom, 28)
-                    .frame(maxWidth: .infinity)
+                    // Outside the scroll view, which a new page replaces, so that the page change doesn't cancel it.
+                    .task(id: editor.searchTarget) {
+                        guard let target = editor.searchTarget else { return }
+                        advanced = AdvancedSheet(rawValue: target)
+                        let places: [SettingsSearchResult: (AppearanceTab, String?)] = [
+                            .theme: (.themes, nil), .colors: (.colors, nil), .barPlacement: (.bar, "Position"), .barLook: (.bar, "Background"),
+                            .glass: (.bar, "Liquid Glass"), .barSize: (.bar, "Size"), .everyWidget: (.widgets, nil),
+                            .workspaceStyle: (.widgets, "Workspaces"), .everyGroup: (.groups, nil), .popups: (.popups, nil)
+                        ]
+                        let place = advanced == nil ? SettingsSearchResult(rawValue: target).flatMap { places[$0] } : (.advanced, nil)
+                        if let (tab, group) = place {
+                            editor.appearanceTab = tab
+                            await Task.yield()
+                            if Task.isCancelled { return }
+                            if let group { scroll.scrollTo(group, anchor: .top) }
+                        }
+                        editor.searchTarget = nil
+                    }
                 }
-                .id(editor.appearanceTab)
             }
             .overlay(alignment: .top) { Divider() }
         }
@@ -55,15 +77,6 @@ struct AppearanceView: View {
             fontFamilies = NSFontManager.shared.availableFontFamilies
             await gallery.refresh()
             await gallery.loadStore()
-        }
-        .task(id: editor.searchTarget) {
-            guard let target = editor.searchTarget else { return }
-            advanced = AdvancedSheet(rawValue: target)
-            let tabs: [SettingsSearchResult: AppearanceTab] = [.theme: .themes, .colors: .colors, .barSize: .bar, .barLook: .bar,
-                                                               .barPlacement: .bar, .glass: .bar, .everyWidget: .widgets,
-                                                               .workspaceStyle: .widgets, .everyGroup: .groups, .popups: .popups]
-            if let tab = advanced == nil ? SettingsSearchResult(rawValue: target).flatMap({ tabs[$0] }) : .advanced { editor.appearanceTab = tab }
-            editor.searchTarget = nil
         }
         .sheet(item: $advanced) { ThemeAdvancedSheet(editor: editor, sheet: $0, screen: screen) }
         .onChange(of: store.effectiveDocument) { _, _ in gallery.configurationChanged() }
@@ -139,7 +152,9 @@ struct AppearanceView: View {
                 .font(.system(size: 12))
             }
             Spacer()
-            RevertSettingButton(title: "Appearance", property: source, reset: source.saved.map { saved in { reset(saved) } })
+            let saved = [source.saved, store.propertySources(path: bar.path, key: "followsWallpaper", defaultsPath: bar.defaultsPath,
+                                                             values: bar.values).saved].compactMap { $0 }
+            RevertSettingButton(title: "Appearance", property: source, reset: saved.isEmpty ? nil : { saved.forEach(reset) })
             SettingsSegments(selection: Binding(get: { choice }, set: { next in
                 guard next != choice else { return }
                 var properties: [String: ConfigurationValue] = ["appearance": next.appearance.map { .string($0.rawValue) } ?? .null]

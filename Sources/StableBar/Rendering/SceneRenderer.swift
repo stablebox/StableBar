@@ -408,7 +408,7 @@ enum SceneRenderer {
                     editor.showCrashes()
                 }
             }
-            let waitsForThemes = scene.widget == nil && scene.section == .theme
+            let waitsForThemes = scene.widget == nil && (scene.section == .theme || scene.tab?.isBarTab == true)
             let waitsForCrashes = scene.widget == nil && scene.section == .crashes
             let library = store.packageLibrary
             // A package widget's Content tab loads the package's settings, which a busy Mac can take seconds to do.

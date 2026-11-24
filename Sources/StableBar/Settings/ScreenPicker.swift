@@ -76,7 +76,6 @@ struct ScreenBand: View {
     private var editingMenu: some View {
         let setup = store.configurationStore.screenSetup
         let ownBars = store.configurationStore.screenSetupsWithOwnBars
-        let themeEdits = ProfileGroups(store: store).themeEdits.map(\.name)
         let profile = editor.editingProfile
         var parts = [screen.screenTitle]
         if let setup { parts.append(ownBars.contains(setup) ? "own bar" : "shared bar") }
@@ -96,7 +95,7 @@ struct ScreenBand: View {
                     if $0 != (profile ?? "") { $0.isEmpty ? editor.endProfileEditing() : editor.editBar(for: $0) }
                 })) {
                     Text("No profile").tag("")
-                    ForEach(store.profiles.filter { !themeEdits.contains($0.name) }, id: \.name) { Text($0.name).tag($0.name) }
+                    ForEach(store.profiles.filter { $0.when?.onlyTheme == nil }, id: \.name) { Text($0.name).tag($0.name) }
                 }
                 .pickerStyle(.inline).labelsHidden()
             }

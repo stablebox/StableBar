@@ -80,9 +80,12 @@ struct ThemeEdits {
         profileNames = ((try? main["profiles"]?.decoded([ConfigurationProfile].self)) ?? []).map(\.name)
         let themed = (try? theme["tokens"]?.decoded([String: ConfigurationValue].self)) ?? [:]
         changes = lookValues(in: configuration, tokens: { _ in true }, widgets: names, theme: theme)
-        // The empty members list Ungroup leaves in the main file is the bar's structure, the same under every theme on purpose.
+        // Ungroup leaves an empty members list in the main file for a group the theme doesn't fill: the bar's structure. Where
+        // the theme gives that group members, the empty list replaces them, a look value like any other.
         everyTheme = lookValues(in: main, tokens: { name in themed[name] != nil || themeTokens.contains { $0.name == name } },
-                                widgets: nil, theme: theme).filter { !($0.path.first == "groups" && $0.path.last == "members" && $0.value == .array([])) }
+                                widgets: nil, theme: theme).filter {
+            !($0.path.first == "groups" && $0.path.last == "members" && $0.value == .array([]) && $0.themeValue == nil)
+        }
         let definitions = (try? main["widgets"]?.decoded([[String: ConfigurationValue]].self)) ?? []
         let overrides = (try? main["widgetOverrides"]?.decoded([String: [String: ConfigurationValue]].self)) ?? [:]
         var own: [String: [String: ConfigurationValue]] = [:]
