@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 final class BarShareWindow: NSObject, NSWindowDelegate {
     private(set) var window: NSWindow?
     private weak var store: BarStore?
-    /// The dock at the bottom of the screen while a post is open in the browser, with the panel hidden.
+    /// The dock in the panel's place while a post is open in the browser, with the panel hidden.
     private var dock: NSPanel?
 
     /// Opens Share My Bar on `screen`'s bar, or shows that bar in it when it's already open.
@@ -50,15 +50,15 @@ final class BarShareWindow: NSObject, NSWindowDelegate {
         window!.makeKeyAndOrderFront(nil)
     }
 
-    /// Hides the panel while a post opens in the browser, and slides up the dock at the bottom of its screen, to drag the
-    /// image into the post from.
+    /// Shrinks the panel into the dock in its place while a post opens in the browser, to drag the image into the post
+    /// from.
     private func stepAside(_ share: BarShare) {
         let window = window!
-        let screen = window.screen!
+        let panel = window.frame
         let host = NSHostingView(rootView: BarShareDock(share: share, expand: { [weak self] in self?.bringBack() },
                                                        close: { [weak self] in self?.window?.close() }))
         let size = host.fittingSize
-        let frame = NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.minY + 16, width: size.width, height: size.height)
+        let frame = NSRect(x: panel.midX - size.width / 2, y: panel.midY - size.height / 2, width: size.width, height: size.height)
         // Non-activating, so the browser keeps the keyboard for the post.
         let dock = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         dock.isOpaque = false
@@ -71,20 +71,21 @@ final class BarShareWindow: NSObject, NSWindowDelegate {
         dock.contentView = host
         closeDock()
         self.dock = dock
-        let animation = store!.configuration!.bar(on: ScreenKind(BarDisplay(screen: screen))).motion.popupAnimation
-        let slides = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let animation = store!.configuration!.bar(on: ScreenKind(BarDisplay(screen: window.screen!))).motion.popupAnimation
+        let shrinks = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         dock.alphaValue = 0
-        dock.setFrame(slides ? frame.offsetBy(dx: 0, dy: -24) : frame, display: false)
         dock.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { context in
             context.duration = animation.duration
             context.timingFunction = animation.timingFunction
             dock.animator().alphaValue = 1
-            dock.animator().setFrame(frame, display: true)
+            if shrinks { window.animator().setFrame(frame, display: true) }
             window.animator().alphaValue = 0
         } completionHandler: {
             Task { @MainActor in
                 window.orderOut(nil)
+                // Back as it was, for Show Share My Bar.
+                window.setFrame(panel, display: false)
                 window.alphaValue = 1
             }
         }
@@ -898,8 +899,8 @@ private struct ShareCard: ViewModifier {
     }
 }
 
-/// What Share My Bar shows at the bottom of the screen while a post is open in the browser: the image to drag into the
-/// post, the networks to post it on as well, and buttons back to the panel and to close.
+/// What Share My Bar shrinks into while a post is open in the browser: the image to drag into the post, the networks to
+/// post it on as well, and buttons back to the panel and to close.
 struct BarShareDock: View {
     let share: BarShare
     var expand: () -> Void = {}
