@@ -28,7 +28,7 @@
       "type": "clock",
       "position": "right",
       "format": "EEE d MMM  HH:mm",
-      "onClick": "open -a Calendar"
+      "details": true
     },
     {
       "id": "menu-bar-items",

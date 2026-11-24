@@ -225,7 +225,7 @@ struct SetupPreferences: Equatable, Codable, Sendable {
           { "id": "apple", "type": "appleMenu", "position": "left" },
           { "id": "app-menu", "type": "appMenu", "position": "left" },
           { "id": "sound", "type": "audio", "position": "right", "details": true },
-          { "id": "clock", "type": "clock", "position": "right", "format": "EEE d MMM  HH:mm", "onClick": "open -a Calendar" },
+          { "id": "clock", "type": "clock", "position": "right", "format": "EEE d MMM  HH:mm", "details": true },
           { "id": "menu-bar-items", "type": "menuBarItems", "position": "right" }
         ]
         """#)

@@ -60,6 +60,7 @@ final class ConfigurationStore {
         try migrateConfigurationFile(sharedConfigurationURL, savedBy: release)
         try migrateStarterAppleLogo(sharedConfigurationURL, savedBy: release)
         try migrateEarlierSoundDetails(sharedConfigurationURL, pinned: pinned, savedBy: release)
+        try migrateEarlierStarterClock(sharedConfigurationURL, pinned: pinned, savedBy: release)
         try? migrateRetiredThemes(sharedConfigurationURL, pinned: pinned, themes: themesDirectory, storeThemes: storeThemesDirectory,
                                   savedBy: release)
         try? migrateStarterBarSizes(sharedConfigurationURL, pinned: pinned, themes: themesDirectory, savedBy: release)
@@ -69,6 +70,7 @@ final class ConfigurationStore {
             try? migrateConfigurationFile(url, savedBy: release)
             try? migrateStarterAppleLogo(url, savedBy: release)
             try? migrateEarlierSoundDetails(url, pinned: pinned, savedBy: release)
+            try? migrateEarlierStarterClock(url, pinned: pinned, savedBy: release)
             try? migrateRetiredThemes(url, pinned: pinned, themes: themesDirectory, storeThemes: storeThemesDirectory, savedBy: release)
             try? migrateStarterBarSizes(url, pinned: pinned, themes: themesDirectory, savedBy: release)
         }

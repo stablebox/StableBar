@@ -359,6 +359,27 @@ func migrateEarlierSoundDetails(_ url: URL, pinned: String?, savedBy release: St
     try writeConfiguration(configurationData(root, editing: original, savedBy: release), to: url)
 }
 
+/// Turns the clock of a starter saved before 0.19.0, which opened Calendar on click, into one that opens its details
+/// popup, whose month calendar opens Calendar. A clock that also sets `details`, `open`, a menu or a popup keeps what it
+/// says.
+func migrateEarlierStarterClock(_ url: URL, pinned: String?, savedBy release: String? = AppVersion.release) throws {
+    if let pinned, compareReleases(pinned, "0.19.0") != .orderedAscending { return }
+    let original = try Data(contentsOf: url)
+    var root = try JSONDecoder().decode([String: ConfigurationValue].self, from: original)
+    guard case var .array(widgets) = root["widgets"] else { return }
+    let kept = ["details", "open", "menu", "popup", "popupName"]
+    for (index, value) in widgets.enumerated() {
+        guard case var .object(widget) = value, widget["type"] == .string("clock"), widget["onClick"] == .string("open -a Calendar"),
+              kept.allSatisfy({ (widget[$0] ?? .null) == .null }) else { continue }
+        widget["onClick"] = nil
+        widget["details"] = .bool(true)
+        widgets[index] = .object(widget)
+    }
+    guard root["widgets"] != .array(widgets) else { return }
+    root["widgets"] = .array(widgets)
+    try writeConfiguration(configurationData(root, editing: original, savedBy: release), to: url)
+}
+
 /// Selects an installed package in place of a retired theme's frozen copy: the Store's package of a theme that moved to
 /// the Store, installed from its copy in `storeThemes`, or a copy of an older one's own files. A file pinned to this release
 /// or a newer one before the launch's migrations, `pinned`, keeps its selections, since only a hand edit selects a frozen

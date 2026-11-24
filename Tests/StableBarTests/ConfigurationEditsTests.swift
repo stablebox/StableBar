@@ -180,3 +180,31 @@ final class ConfigurationEditsTests: XCTestCase {
     let widgets = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: url)).widgets
     #expect(widgets.map(\.details) == [true, false, false, true, false])
 }
+
+@Test func starterClocksSavedBefore019OpenTheirDetails() throws {
+    let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).json")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let earlier = Data(#"""
+    {
+      "widgets": [
+        { "id": "apple", "type": "appleMenu", "position": "left" },
+        { "id": "app-menu", "type": "appMenu", "position": "left" },
+        { "id": "sound", "type": "audio", "position": "right", "details": true },
+        { "id": "clock", "type": "clock", "position": "right", "format": "EEE d MMM  HH:mm", "onClick": "open -a Calendar" },
+        { "id": "menu-bar-items", "type": "menuBarItems", "position": "right" },
+        { "id": "off", "type": "clock", "position": "right", "onClick": "open -a Calendar", "details": false },
+        { "id": "other", "type": "clock", "position": "right", "onClick": "open -a Clock" }
+      ]
+    }
+    """#.utf8)
+    try earlier.write(to: url)
+    try migrateEarlierStarterClock(url, pinned: "0.19.0")
+    #expect(try Data(contentsOf: url) == earlier, "A file saved by 0.19.0 keeps what it says")
+
+    try migrateEarlierStarterClock(url, pinned: "0.19.0-beta.20261123164352.1618")
+    let document = try JSONDecoder().decode([String: ConfigurationValue].self, from: Data(contentsOf: url))
+    let widgets = try #require(try document["widgets"]?.decoded([[String: ConfigurationValue]].self))
+    #expect(SetupPreferences.isMenuBarStarter(Array(widgets.prefix(5)), remembered: []))
+    #expect(widgets[5]["onClick"] == .string("open -a Calendar"))
+    #expect(widgets[6]["onClick"] == .string("open -a Clock"))
+}
