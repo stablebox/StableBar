@@ -381,7 +381,8 @@ func migrateEarlierStarterClock(_ url: URL, pinned: String?, savedBy release: St
 }
 
 /// Turns the date and time that setup wrote as two clocks before 0.19.0, a `date` and a time-only `clock`, into the one
-/// clock it writes now, with the date and time apart. A pair given anything more, such as a style, stays as it is.
+/// clock it writes now, with the date and time apart. A pair given anything more, such as a style or an override in the
+/// file or a profile, stays as it is.
 func migrateSetupDateAndTime(_ url: URL, pinned: String?, savedBy release: String? = AppVersion.release) throws {
     if let pinned, compareReleases(pinned, "0.19.0") != .orderedAscending { return }
     let original = try Data(contentsOf: url)
@@ -394,7 +395,17 @@ func migrateSetupDateAndTime(_ url: URL, pinned: String?, savedBy release: Strin
                          "details": .bool(true), "format": .string(format)] else { return nil }
         return format
     }
-    guard let date = setupFormat("date", "secondary"), let time = setupFormat("clock", "time") else { return }
+    /// Whether `value` holds a `widgetOverrides` entry for either clock.
+    func overridesAClock(_ value: ConfigurationValue) -> Bool {
+        switch value {
+        case let .object(object):
+            if case let .object(overrides)? = object["widgetOverrides"], overrides["date"] != nil || overrides["clock"] != nil { return true }
+            return object.values.contains(where: overridesAClock)
+        case let .array(array): return array.contains(where: overridesAClock)
+        default: return false
+        }
+    }
+    guard let date = setupFormat("date", "secondary"), let time = setupFormat("clock", "time"), !overridesAClock(.object(root)) else { return }
     var ids: [String] = []
     root = try ConfigurationEdit(action: .remove, id: "date").applying(to: root, widgetIDs: &ids)
     let clock: [String: ConfigurationValue] = ["id": .string("clock"), "type": .string("clock"), "position": .string("right"),

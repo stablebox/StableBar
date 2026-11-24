@@ -212,7 +212,7 @@ final class ConfigurationEditsTests: XCTestCase {
 @Test func setupsDateAndTimeSavedBefore019BecomeOneClock() throws {
     let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).json")
     defer { try? FileManager.default.removeItem(at: url) }
-    func pair(dateStyle: String = "") -> Data {
+    func pair(dateStyle: String = "", profiles: String = "") -> Data {
         Data(#"""
         {
           "widgets": [
@@ -220,7 +220,7 @@ final class ConfigurationEditsTests: XCTestCase {
             { "id": "clock", "type": "clock", "position": "right", "role": "time", "details": true, "format": "HH:mm" },
             { "id": "menu-bar-items", "type": "menuBarItems", "position": "right" }
           ],
-          "widgetOrder": ["date", "clock", "menu-bar-items"]
+          "widgetOrder": ["date", "clock", "menu-bar-items"]\#(profiles)
         }
         """#.utf8)
     }
@@ -241,8 +241,10 @@ final class ConfigurationEditsTests: XCTestCase {
     let document = try JSONDecoder().decode([String: ConfigurationValue].self, from: Data(contentsOf: url))
     #expect(document["widgetOrder"] == .array([.string("clock"), .string("menu-bar-items")]))
 
-    let styled = pair(dateStyle: #", "style": { "fontSize": 11 }"#)
-    try styled.write(to: url)
-    try migrateSetupDateAndTime(url, pinned: nil)
-    #expect(try Data(contentsOf: url) == styled)
+    for customized in [pair(dateStyle: #", "style": { "fontSize": 11 }"#),
+                       pair(profiles: #", "profiles": [{ "name": "Laptop", "configuration": { "widgetOverrides": { "date": { "enabled": false } } } }]"#)] {
+        try customized.write(to: url)
+        try migrateSetupDateAndTime(url, pinned: nil)
+        #expect(try Data(contentsOf: url) == customized)
+    }
 }
