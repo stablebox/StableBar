@@ -49,8 +49,9 @@ extension WidgetConfiguration {
     }
 
     /// `format`'s date and time patterns. The time runs from its first hour, minute, second, day-period or zone letter
-    /// to its last; the date is the rest, without the spaces and quoted text between it and the time. Quoted text is
-    /// literal.
+    /// to its last; the date is the rest, without the spaces between it and the time and the quoted text there that
+    /// touches the time or stands apart from the date, such as `'T'` or ` 'at' `. Quoted text that touches the date, such
+    /// as `'日'`, is part of it.
     private static func clockFormatParts(_ format: String) -> (date: String, time: String) {
         var quote: String.Index?
         var quotes: [Range<String.Index>] = []
@@ -68,7 +69,8 @@ extension WidgetConfiguration {
         while end > format.startIndex {
             if format[format.index(before: end)].isWhitespace {
                 end = format.index(before: end)
-            } else if let quoted = quotes.first(where: { $0.upperBound == end }) {
+            } else if let quoted = quotes.first(where: { $0.upperBound == end }), end == time.lowerBound
+                        || quoted.lowerBound == format.startIndex || format[format.index(before: quoted.lowerBound)].isWhitespace {
                 end = quoted.lowerBound
             } else {
                 break
@@ -78,7 +80,8 @@ extension WidgetConfiguration {
         while start < format.endIndex {
             if format[start].isWhitespace {
                 start = format.index(after: start)
-            } else if let quoted = quotes.first(where: { $0.lowerBound == start }) {
+            } else if let quoted = quotes.first(where: { $0.lowerBound == start }), start == time.upperBound
+                        || quoted.upperBound == format.endIndex || format[quoted.upperBound].isWhitespace {
                 start = quoted.upperBound
             } else {
                 break

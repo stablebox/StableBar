@@ -111,7 +111,7 @@ private func output(_ json: String) throws -> ScriptOutput {
 @Test(arguments: [("dd.MM.yyyy  HH:mm", "01.03.2024", "00:30"), ("HH:mm dd.MM", "01.03", "00:30"),
                   ("'Tag' dd  HH:mm", "Tag 01", "00:30"), ("dd.MM.yyyy", "01.03.2024", ""),
                   ("yyyy-MM-dd'T'HH:mm", "2024-03-01", "00:30"), ("dd.MM 'um' HH:mm", "01.03", "00:30"),
-                  ("yyyy年M月d日 HH:mm", "2024年3月1日", "00:30")])
+                  ("yyyy年M月d日 HH:mm", "2024年3月1日", "00:30"), ("yyyy'年'M'月'd'日' HH:mm", "2024年3月1日", "00:30")])
 func clockFieldsSplitItsFormatIntoTheDateAndTheTime(format: String, date: String, time: String) throws {
     let clock = try widget(#"{"id":"clock","type":"clock","position":"right","timeZone":"UTC","format":"\#(format)"}"#)
     let fields = clock.label(output: nil, activeApp: nil, date: ISO8601DateFormatter().date(from: "2024-03-01T00:30:00Z")!).fields
