@@ -119,10 +119,11 @@ final class AudioMixer {
         }
     }
 
-    /// Ends the app's tap as a failed call would, for a start the tap made on its own, unless another tap has replaced it.
+    /// Ends the app's tap as a failed call would, for a start the tap made on its own, unless another tap has replaced it
+    /// or a later start succeeded.
     private func tapFailed(_ tap: AppAudioTap, of id: String) {
         onTaps(failing: state.taps[id].map { (id, $0) }) { taps in
-            guard taps.byApp[id] === tap else { return }
+            guard taps.byApp[id] === tap, tap.lastStartFailed else { return }
             throw CommandFailure(message: "Could not play the app’s sound.")
         }
     }

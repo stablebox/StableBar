@@ -23,7 +23,6 @@ final class AppAudioTap: @unchecked Sendable {
     private var changes = 0
     /// Whether starting the device makes it wait for the app's sound, as on macOS 27.
     private var waits = true
-    /// Whether the device's last start failed, which leaves the app muted with nothing playing.
     private var startFailed = false
     /// StableBar's calls come one at a time, but the processes' listener runs alongside them, so what they share sits
     /// behind this.
@@ -67,6 +66,9 @@ final class AppAudioTap: @unchecked Sendable {
         gains.pointer[0] = Float(gain)
     }
 
+    /// Whether the device's last start failed, which leaves the app muted with nothing playing.
+    var lastStartFailed: Bool { lock.withLock { startFailed } }
+
     /// Changes the processes the tap mutes and plays, without stopping what plays.
     @available(macOS 14.2, *)
     func setProcesses(_ processes: [UInt32]) throws {
@@ -79,7 +81,7 @@ final class AppAudioTap: @unchecked Sendable {
         follow(processes.map { AudioObjectID($0) })
         processesChanged()
         // `MixerState` ignores a failure reported for the processes before, so the change reports it again.
-        if lock.withLock({ startFailed }) { throw CommandFailure(message: "Could not play the app’s sound.") }
+        if lastStartFailed { throw CommandFailure(message: "Could not play the app’s sound.") }
     }
 
     /// Starts the device should CoreAudio not have when the app plays, and makes it wait once the app stops. Starting a
