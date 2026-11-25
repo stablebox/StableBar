@@ -23,6 +23,8 @@ final class AppAudioTap: @unchecked Sendable {
     private var changes = 0
     /// Whether starting the device makes it wait for the app's sound, as on macOS 27.
     private var waits = true
+    /// Whether the device's last start failed, which leaves the app muted with nothing playing.
+    private var startFailed = false
     /// StableBar's calls come one at a time, but the processes' listener runs alongside them, so what they share sits
     /// behind this.
     private let lock = NSLock()
@@ -76,6 +78,8 @@ final class AppAudioTap: @unchecked Sendable {
         try check(status, "follow the app’s processes")
         follow(processes.map { AudioObjectID($0) })
         processesChanged()
+        // `MixerState` ignores a failure reported for the processes before, so the change reports it again.
+        if lock.withLock({ startFailed }) { throw CommandFailure(message: "Could not play the app’s sound.") }
     }
 
     /// Starts the device should CoreAudio not have when the app plays, and makes it wait once the app stops. Starting a
@@ -95,7 +99,7 @@ final class AppAudioTap: @unchecked Sendable {
     private func restart() -> OSStatus {
         guard let proc else { return noErr }
         AudioDeviceStop(aggregate, proc)
-        let status = AudioDeviceStart(aggregate, proc)
+        let status = start(proc)
         if status == noErr, waits, isRunning, !processes.contains(where: Self.plays) {
             AudioDeviceStop(aggregate, proc)
             waits = false
@@ -134,7 +138,14 @@ final class AppAudioTap: @unchecked Sendable {
     /// waits, CoreAudio starts it. Call it with `lock` held.
     private func startIfPlaying() {
         guard !waits, let proc, !isRunning, processes.contains(where: Self.plays) else { return }
-        reportIfFailed(AudioDeviceStart(aggregate, proc))
+        reportIfFailed(start(proc))
+    }
+
+    /// Call it with `lock` held.
+    private func start(_ proc: AudioDeviceIOProcID) -> OSStatus {
+        let status = AudioDeviceStart(aggregate, proc)
+        startFailed = status != noErr
+        return status
     }
 
     /// For a start no call from StableBar made, so none can throw its failure.
