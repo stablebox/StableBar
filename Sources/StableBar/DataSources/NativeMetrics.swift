@@ -201,6 +201,18 @@ func meetingService(_ link: String) -> String? {
     return nil
 }
 
+/// Your answer to an event's invitation, or nil when the event doesn't invite you, such as one you made
+/// without guests. An answer not given yet, or one the server hasn't reported, counts as `pending`.
+func meetingResponse(_ status: EKParticipantStatus?) -> String? {
+    switch status {
+    case nil: nil
+    case .accepted?, .completed?, .delegated?: "accepted"
+    case .tentative?: "tentative"
+    case .declined?: "declined"
+    default: "pending"
+    }
+}
+
 func meetingLink(_ texts: [String]) -> String? {
     texts.joined(separator: "\n")
         .firstMatch(of: #/https://(?:meet\.google\.com|(?:[a-z0-9-]+\.)*zoom\.us|teams\.microsoft\.com|teams\.live\.com)/[A-Za-z0-9._~%/?=&+#:@-]+/#)
@@ -225,7 +237,7 @@ actor CalendarMetrics {
         let events = store.events(matching: store.predicateForEvents(withStart: today, end: max(tomorrow, horizon), calendars: nil))
             .filter { !$0.isAllDay && (provider.calendars.isEmpty || provider.calendars.contains($0.calendar.title)) }
             .sorted { $0.startDate < $1.startDate }
-        let next = events.first(where: { $0.endDate > now && $0.startDate < horizon })
+        let next = events.first(where: { $0.endDate > now && $0.startDate < horizon && response($0) != "declined" })
         let agenda = events.filter { $0.startDate < tomorrow }.map { event in
             var fields = meetingFields(event)
             fields["phase"] = agendaPhase(start: event.startDate, end: event.endDate, at: now, soon: provider.soon, now: provider.now)
@@ -248,6 +260,10 @@ actor CalendarMetrics {
                             interval: min(countdown.delay, tomorrow.timeIntervalSince(now)))
     }
 
+    private func response(_ event: EKEvent) -> String? {
+        meetingResponse(event.attendees?.first(where: \.isCurrentUser)?.participantStatus)
+    }
+
     private func meetingFields(_ event: EKEvent) -> [String: String] {
         var fields: [String: String] = ["title": event.title ?? "", "start": event.startDate.formatted(date: .omitted, time: .shortened),
                                         "end": event.endDate.formatted(date: .omitted, time: .shortened)]
@@ -256,6 +272,7 @@ actor CalendarMetrics {
             fields["joinCommand"] = "open '\(link)'"
             fields["service"] = meetingService(link)
         }
+        if let response = response(event) { fields["response"] = response }
         return fields
     }
 }

@@ -1,4 +1,5 @@
 import Darwin
+import EventKit
 import Foundation
 import Testing
 @testable import StableBar
@@ -310,6 +311,17 @@ private func provider(_ command: String, type: String = "stream", interval: Doub
     #expect(meetingService("https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc%40thread.v2/0") == "Microsoft Teams")
     #expect(meetingService("https://teams.live.com/meet/9") == "Microsoft Teams")
     #expect(meetingService("https://example.com/j/1") == nil)
+}
+
+@Test func meetingResponsesNameYourAnswerAndCountAnUnansweredInvitationAsPending() {
+    #expect(meetingResponse(nil) == nil)
+    #expect(meetingResponse(.accepted) == "accepted")
+    #expect(meetingResponse(.delegated) == "accepted")
+    #expect(meetingResponse(.tentative) == "tentative")
+    #expect(meetingResponse(.declined) == "declined")
+    #expect(meetingResponse(.pending) == "pending")
+    #expect(meetingResponse(.unknown) == "pending")
+    #expect(meetingResponse(.inProcess) == "pending")
 }
 
 @Test func meetingLinksKeepOnlyMeetZoomAndTeamsURLsAndStopAtShellSyntax() {
