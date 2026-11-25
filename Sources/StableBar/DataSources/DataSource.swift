@@ -203,6 +203,39 @@ final class MainQueueRelay: Sendable {
     }
 }
 
+/// Reads on a queue of its own after each change and hands the main queue each read that differs from the last, for
+/// reads that wait on another process, such as CoreAudio's `coreaudiod`, and would hold up the main thread's animations.
+/// At most one read waits on the queue, so a burst of changes reads once.
+final class QueueReader<Value: Equatable & Sendable>: @unchecked Sendable {
+    let queue: DispatchQueue
+    private let read: () -> Value?
+    private let changed: @Sendable (Value) -> Void
+    // Only touched on `queue`.
+    private var waiting = false
+    private var last: Value?
+
+    /// `read` runs on `queue`, where nil sends nothing; `changed` runs on the main queue.
+    init(label: String, read: @escaping () -> Value?, changed: @escaping @Sendable (Value) -> Void) {
+        queue = DispatchQueue(label: label)
+        self.read = read
+        self.changed = changed
+    }
+
+    /// Reports a change from any thread. A read already waiting on the queue covers it.
+    func notify() {
+        queue.async { [self] in
+            guard !waiting else { return }
+            waiting = true
+            queue.async { [self] in
+                waiting = false
+                guard let value = read(), value != last else { return }
+                last = value
+                DispatchQueue.main.async { [changed] in changed(value) }
+            }
+        }
+    }
+}
+
 /// A source that updates when macOS reports a change, without a timer: its run stays open, reading
 /// once when it starts and again after each change, and sends only reads that differ.
 @MainActor

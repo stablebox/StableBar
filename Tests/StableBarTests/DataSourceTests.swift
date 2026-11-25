@@ -1088,6 +1088,68 @@ private struct RelayProbe {
     #expect(probe.recorded == ["second", "third"])
 }
 
+/// A reader whose reads return `value` and are counted with the threads they ran on, and the values it sent.
+private final class ReaderProbe {
+    private struct State {
+        var value: Int? = 1
+        var reads = 0
+        var readOnMain = false
+        var sent: [Int] = []
+    }
+
+    private let state: OSAllocatedUnfairLock<State>
+    let reader: QueueReader<Int>
+
+    init() {
+        let state = OSAllocatedUnfairLock(initialState: State())
+        self.state = state
+        reader = QueueReader(label: "StableBarTests.reader", read: {
+            state.withLock { state in
+                state.reads += 1
+                state.readOnMain = state.readOnMain || Thread.isMainThread
+                return state.value
+            }
+        }, changed: { value in state.withLock { $0.sent.append(value) } })
+    }
+
+    func change(to value: Int?) { state.withLock { $0.value = value } }
+    var reads: Int { state.withLock(\.reads) }
+    var readOnMain: Bool { state.withLock(\.readOnMain) }
+    var sent: [Int] { state.withLock(\.sent) }
+
+    /// Reports `count` changes from the reader's queue, as a CoreAudio listener does, then waits for the reads they
+    /// start and the main queue for what they send.
+    @MainActor func notify(_ count: Int = 1) async {
+        reader.queue.sync { for _ in 0..<count { reader.notify() } }
+        // The first change's hop queues the read behind the others' hops, after the first of these returns.
+        reader.queue.sync {}
+        reader.queue.sync {}
+        await drainMainQueue()
+    }
+}
+
+@Test @MainActor func aBurstOfChangesIsReadOnceOffTheMainThread() async {
+    let probe = ReaderProbe()
+    await probe.notify(20)
+    #expect(probe.reads == 1)
+    #expect(!probe.readOnMain)
+    #expect(probe.sent == [1])
+}
+
+@Test @MainActor func aReaderSendsOnlyReadsThatChangeSomething() async {
+    let probe = ReaderProbe()
+    await probe.notify()
+    await probe.notify()
+    #expect(probe.reads == 2)
+    #expect(probe.sent == [1])
+    probe.change(to: nil)
+    await probe.notify()
+    #expect(probe.sent == [1])
+    probe.change(to: 2)
+    await probe.notify()
+    #expect(probe.sent == [1, 2])
+}
+
 @Test @MainActor func aVolumeBurstRunsSubscribedScriptsAtMostTwice() async throws {
     let url = try writeTemporaryConfiguration(#"""
     {"widgets":[{"id":"volume","type":"script","position":"right","interval":null,"events":["volumeChange"],

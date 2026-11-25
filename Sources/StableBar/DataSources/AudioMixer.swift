@@ -22,8 +22,7 @@ final class AudioMixer {
     @ObservationIgnored private let taps = Taps()
     /// The last work on the taps, which the next waits for.
     @ObservationIgnored private var tapsTail: Task<Void, Never>?
-    @ObservationIgnored private var listener: AudioObjectPropertyListenerBlock?
-    @ObservationIgnored private var processes: [AudioObjectID] = []
+    @ObservationIgnored private var reader: MixerReader?
     /// Whether it follows CoreAudio, which a scene's sample mixer doesn't.
     @ObservationIgnored private var follows = true
 
@@ -45,13 +44,14 @@ final class AudioMixer {
     func start() {
         guard follows, Self.isAvailable else { return }
         checkPermission()
-        guard listener == nil else { return }
-        let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in MainActor.assumeIsolated { self?.refresh() } }
-        for var address in Self.systemAddresses {
-            AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, .main, listener)
+        guard reader == nil else { return }
+        reader = MixerReader { [weak self] found in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.perform(self.state.handle(.processesChanged(found.clients, apps: found.apps)))
+                self.perform(self.state.handle(.outputsChanged(found.outputs, defaultOutput: found.defaultOutput)))
+            }
         }
-        self.listener = listener
-        refresh()
     }
 
     func setVolume(_ volume: Double, of app: String) { perform(state.handle(.setVolume(app, volume))) }
@@ -61,47 +61,6 @@ final class AudioMixer {
     private func checkPermission() {
         let answer = PrivateAPI.accessPreflight!(Self.service as CFString, nil)
         perform(state.handle(.permissionChecked(answer == 0 ? .allowed : answer == 1 ? .denied : .unknown)))
-    }
-
-    private func refresh() {
-        let system = AudioObjectID(kAudioObjectSystemObject)
-        let objects = AudioMonitor.objects(of: system, at: Self.address(kAudioHardwarePropertyProcessObjectList))
-        if objects != processes { watch(objects) }
-        let own = ProcessInfo.processInfo.processIdentifier
-        let found: [MixerState.Client] = objects.compactMap { object in
-            var pid: pid_t = 0
-            var size = UInt32(MemoryLayout<pid_t>.size)
-            var address = Self.address(kAudioProcessPropertyPID)
-            guard AudioObjectGetPropertyData(object, &address, 0, nil, &size, &pid) == noErr, pid != own else { return nil }
-            let name = NSRunningApplication(processIdentifier: pid)?.localizedName ?? Self.processName(pid)
-            let bundleID = AudioMonitor.string(of: object, at: Self.address(kAudioProcessPropertyBundleID)).flatMap { $0.isEmpty ? nil : $0 } ?? name
-            return MixerState.Client(object: object, bundleID: bundleID, name: name,
-                                      playing: AudioMonitor.flag(of: object, at: Self.address(kAudioProcessPropertyIsRunningOutput)))
-        }
-        var running: [String: String] = [:]
-        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
-            if let id = app.bundleIdentifier { running[id] = app.localizedName ?? id }
-        }
-        perform(state.handle(.processesChanged(found, apps: running)))
-        let outputs = AudioMonitor.objects(of: system, at: Self.address(kAudioHardwarePropertyDevices)).compactMap { device -> MixerState.Output? in
-            guard AudioMonitor.hasStreams(device, scope: kAudioDevicePropertyScopeOutput),
-                  let uid = AudioMonitor.string(of: device, at: Self.address(kAudioDevicePropertyDeviceUID)), !uid.hasPrefix(AppAudioTap.uidPrefix),
-                  let name = try? AudioMonitor.name(of: device) else { return nil }
-            return MixerState.Output(uid: uid, name: name)
-        }
-        let defaultOutput = (try? AudioMonitor.defaultDevice(input: false)).flatMap { AudioMonitor.string(of: $0, at: Self.address(kAudioDevicePropertyDeviceUID)) }
-        perform(state.handle(.outputsChanged(outputs, defaultOutput: defaultOutput)))
-    }
-
-    /// Moves the playing listeners to the current processes. Some macOS versions change whether a process plays without
-    /// telling its listeners, but tell those of whether it runs at all.
-    private func watch(_ objects: [AudioObjectID]) {
-        guard let listener else { return }
-        for var address in [kAudioProcessPropertyIsRunningOutput, kAudioProcessPropertyIsRunning].map(Self.address) {
-            for process in processes { AudioObjectRemovePropertyListenerBlock(process, &address, .main, listener) }
-            for process in objects { AudioObjectAddPropertyListenerBlock(process, &address, .main, listener) }
-        }
-        processes = objects
     }
 
     private func perform(_ effects: [MixerState.Effect]) {
@@ -148,23 +107,96 @@ final class AudioMixer {
             }
         }
     }
-
-    private static let systemAddresses = [kAudioHardwarePropertyProcessObjectList, kAudioHardwarePropertyDevices,
-                                          kAudioHardwarePropertyDefaultOutputDevice].map(address)
-
-    private nonisolated static func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
-        AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
-    }
-
-    /// A process without an app, such as `afplay`, goes by its executable's name.
-    private nonisolated static func processName(_ pid: pid_t) -> String {
-        var name = [UInt8](repeating: 0, count: 256)
-        let length = Int(proc_name(pid, &name, UInt32(name.count)))
-        return length > 0 ? String(decoding: name.prefix(length), as: UTF8.self) : "Process \(pid)"
-    }
 }
 
 /// The running taps by app. Only the work `AudioMixer` chains touches them, one piece at a time.
 private final class Taps: @unchecked Sendable {
     var byApp: [String: AppAudioTap] = [:]
+}
+
+/// Follows the processes that talk to CoreAudio and the output devices for `AudioMixer`, off the main thread: every read
+/// waits on `coreaudiod`, which answers slowly and reports a burst of changes while it moves every app to another output.
+private final class MixerReader: @unchecked Sendable {
+    struct Found: Equatable, Sendable {
+        var clients: [MixerState.Client]
+        /// The running regular apps' names by bundle ID.
+        var apps: [String: String]
+        var outputs: [MixerState.Output]
+        var defaultOutput: String?
+    }
+
+    /// Set once, as it starts.
+    private var reader: QueueReader<Found>?
+    // Only touched on the reader's queue.
+    private var listener: AudioObjectPropertyListenerBlock?
+    private var processes: [AudioObjectID] = []
+
+    /// Reads now and after each change, and calls `changed` on the main queue with each read that differs from the last.
+    init(changed: @escaping @Sendable (Found) -> Void) {
+        let reader = QueueReader(label: "StableBar.AudioMixer", read: { [weak self] in self?.read() }, changed: changed)
+        self.reader = reader
+        reader.queue.async { [self] in
+            let listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.reader?.notify() }
+            for var address in Self.systemAddresses {
+                AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &address, reader.queue, listener)
+            }
+            self.listener = listener
+        }
+        reader.notify()
+    }
+
+    /// On the reader's queue.
+    private func read() -> Found {
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        let objects = AudioMonitor.objects(of: system, at: Self.address(kAudioHardwarePropertyProcessObjectList))
+        if objects != processes { watch(objects) }
+        let own = ProcessInfo.processInfo.processIdentifier
+        let clients: [MixerState.Client] = objects.compactMap { object in
+            var pid: pid_t = 0
+            var size = UInt32(MemoryLayout<pid_t>.size)
+            var address = Self.address(kAudioProcessPropertyPID)
+            guard AudioObjectGetPropertyData(object, &address, 0, nil, &size, &pid) == noErr, pid != own else { return nil }
+            let name = NSRunningApplication(processIdentifier: pid)?.localizedName ?? Self.processName(pid)
+            let bundleID = AudioMonitor.string(of: object, at: Self.address(kAudioProcessPropertyBundleID)).flatMap { $0.isEmpty ? nil : $0 } ?? name
+            return MixerState.Client(object: object, bundleID: bundleID, name: name,
+                                      playing: AudioMonitor.flag(of: object, at: Self.address(kAudioProcessPropertyIsRunningOutput)))
+        }
+        var apps: [String: String] = [:]
+        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
+            if let id = app.bundleIdentifier { apps[id] = app.localizedName ?? id }
+        }
+        let outputs = AudioMonitor.objects(of: system, at: Self.address(kAudioHardwarePropertyDevices)).compactMap { device -> MixerState.Output? in
+            guard AudioMonitor.hasStreams(device, scope: kAudioDevicePropertyScopeOutput),
+                  let uid = AudioMonitor.string(of: device, at: Self.address(kAudioDevicePropertyDeviceUID)), !uid.hasPrefix(AppAudioTap.uidPrefix),
+                  let name = try? AudioMonitor.name(of: device) else { return nil }
+            return MixerState.Output(uid: uid, name: name)
+        }
+        let defaultOutput = (try? AudioMonitor.defaultDevice(input: false)).flatMap { AudioMonitor.string(of: $0, at: Self.address(kAudioDevicePropertyDeviceUID)) }
+        return Found(clients: clients, apps: apps, outputs: outputs, defaultOutput: defaultOutput)
+    }
+
+    /// On the reader's queue: moves the playing listeners to the current processes. Some macOS versions change whether a
+    /// process plays without telling its listeners, but tell those of whether it runs at all.
+    private func watch(_ objects: [AudioObjectID]) {
+        guard let listener, let queue = reader?.queue else { return }
+        for var address in [kAudioProcessPropertyIsRunningOutput, kAudioProcessPropertyIsRunning].map(Self.address) {
+            for process in processes { AudioObjectRemovePropertyListenerBlock(process, &address, queue, listener) }
+            for process in objects { AudioObjectAddPropertyListenerBlock(process, &address, queue, listener) }
+        }
+        processes = objects
+    }
+
+    private static let systemAddresses = [kAudioHardwarePropertyProcessObjectList, kAudioHardwarePropertyDevices,
+                                          kAudioHardwarePropertyDefaultOutputDevice].map(address)
+
+    private static func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+    }
+
+    /// A process without an app, such as `afplay`, goes by its executable's name.
+    private static func processName(_ pid: pid_t) -> String {
+        var name = [UInt8](repeating: 0, count: 256)
+        let length = Int(proc_name(pid, &name, UInt32(name.count)))
+        return length > 0 ? String(decoding: name.prefix(length), as: UTF8.self) : "Process \(pid)"
+    }
 }
