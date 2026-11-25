@@ -317,7 +317,7 @@ struct QuickTogglesDetails: View {
             if let color = toggles.pickedColor {
                 HStack(spacing: 6) {
                     Circle().fill(Color(nsColor: color)).frame(width: 12, height: 12)
-                        .overlay(Circle().strokeBorder(appearance.foreground.opacity(0.25)))
+                        .overlay(Circle().pixelBorder(appearance.foreground.opacity(0.25)))
                     Text("Copied \(QuickToggles.hex(color))").font(.system(size: 11, weight: .medium)).monospacedDigit()
                 }
                 .padding(.horizontal, 8).padding(.vertical, 4)
@@ -679,7 +679,7 @@ private struct Chip: View {
             .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: radius)
                 .fill(on ? appearance.accent.opacity(hovered ? 0.3 : 0.22) : appearance.foreground.opacity(hovered ? 0.14 : 0.09)))
-            .overlay { if on { RoundedRectangle(cornerRadius: radius).strokeBorder(appearance.accent.opacity(0.6)) } }
+            .overlay { if on { RoundedRectangle(cornerRadius: radius).pixelBorder(appearance.accent.opacity(0.6)) } }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -786,7 +786,7 @@ private struct Segment: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 5)
                 .background(RoundedRectangle(cornerRadius: max(radius, 0))
                     .fill(selected ? appearance.accent.opacity(0.22) : appearance.foreground.opacity(hovered ? 0.08 : 0)))
-                .overlay { if selected { RoundedRectangle(cornerRadius: max(radius, 0)).strokeBorder(appearance.accent.opacity(0.6)) } }
+                .overlay { if selected { RoundedRectangle(cornerRadius: max(radius, 0)).pixelBorder(appearance.accent.opacity(0.6)) } }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

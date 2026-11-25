@@ -69,6 +69,6 @@ extension View {
     func settingsCard() -> some View {
         clipShape(RoundedRectangle(cornerRadius: 10))
             .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(SettingsPalette.groupBorder))
+            .overlay(RoundedRectangle(cornerRadius: 10).pixelBorder(SettingsPalette.groupBorder))
     }
 }

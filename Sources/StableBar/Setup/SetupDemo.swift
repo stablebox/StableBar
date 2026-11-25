@@ -236,7 +236,7 @@ struct SetupDemo: View {
             let gone = progress(clearing * 1.25 - 0.125, bounds.midX / size.width - 0.06, 0.12)
             RoundedRectangle(cornerRadius: min(bounds.height / 2, 10))
                 .fill(.primary.opacity(0.08))
-                .overlay(RoundedRectangle(cornerRadius: min(bounds.height / 2, 10)).strokeBorder(.primary.opacity(0.18)))
+                .overlay(RoundedRectangle(cornerRadius: min(bounds.height / 2, 10)).pixelBorder(.primary.opacity(0.18)))
                 .frame(width: bounds.width, height: bounds.height)
                 .scaleEffect(1.04 - 0.04 * gathered)
                 .opacity(gathered * (1 - gone))
@@ -329,7 +329,7 @@ struct SetupDemo: View {
             ForEach(targets.indices, id: \.self) { index in
                 let ripple = Self.easeOut.value(at: progress(time, SetupDemoTimeline.clicks[index], 0.5))
                 Circle()
-                    .strokeBorder(glass.ink.opacity(0.9), lineWidth: 1.5)
+                    .pixelBorder(glass.ink.opacity(0.9), width: 1.5)
                     .frame(width: 10 + 36 * ripple, height: 10 + 36 * ripple)
                     .opacity(ripple > 0 && ripple < 1 ? 1 - ripple : 0)
                     .position(targets[index])

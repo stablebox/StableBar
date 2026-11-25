@@ -103,7 +103,7 @@ struct WorkspaceView: View {
                         let shape = RoundedRectangle(cornerRadius: styles.resting.cornerRadius ?? max(appearance.cornerRadius - 4, 0))
                         shape.fill(styles.resting.background?.shapeStyle ?? AnyShapeStyle(Color.clear))
                             .overlay {
-                                if let border = styles.resting.borderColor { shape.strokeBorder(border.color, lineWidth: styles.resting.borderWidth ?? 1) }
+                                if let border = styles.resting.borderColor { shape.pixelBorder(border.color, width: styles.resting.borderWidth ?? 1) }
                             }
                             .magnified(.background, by: magnifier, upTo: magnification)
                             .allowsHitTesting(false)
@@ -136,14 +136,14 @@ struct WorkspaceView: View {
                             .matchedGeometryEffect(id: "focused-workspace", in: selection)
                     } else if indicator == .background && workspace.isVisible {
                         RoundedRectangle(cornerRadius: styles.resting.cornerRadius ?? max(appearance.cornerRadius - 4, 0))
-                            .strokeBorder(styles.resting.borderColor?.color ?? appearance.accent, lineWidth: styles.resting.borderWidth ?? 1)
+                            .pixelBorder(styles.resting.borderColor?.color ?? appearance.accent, width: styles.resting.borderWidth ?? 1)
                             .magnified(.background, by: magnifier, upTo: magnification)
                     }
                 }
                 .overlay {
                     if canDragWindows && workspaceStore.windowDrag.target == workspace.name {
                         RoundedRectangle(cornerRadius: styles.resting.cornerRadius ?? max(appearance.cornerRadius - 4, 0))
-                            .strokeBorder(appearance.accent, lineWidth: 2)
+                            .pixelBorder(appearance.accent, width: 2)
                             .allowsHitTesting(false)
                     }
                 }
@@ -257,7 +257,7 @@ private struct FocusedWindowHighlight: View {
         let horizontal = style.paddingHorizontal ?? 3
         shape.fill(style.background?.shapeStyle ?? AnyShapeStyle(color.opacity(0.22)))
             .overlay {
-                if let border = style.borderColor { shape.strokeBorder(border.color, lineWidth: style.borderWidth ?? 1) }
+                if let border = style.borderColor { shape.pixelBorder(border.color, width: style.borderWidth ?? 1) }
             }
             .padding(.horizontal, -(magnifying ? min(horizontal, 2) : horizontal))
             .padding(.vertical, magnifying ? 0 : -(style.paddingVertical ?? 2))

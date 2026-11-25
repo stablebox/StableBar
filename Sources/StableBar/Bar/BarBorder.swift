@@ -158,7 +158,7 @@ struct BarBorder: View {
         Group {
             if style.borderEdges == .all {
                 RoundedRectangle(cornerRadius: max(0, style.cornerRadius ?? 0))
-                    .strokeBorder(style.borderColor?.color ?? .clear, lineWidth: max(0, style.borderWidth ?? 0))
+                    .pixelBorder(style.borderColor?.color ?? .clear, width: max(0, style.borderWidth ?? 0))
             } else {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)

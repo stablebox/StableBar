@@ -232,8 +232,8 @@ struct NumberField: View {
             .padding(.trailing, 7)
             .frame(height: 24)
             .background(SettingsPalette.field, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(focused ? Color.accentColor : SettingsPalette.groupBorder,
-                                                                     lineWidth: focused ? 2 : 1))
+            .overlay(RoundedRectangle(cornerRadius: 6).pixelBorder(focused ? Color.accentColor : SettingsPalette.groupBorder,
+                                                                     width: focused ? 2 : 1))
         }
         .onAppear { text = formatted(value) }
         .onChange(of: value) { if !focused { text = formatted(value) } }
@@ -317,7 +317,7 @@ struct SettingsMenu<Content: View>: View {
             .padding(.horizontal, 10)
             .frame(width: FillButton.sideWidth, height: 24)
             .background(SettingsPalette.control, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(SettingsPalette.groupBorder))
+            .overlay(RoundedRectangle(cornerRadius: 6).pixelBorder(SettingsPalette.groupBorder))
             .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .menuStyle(.button)
@@ -379,7 +379,7 @@ struct SettingsCallout<Trailing: View>: View {
         .padding(.horizontal, 11)
         .padding(.vertical, 9)
         .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(SettingsPalette.groupBorder))
+        .overlay(RoundedRectangle(cornerRadius: 9).pixelBorder(SettingsPalette.groupBorder))
     }
 }
 

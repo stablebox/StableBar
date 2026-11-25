@@ -70,7 +70,7 @@ struct MenuBarItemsSettings: View {
                 }
             }
             .background(SettingsPalette.control, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(target == id ? Color.accentColor : .clear, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: 8).pixelBorder(target == id ? Color.accentColor : .clear, width: 2))
             .dropDestination(for: String.self) { ids, _ in
                 drop(ids, all: all, to: placement, before: placement == .bar ? shown.count : nil)
             } isTargeted: { targeted in

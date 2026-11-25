@@ -91,7 +91,7 @@ struct LinkedThemeCard: View {
         .frame(height: 56)
         .background(SampleWallpaper())
         .clipShape(RoundedRectangle(cornerRadius: 7))
-        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(SettingsPalette.groupBorder))
+        .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(SettingsPalette.groupBorder))
         .environment(\.colorScheme, gallery.previewAppearance.colorScheme)
     }
 
@@ -136,6 +136,6 @@ struct LinkedThemeCardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 11))
-            .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(Color.accentColor.opacity(0.45)))
+            .overlay(RoundedRectangle(cornerRadius: 11).pixelBorder(Color.accentColor.opacity(0.45)))
     }
 }

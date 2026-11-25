@@ -71,10 +71,10 @@ struct BarUnitSurface<Content: View>: View {
                         let radius = style.cornerRadius ?? 0
                         UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: radius, bottomTrailingRadius: radius,
                                                topTrailingRadius: radius)
-                            .strokeBorder(appearance.foreground, lineWidth: max(style.borderWidth ?? 1, 1))
+                            .pixelBorder(appearance.foreground, width: max(style.borderWidth ?? 1, 1))
                     } else {
                         RoundedRectangle(cornerRadius: style.cornerRadius ?? 0)
-                            .strokeBorder(style.borderColor?.color ?? .clear, lineWidth: style.borderWidth ?? 0)
+                            .pixelBorder(style.borderColor?.color ?? .clear, width: style.borderWidth ?? 0)
                     }
                 }
         }

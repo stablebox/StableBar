@@ -177,7 +177,7 @@ struct LinkedBarCard: View {
         .frame(height: 56)
         .background(SampleWallpaper())
         .clipShape(RoundedRectangle(cornerRadius: 7))
-        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(SettingsPalette.groupBorder))
+        .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(SettingsPalette.groupBorder))
         .environment(\.colorScheme, appearance.colorScheme)
         .accessibilityHidden(true)
     }

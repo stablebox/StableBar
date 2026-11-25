@@ -197,7 +197,7 @@ private struct ThemeEditValue: View {
 
     private func swatch(_ rgba: UInt32) -> some View {
         RoundedRectangle(cornerRadius: 3).fill(HexColor(rgba).color).frame(width: 12, height: 12)
-            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(.primary.opacity(0.15)))
+            .overlay(RoundedRectangle(cornerRadius: 3).pixelBorder(.primary.opacity(0.15)))
             .accessibilityHidden(true)
     }
 
@@ -249,7 +249,7 @@ private struct RevertThemeSheet: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(SettingsPalette.groupBorder))
+            .overlay(RoundedRectangle(cornerRadius: 8).pixelBorder(SettingsPalette.groupBorder))
             Text((edits.everyTheme.isEmpty ? "" : "\(edits.everyTheme.map(\.title).formatted(.list(type: .and))) "
                   + "\(edits.everyTheme.count == 1 ? "applies" : "apply") to every theme, so \(edits.everyTheme.count == 1 ? "it stays" : "they stay"). ")
                  + "You can undo this.")

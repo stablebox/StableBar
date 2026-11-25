@@ -601,7 +601,7 @@ struct BarInspector: View {
                         .frame(maxWidth: .infinity, alignment: .leading).padding(9)
                         .background(!custom && format == choice.value ? Color.accentColor.opacity(0.16) : SettingsPalette.control,
                                     in: RoundedRectangle(cornerRadius: 7))
-                        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(!custom && format == choice.value ? Color.accentColor : .clear))
+                        .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(!custom && format == choice.value ? Color.accentColor : .clear))
                         .contentShape(RoundedRectangle(cornerRadius: 7))
                     }
                     .buttonStyle(.plain)
@@ -629,7 +629,7 @@ struct BarInspector: View {
                 .padding(.horizontal, 10)
                 .frame(height: 24)
                 .background(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(SettingsPalette.control), in: Capsule())
-                .overlay(Capsule().strokeBorder(selected ? .clear : SettingsPalette.groupBorder))
+                .overlay(Capsule().pixelBorder(selected ? .clear : SettingsPalette.groupBorder))
                 .contentShape(Capsule())
                 .fixedSize()
         }

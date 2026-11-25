@@ -458,7 +458,7 @@ struct SetupTourView: View {
             }
             .frame(width: pose.width, height: bar.height)
             .clipShape(RoundedRectangle(cornerRadius: staged ? 14 : 0))
-            .overlay(RoundedRectangle(cornerRadius: staged ? 14 : 0).strokeBorder(.white.opacity(staged ? 0.18 : 0), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: staged ? 14 : 0).pixelBorder(.white.opacity(staged ? 0.18 : 0), width: 1))
             .shadow(color: glass.shadow.opacity(staged ? 0.45 : 0), radius: 35, y: 15)
             .scaleEffect(x: 1, y: intro.open)
             .opacity(intro.bar)
@@ -923,7 +923,7 @@ struct SetupTourView: View {
                 }
             }
             .background(glass.backing, in: Capsule())
-            .overlay(Capsule(style: .circular).strokeBorder(Self.gold.opacity(0.55), lineWidth: 2).padding(-2))
+            .overlay(Capsule(style: .circular).pixelBorder(Self.gold.opacity(0.55), width: 2).padding(-2))
             .shadow(color: Self.gold.opacity(0.35), radius: 7)
         }
         .buttonStyle(.plain)
@@ -988,7 +988,7 @@ struct SetupTourView: View {
             .padding(14)
             .frame(width: 540, height: 540)
             .background(glass.panel, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(glass.edge, lineWidth: 0.5))
+            .overlay(RoundedRectangle(cornerRadius: 20).pixelBorder(glass.edge, width: 0.5))
         }
     }
 
@@ -1002,7 +1002,7 @@ struct SetupTourView: View {
                         .font(.system(size: 13, weight: .bold))
                         .frame(width: 30, height: 30)
                         .background(SettingsPalette.success, in: Circle())
-                        .overlay(Circle().strokeBorder(glass.panel, lineWidth: 3))
+                        .overlay(Circle().pixelBorder(glass.panel, width: 3))
                         .offset(x: 6, y: 6)
                 }
                 .accessibilityHidden(true)
@@ -1058,7 +1058,7 @@ struct SetupTourView: View {
         .background {
             RoundedRectangle(cornerRadius: 26).fill(glass.panel).shadow(color: glass.shadow.opacity(0.45), radius: 40, y: 15)
         }
-        .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(glass.edge, lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: 26).pixelBorder(glass.edge, width: 0.5))
     }
 
     /// Saves the bar and closes setup, or keeps it open to show that Open at login waits for approval in macOS. Once the
@@ -1184,7 +1184,7 @@ struct SetupTourView: View {
             .padding(22)
             .frame(width: 360)
             .background(glass.panel, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(glass.edge, lineWidth: 0.5))
+            .overlay(RoundedRectangle(cornerRadius: 20).pixelBorder(glass.edge, width: 0.5))
         }
     }
 }
@@ -1281,7 +1281,7 @@ struct SetupTile<Label: View>: View {
         } label: {
             label
                 .background(glass.fill(selected ? 0.16 : hovering ? 0.13 : 0.08), in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(selected ? glass.ink : glass.edge, lineWidth: selected ? 2.5 : 0.5))
+                .overlay(RoundedRectangle(cornerRadius: 16).pixelBorder(selected ? glass.ink : glass.edge, width: selected ? 2.5 : 0.5))
                 .shadow(color: glass.shadow.opacity(selected ? 0.3 : 0), radius: 15, y: 10)
                 .contentShape(RoundedRectangle(cornerRadius: 16))
         }

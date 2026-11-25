@@ -16,7 +16,7 @@ struct ProfileEditingBanner: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(SettingsPalette.profileSoft, in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(SettingsPalette.profile))
+            .overlay(RoundedRectangle(cornerRadius: 9).pixelBorder(SettingsPalette.profile))
         }
     }
 }

@@ -159,8 +159,8 @@ struct PackagesView: View {
             .padding(.horizontal, 8)
             .frame(width: 240, height: 26)
             .background(SettingsPalette.field, in: RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(searching ? Color.accentColor : SettingsPalette.groupBorder,
-                                                                     lineWidth: searching ? 2 : 1))
+            .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(searching ? Color.accentColor : SettingsPalette.groupBorder,
+                                                                     width: searching ? 2 : 1))
             Spacer()
             ProgressView().controlSize(.small).opacity(library.loadingStore ? 1 : 0)
             Button("Reload Store", systemImage: "arrow.clockwise") { Task { await library.loadStore(reload: true) } }
@@ -308,7 +308,7 @@ struct PackagesView: View {
                 }
                 .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 10))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(SettingsPalette.groupBorder))
+                .overlay(RoundedRectangle(cornerRadius: 10).pixelBorder(SettingsPalette.groupBorder))
             }
         }
     }

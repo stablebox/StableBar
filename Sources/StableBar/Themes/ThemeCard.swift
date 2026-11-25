@@ -98,8 +98,8 @@ struct ThemeCard: View {
         .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 11))
         .overlay {
             RoundedRectangle(cornerRadius: 11)
-                .strokeBorder(isSelected ? Color.accentColor : hovering ? Color(nsColor: .tertiaryLabelColor) : SettingsPalette.groupBorder,
-                              lineWidth: isSelected ? 2 : 1)
+                .pixelBorder(isSelected ? Color.accentColor : hovering ? Color(nsColor: .tertiaryLabelColor) : SettingsPalette.groupBorder,
+                             width: isSelected ? 2 : 1)
         }
         .animation(.snappy(duration: 0.2), value: isSelected)
         .contentShape(RoundedRectangle(cornerRadius: 11))
@@ -270,7 +270,7 @@ struct ThemeSampleBar: View {
                     let shape = RoundedRectangle(cornerRadius: style.cornerRadius ?? max(appearance.cornerRadius - 4, 0))
                     shape.fill(style.background?.shapeStyle ?? AnyShapeStyle(Color.clear))
                         .overlay {
-                            if let border = style.borderColor { shape.strokeBorder(border.color, lineWidth: style.borderWidth ?? 1) }
+                            if let border = style.borderColor { shape.pixelBorder(border.color, width: style.borderWidth ?? 1) }
                         }
                 }
             }
@@ -385,7 +385,7 @@ private struct ThemeSampleTile: ViewModifier {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: appearance.cornerRadius)
-                    .strokeBorder(appearance.borderColor, lineWidth: appearance.borderWidth)
+                    .pixelBorder(appearance.borderColor, width: appearance.borderWidth)
             }
             .styledShadow(appearance.shadowFrom == .content ? appearance : nil)
     }

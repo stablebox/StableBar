@@ -30,6 +30,6 @@ struct FocusRingShape<S: InsettableShape>: View {
     var outset = 4.0
 
     var body: some View {
-        shape.strokeBorder(.tint, lineWidth: 2).padding(-outset)
+        shape.pixelBorder(.tint, width: 2).padding(-outset)
     }
 }

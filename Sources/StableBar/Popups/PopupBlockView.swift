@@ -272,7 +272,7 @@ struct PopupBlockView: View {
             .background(box.background?.shapeStyle ?? AnyShapeStyle(Color.clear), in: RoundedRectangle(cornerRadius: appearance.cornerRadius))
             .overlay {
                 RoundedRectangle(cornerRadius: appearance.cornerRadius)
-                    .strokeBorder(box.borderColor?.color ?? .clear, lineWidth: box.borderWidth ?? 0)
+                    .pixelBorder(box.borderColor?.color ?? .clear, width: box.borderWidth ?? 0)
             }
             .offset(x: box.offsetX ?? 0, y: box.offsetY ?? 0)
             .opacity(box.opacity ?? 1)

@@ -150,7 +150,7 @@ struct WidgetsView: View {
                                     .frame(maxWidth: .infinity, minHeight: section.isEmpty ? 26 : 6, alignment: .leading)
                                     .overlay {
                                         if section.isEmpty {
-                                            RoundedRectangle(cornerRadius: 7).strokeBorder(SettingsPalette.groupBorder, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                                            RoundedRectangle(cornerRadius: 7).pixelBorder(SettingsPalette.groupBorder, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                                         }
                                     }
                                     .padding(.vertical, section.isEmpty ? 2 : 0)

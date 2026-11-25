@@ -77,7 +77,7 @@ struct FeedbackView: View {
                             }
                             .frame(height: 200)
                             .background(SettingsPalette.field, in: RoundedRectangle(cornerRadius: 7))
-                            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(SettingsPalette.groupBorder))
+                            .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(SettingsPalette.groupBorder))
                         }
                     } else {
                         ProgressView().controlSize(.small)
@@ -198,7 +198,7 @@ struct FeedbackView: View {
             input()
                 .padding(6)
                 .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
+                .overlay(RoundedRectangle(cornerRadius: 6).pixelBorder(.separator))
                 .accessibilityLabel(label)
         }
     }

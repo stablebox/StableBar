@@ -646,7 +646,7 @@ struct BarShareView: View {
             Group {
                 if share.badge {
                     RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(.white.opacity(0.9), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+                        .pixelBorder(.white.opacity(0.9), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
                         .padding(-4)
                         .overlay(alignment: .topLeading) {
                             Button { share.badge = false } label: {
@@ -654,7 +654,7 @@ struct BarShareView: View {
                                     .font(.system(size: 8, weight: .heavy))
                                     .frame(width: 18, height: 18)
                                     .background(Color(white: 0.17), in: Circle())
-                                    .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 1.5))
+                                    .overlay(Circle().pixelBorder(.white.opacity(0.9), width: 1.5))
                                     .contentShape(Circle())
                             }
                             .buttonStyle(.plain)
@@ -669,7 +669,7 @@ struct BarShareView: View {
                             .padding(.horizontal, 8)
                             .frame(height: 22)
                             .background(.black.opacity(0.45), in: Capsule())
-                            .overlay(Capsule().strokeBorder(.white.opacity(0.8), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                            .overlay(Capsule().pixelBorder(.white.opacity(0.8), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
                             .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -786,7 +786,7 @@ struct BarShareView: View {
             }
             .padding(10)
             .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white.opacity(0.12)))
+            .overlay(RoundedRectangle(cornerRadius: 8).pixelBorder(.white.opacity(0.12)))
             // While the image redraws, the link is still the last screen's.
             let ready = share.image != nil && !(share.shortens && share.linkURL != nil && share.shortLink == nil)
             HStack(spacing: 6) {
@@ -904,7 +904,7 @@ private struct ShareCard: ViewModifier {
             .padding(14)
             .frame(width: 360, alignment: .leading)
             .background(Color(white: 0.13).opacity(0.97), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.14)))
+            .overlay(RoundedRectangle(cornerRadius: 12).pixelBorder(.white.opacity(0.14)))
             .shadow(color: .black.opacity(0.4), radius: 18, y: 8)
     }
 }
@@ -929,7 +929,7 @@ struct BarShareDock: View {
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     .frame(width: 150, height: 64)
                     .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    .overlay(RoundedRectangle(cornerRadius: 10).pixelBorder(.white.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                     .overlay(ImageDragSource(share: share) { dropped = true })
             }
             VStack(alignment: .leading, spacing: 8) {
@@ -953,7 +953,7 @@ struct BarShareDock: View {
         }
         .padding(12)
         .background(Color(white: 0.13).opacity(0.97), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.14)))
+        .overlay(RoundedRectangle(cornerRadius: 16).pixelBorder(.white.opacity(0.14)))
         .environment(\.colorScheme, .dark)
         .foregroundStyle(.white)
         .fixedSize()

@@ -285,7 +285,7 @@ struct PackageDetailView: View {
                             .padding(.vertical, 8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(SettingsPalette.field, in: RoundedRectangle(cornerRadius: 7))
-                            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(SettingsPalette.groupBorder))
+                            .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(SettingsPalette.groupBorder))
                         }
                     }
                 } icon: { Image(systemName: "terminal") }

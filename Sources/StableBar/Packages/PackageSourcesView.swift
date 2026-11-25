@@ -146,7 +146,7 @@ struct PackageSourcesView: View {
                         }
                     }
                     .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(SettingsPalette.groupBorder))
+                    .overlay(RoundedRectangle(cornerRadius: 10).pixelBorder(SettingsPalette.groupBorder))
                     Text("Saved in config.json, so a team can share this list through an include. Tokens are kept in the login Keychain and sent only to the host of their own source.")
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

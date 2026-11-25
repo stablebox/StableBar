@@ -117,7 +117,7 @@ private struct SideButton: View {
             .padding(.trailing, 7)
             .frame(width: FillButton.sideWidth, height: 24, alignment: .leading)
             .background(isHovered ? SettingsPalette.controlHover : SettingsPalette.control, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(SettingsPalette.groupBorder))
+            .overlay(RoundedRectangle(cornerRadius: 6).pixelBorder(SettingsPalette.groupBorder))
             .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -349,7 +349,7 @@ private struct FillPopover: View {
                                     GradientSwatch(stops: preset.gradient.stops, angle: preset.gradient.angle, tokens: tokens)
                                         .frame(width: 30, height: 18)
                                         .clipShape(RoundedRectangle(cornerRadius: 5))
-                                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.gray.opacity(0.35)))
+                                        .overlay(RoundedRectangle(cornerRadius: 5).pixelBorder(Color.gray.opacity(0.35)))
                                 }
                             }
                         }
@@ -396,17 +396,17 @@ private struct FillPopover: View {
                     GradientSwatch(stops: gradient.stops, angle: 90, tokens: tokens)
                         .background(Checkerboard())
                         .clipShape(RoundedRectangle(cornerRadius: 7))
-                        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.gray.opacity(0.3)))
+                        .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(Color.gray.opacity(0.3)))
                         .frame(height: 26)
                         .padding(.horizontal, 7)
                     ForEach(gradient.stops.indices, id: \.self) { index in
                         let isSelected = index == stop
                         RoundedRectangle(cornerRadius: 4)
                             .fill(HexColor(gradient.stops[index].color.rgba(dark: colorScheme == .dark, tokens: tokens)).color)
-                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(.white, lineWidth: 2))
+                            .overlay(RoundedRectangle(cornerRadius: 4).pixelBorder(.white, width: 2))
                             .frame(width: 14, height: 14)
                             .overlay(RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(isSelected ? Color.accentColor : .black.opacity(0.35), lineWidth: isSelected ? 2 : 1)
+                                .pixelBorder(isSelected ? Color.accentColor : .black.opacity(0.35), width: isSelected ? 2 : 1)
                                 .padding(isSelected ? -2 : -1))
                             .shadow(color: .black.opacity(0.35), radius: 1.5, y: 1)
                             .position(x: 7 + gradient.stops[index].location * width, y: 27)
@@ -430,7 +430,7 @@ private struct FillPopover: View {
             HStack(spacing: 8) {
                 Circle()
                     .fill(Color(nsColor: .textBackgroundColor))
-                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.08)))
+                    .overlay(Circle().pixelBorder(Color.primary.opacity(0.08)))
                     .overlay {
                         Capsule().fill(Color.accentColor).frame(width: 2, height: 11).offset(y: -5.5).rotationEffect(.degrees(Double(gradient.angle)))
                     }
@@ -658,9 +658,9 @@ private struct InlineColorPicker: View {
     private func knob(size: Double, fill: Color) -> some View {
         Circle()
             .fill(fill)
-            .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
+            .overlay(Circle().pixelBorder(.white, width: 2.5))
             .frame(width: size, height: size)
-            .overlay(Circle().strokeBorder(.black.opacity(0.35)).padding(-1))
+            .overlay(Circle().pixelBorder(.black.opacity(0.35)).padding(-1))
             .shadow(color: .black.opacity(0.4), radius: 1.5, y: 1)
     }
 }
@@ -682,7 +682,7 @@ private struct TokenChoice: View {
             .padding(.horizontal, 5)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 7).fill(isSelected ? Color.accentColor.opacity(0.2) : Color.primary.opacity(isHovered ? 0.07 : 0)))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.accentColor, lineWidth: 1.5).opacity(isSelected ? 1 : 0))
+            .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(Color.accentColor, width: 1.5).opacity(isSelected ? 1 : 0))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -701,7 +701,7 @@ private struct ChipButton<Label: View>: View {
     var body: some View {
         Button(action: action) {
             label
-                .overlay(RoundedRectangle(cornerRadius: cornerRadius + 2).strokeBorder(Color.accentColor, lineWidth: 2).padding(-2).opacity(isHovered ? 1 : 0))
+                .overlay(RoundedRectangle(cornerRadius: cornerRadius + 2).pixelBorder(Color.accentColor, width: 2).padding(-2).opacity(isHovered ? 1 : 0))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
@@ -737,7 +737,7 @@ private struct FillChip: View {
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.gray.opacity(0.4)))
+        .overlay(RoundedRectangle(cornerRadius: cornerRadius).pixelBorder(Color.gray.opacity(0.4)))
     }
 }
 

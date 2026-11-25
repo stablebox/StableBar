@@ -38,7 +38,7 @@ enum OffscreenSnapshot {
             .environment(\.offline, true)
             .frame(width: size.width, height: size.height)
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.14)))
+            .overlay(RoundedRectangle(cornerRadius: 14).pixelBorder(Color.primary.opacity(0.14)))
         try await png(framed, size: size, pixels: NSSize(width: size.width * 2, height: size.height * 2), dark: dark, settle: .still,
                       ready: ready, prepare: prepare, name: url.deletingPathExtension().lastPathComponent).write(to: url)
     }

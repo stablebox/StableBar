@@ -382,7 +382,7 @@ struct DiagnosticsView: View {
                 }
                 .frame(height: 240)
                 .background(SettingsPalette.field, in: RoundedRectangle(cornerRadius: 7))
-                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(SettingsPalette.groupBorder))
+                .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(SettingsPalette.groupBorder))
             }
         }
     }

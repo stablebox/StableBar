@@ -181,7 +181,7 @@ struct EndStopSlider: View {
                     .fill(.white)
                     .overlay {
                         RoundedRectangle(cornerRadius: min(metrics.knob.width, metrics.knob.height) / 2)
-                            .strokeBorder(.black.opacity(colorScheme == .dark ? 0 : 0.08), lineWidth: 0.5)
+                            .pixelBorder(.black.opacity(colorScheme == .dark ? 0 : 0.08), width: 0.5)
                     }
                     .shadow(color: .black.opacity(0.22), radius: 1, y: 0.5)
                     .frame(width: metrics.knob.width, height: metrics.knob.height)

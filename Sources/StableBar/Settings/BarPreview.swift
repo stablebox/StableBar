@@ -80,7 +80,7 @@ struct BarPreview: View {
         }
         .frame(height: 82)
         .clipShape(RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(SettingsPalette.groupBorder))
+        .overlay(RoundedRectangle(cornerRadius: 9).pixelBorder(SettingsPalette.groupBorder))
         .help("Click a widget to edit it, or drag to move it")
         .onChange(of: session.active) { if session.active == nil { insertion = nil } }
     }
@@ -94,7 +94,7 @@ struct BarPreview: View {
         let frame = CGRect(x: widgets.minX - leading, y: widgets.minY - top,
                            width: widgets.width + leading + trailing, height: widgets.height + top + bottom)
         return RoundedRectangle(cornerRadius: (style.cornerRadius ?? 0) + 3)
-            .strokeBorder(Color.accentColor, lineWidth: 2)
+            .pixelBorder(Color.accentColor, width: 2)
             .padding(-3)
             .frame(width: frame.width, height: frame.height)
             .position(x: frame.midX, y: frame.midY)
@@ -107,8 +107,8 @@ struct BarPreview: View {
         let configuration = store.configuration!
         let radius = resolveStyle([configuration.defaults, configuration.roleStyle(widget.role), widget.style]).cornerRadius ?? 0
         return RoundedRectangle(cornerRadius: radius + 3)
-            .strokeBorder(id == selected ? Color.accentColor : .white.opacity(id == hovered ? 0.65 : 0),
-                          style: StrokeStyle(lineWidth: id == selected ? 2 : 1, dash: id == selected ? [] : [3, 2]))
+            .pixelBorder(id == selected ? Color.accentColor : .white.opacity(id == hovered ? 0.65 : 0),
+                         style: StrokeStyle(lineWidth: id == selected ? 2 : 1, dash: id == selected ? [] : [3, 2]))
             .padding(-3)
             .contentShape(Rectangle())
             .frame(width: frame.width, height: frame.height)

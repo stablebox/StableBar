@@ -294,8 +294,8 @@ private struct SettingsHeader: View {
                 .frame(minWidth: 100, maxWidth: Self.searchWidth)
                 .frame(height: 26)
                 .background(SettingsPalette.field, in: RoundedRectangle(cornerRadius: 7))
-                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(searching ? Color.accentColor : SettingsPalette.groupBorder,
-                                                                         lineWidth: searching ? 2 : 1))
+                .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(searching ? Color.accentColor : SettingsPalette.groupBorder,
+                                                                         width: searching ? 2 : 1))
                 Button("") { searching = true }.keyboardShortcut("f").hidden().frame(width: 0)
             }
             // Keeps the search field at its full width until the tabs have dropped their labels.
@@ -382,7 +382,7 @@ private struct SettingsSearchResults: View {
         .padding(5)
         .frame(width: 300, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(SettingsPalette.groupBorder))
+        .overlay(RoundedRectangle(cornerRadius: 10).pixelBorder(SettingsPalette.groupBorder))
         .shadow(color: .black.opacity(0.25), radius: 14, y: 8)
     }
 }

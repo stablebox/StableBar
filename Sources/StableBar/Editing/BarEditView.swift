@@ -60,7 +60,7 @@ struct BarEditView: View {
                             let shape = RoundedRectangle(cornerRadius: 8)
                             shape.fill(.ultraThinMaterial)
                                 .overlay { shape.fill(target ? Color.accentColor.opacity(0.16) : .clear) }
-                                .overlay { shape.strokeBorder(target ? Color.accentColor : surface.ink.opacity(0.18), lineWidth: target ? 1.5 : 0.5) }
+                                .overlay { shape.pixelBorder(target ? Color.accentColor : surface.ink.opacity(0.18), width: target ? 1.5 : 0.5) }
                                 .environment(\.colorScheme, surface.scheme)
                                 .frame(width: span.upperBound - span.lowerBound + 8, height: height - 4)
                                 .background { BarEditAddAnchor(view: zoneAnchors[position]!) }
@@ -77,7 +77,7 @@ struct BarEditView: View {
                             ZStack {
                                 // Where the dragged widget lands.
                                 shape.fill(Color.accentColor.opacity(0.22))
-                                    .overlay { shape.strokeBorder(Color.accentColor, lineWidth: 1.5) }
+                                    .overlay { shape.pixelBorder(Color.accentColor, width: 1.5) }
                                     .frame(width: frame.width, height: Self.slot)
                                     .opacity(lifted ? 1 : 0)
                                 BarUnitSurface(style: unit.style ?? WidgetStyle(), defaults: config.defaults, spacing: config.bar.spacing) {
@@ -263,7 +263,7 @@ struct BarEditView: View {
                 .foregroundStyle(adding ? Color.white : ink)
                 .background(adding ? Color.accentColor : .clear, in: RoundedRectangle(cornerRadius: 5))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 5).strokeBorder(ink.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+                    RoundedRectangle(cornerRadius: 5).pixelBorder(ink.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
                 }
                 .contentShape(Rectangle())
         }
@@ -283,7 +283,7 @@ struct BarEditView: View {
                 .foregroundStyle(ink)
                 .frame(width: Self.arrow, height: Self.arrow)
                 .background(.regularMaterial, in: Circle())
-                .overlay { Circle().strokeBorder(ink.opacity(0.2), lineWidth: 0.5) }
+                .overlay { Circle().pixelBorder(ink.opacity(0.2), width: 0.5) }
                 .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
                 .contentShape(Circle())
         }

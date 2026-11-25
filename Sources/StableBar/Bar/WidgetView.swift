@@ -242,7 +242,7 @@ struct WidgetView: View {
                     Circle()
                         .fill(appearance.accent)
                         .frame(width: appearance.iconSize / 2, height: appearance.iconSize / 2)
-                        .overlay { Circle().strokeBorder(appearance.background, lineWidth: 1.5) }
+                        .overlay { Circle().pixelBorder(appearance.background, width: 1.5) }
                         .offset(x: 2, y: -2)
                         .accessibilityHidden(true)
                 }
@@ -271,10 +271,10 @@ struct WidgetView: View {
                 // stray marks at the ends of a pill.
                 let radius = appearance.cornerRadius
                 UnevenRoundedRectangle(topLeadingRadius: radius, bottomLeadingRadius: radius, bottomTrailingRadius: radius, topTrailingRadius: radius)
-                    .strokeBorder(appearance.foreground, lineWidth: max(appearance.borderWidth, 1))
+                    .pixelBorder(appearance.foreground, width: max(appearance.borderWidth, 1))
             } else {
                 RoundedRectangle(cornerRadius: appearance.cornerRadius)
-                    .strokeBorder(appearance.borderColor, lineWidth: appearance.borderWidth)
+                    .pixelBorder(appearance.borderColor, width: appearance.borderWidth)
             }
         }
         .overlay(alignment: .topTrailing) {

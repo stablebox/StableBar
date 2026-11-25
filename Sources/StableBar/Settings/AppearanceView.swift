@@ -650,7 +650,7 @@ private struct ScopeLine: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.accentColor.opacity(0.35)))
+        .overlay(RoundedRectangle(cornerRadius: 9).pixelBorder(Color.accentColor.opacity(0.35)))
         .padding(.top, 10)
     }
 }

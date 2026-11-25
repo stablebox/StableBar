@@ -163,8 +163,8 @@ struct BarEditControlsView: View {
                 .overlay { shape.fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.2)) }
         }
         .overlay {
-            shape.strokeBorder((colorScheme == .dark ? Color.white : .black)
-                .opacity(colorScheme == .dark ? 0.18 : 0.12), lineWidth: 1 / displayScale)
+            shape.pixelBorder((colorScheme == .dark ? Color.white : .black)
+                .opacity(colorScheme == .dark ? 0.18 : 0.12), width: 1 / displayScale)
         }
         .clipShape(shape)
     }

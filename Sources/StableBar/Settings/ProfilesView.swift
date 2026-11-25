@@ -170,9 +170,9 @@ struct ProfilesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 9))
             .overlay {
-                RoundedRectangle(cornerRadius: 9).strokeBorder(isSelected ? SettingsPalette.profile
+                RoundedRectangle(cornerRadius: 9).pixelBorder(isSelected ? SettingsPalette.profile
                     : hovered == profile.name ? Color.secondary.opacity(0.5) : SettingsPalette.groupBorder,
-                                                               lineWidth: isSelected ? 2 : 1)
+                                                              width: isSelected ? 2 : 1)
             }
             .contentShape(RoundedRectangle(cornerRadius: 9))
             .onHover { hovered = $0 ? profile.name : nil }
@@ -329,7 +329,7 @@ struct ProfilesView: View {
                 .padding(.horizontal, 4)
             VStack(spacing: 0) { content() }
                 .background(SettingsPalette.group, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(SettingsPalette.groupBorder))
+                .overlay(RoundedRectangle(cornerRadius: 10).pixelBorder(SettingsPalette.groupBorder))
         }
         .padding(.top, 14)
     }
@@ -639,7 +639,7 @@ struct ProfilesView: View {
         } else if let color = changeColor(value) {
             HStack(spacing: 5) {
                 RoundedRectangle(cornerRadius: 4).fill(color.color).frame(width: 14, height: 14)
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(.gray.opacity(0.4)))
+                    .overlay(RoundedRectangle(cornerRadius: 4).pixelBorder(.gray.opacity(0.4)))
                 Text(token.flatMap { name in store.themeTokenColors.first { $0.name == name }?.title } ?? String(format: "#%06X", color.light >> 8))
                 if color.light != color.dark { Text("light/dark").foregroundStyle(.tertiary) }
             }
@@ -648,7 +648,7 @@ struct ProfilesView: View {
                       values: store.effectiveDocument["tokens"]?.decoded([String: ConfigurationValue].self) ?? [:]).decoded(BackgroundFill.self) {
             HStack(spacing: 5) {
                 RoundedRectangle(cornerRadius: 4).fill(fill.shapeStyle).frame(width: 14, height: 14)
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(.gray.opacity(0.4)))
+                    .overlay(RoundedRectangle(cornerRadius: 4).pixelBorder(.gray.opacity(0.4)))
                 Text("Gradient")
             }
         } else {

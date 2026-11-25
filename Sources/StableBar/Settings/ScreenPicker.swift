@@ -225,8 +225,8 @@ private struct ScreenThumbnail: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .overlay {
                         RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(selected ? Color.accentColor : hovering ? Color(nsColor: .tertiaryLabelColor) : SettingsPalette.groupBorder,
-                                          lineWidth: selected ? 2.5 : 1)
+                            .pixelBorder(selected ? Color.accentColor : hovering ? Color(nsColor: .tertiaryLabelColor) : SettingsPalette.groupBorder,
+                                         width: selected ? 2.5 : 1)
                     }
                 Text(kind.name)
                     .font(.system(size: 11, weight: selected ? .semibold : .regular))

@@ -45,7 +45,7 @@ private struct GlassSurface<Shape: InsettableShape>: ViewModifier {
         let palette = GlassPalette(colorScheme)
         return content
             .background(palette.fill(0.15), in: shape)
-            .overlay(shape.strokeBorder(palette.edge, lineWidth: 0.5))
+            .overlay(shape.pixelBorder(palette.edge, width: 0.5))
     }
 }
 

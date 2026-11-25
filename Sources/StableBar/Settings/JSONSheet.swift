@@ -24,7 +24,7 @@ struct JSONSheet: View {
                 .frame(minWidth: 480, idealWidth: 528, maxWidth: .infinity,
                        minHeight: 280, idealHeight: 300, maxHeight: .infinity)
                 .background(SettingsPalette.field, in: RoundedRectangle(cornerRadius: 7))
-                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(SettingsPalette.groupBorder))
+                .overlay(RoundedRectangle(cornerRadius: 7).pixelBorder(SettingsPalette.groupBorder))
             if let error { Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
             HStack(spacing: 8) {
                 Text("Removing a property clears it. Includes and templates stay as they are.")
