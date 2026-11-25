@@ -183,7 +183,7 @@ struct HelpQuestion: Identifiable {
 
     Your `~/.config/stablebar` folder, with your configuration, scripts and packages, stays unless you check **Also move ~/.config/stablebar to the Trash**.
 
-    If Homebrew installed StableBar, `brew uninstall --cask stablebar` does the same, and `brew uninstall --zap --cask stablebar` also moves `~/.config/stablebar` to the Trash. An install from before StableBar 0.19.0 needs `brew update` and then `brew reinstall --cask stablebox/tap/stablebar` first. See [Uninstall](getting-started.md#uninstall).
+    If Homebrew installed StableBar, `brew uninstall --cask stablebar` does the same. Neither it nor `brew uninstall --zap --cask stablebar` removes `~/.config/stablebar`: move that folder to the Trash yourself. An install from before StableBar 0.19.0 needs `brew update` and then `brew reinstall --cask stablebox/tap/stablebar` first. See [Uninstall](getting-started.md#uninstall).
 
     """#
 }
