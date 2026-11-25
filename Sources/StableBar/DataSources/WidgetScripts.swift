@@ -279,7 +279,10 @@ final class WidgetScripts {
                     // coreaudiod answers once it has moved every app's sound, which takes tens of milliseconds.
                     try await BlockingWork.run { try AudioMonitor.setDefaultDevice(id, input: input) }
                 }
-                if let script, scripts[widget.id] === script {
+                // The audio providers' listeners follow the default device, and restarting them would wait on coreaudiod on the
+                // main thread.
+                let followsItself = if case .selectAudioDevice = action { true } else { false }
+                if !followsItself, let script, scripts[widget.id] === script {
                     refresh(widget, event: ScriptEvent(sender: "action", environment: event.environment))
                 }
                 if actionErrors[widget.id] != nil { actionErrors[widget.id] = nil }
