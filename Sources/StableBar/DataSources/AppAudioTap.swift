@@ -28,9 +28,12 @@ final class AppAudioTap: @unchecked Sendable {
     private let lock = NSLock()
     private lazy var listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.processesChanged() }
     private static let listenerQueue = DispatchQueue(label: "org.stablebar.mixer.taps")
+    /// Hears that a start the tap made on its own failed, which leaves the app muted with nothing playing.
+    private let failed: @Sendable (AppAudioTap) -> Void
 
     @available(macOS 14.2, *)
-    init(_ plan: MixerState.Tap) throws {
+    init(_ plan: MixerState.Tap, failed: @escaping @Sendable (AppAudioTap) -> Void) throws {
+        self.failed = failed
         do {
             gains.pointer.initialize(repeating: Float(plan.gain), count: 2)
             try check(AudioHardwareCreateProcessTap(description(of: plan.processes), &tap), "tap the app’s sound")
@@ -101,8 +104,7 @@ final class AppAudioTap: @unchecked Sendable {
     }
 
     /// Makes a running device wait for the app's next sound once none of its processes played for half a second: the
-    /// app's last sound reaches the device a moment after the app stops. A start that fails leaves the device stopped,
-    /// which `setPlaying(true)` starts with the app's next sound.
+    /// app's last sound reaches the device a moment after the app stops.
     private func waitOnceQuiet() {
         let change = lock.withLock {
             changes += 1
@@ -117,7 +119,7 @@ final class AppAudioTap: @unchecked Sendable {
             // A process can report that it plays a moment after it says it changed.
             guard isRunning else { return startIfPlaying() }
             guard !processes.contains(where: Self.plays) else { return }
-            if waits { restart() } else { AudioDeviceStop(aggregate, proc) }
+            if waits { reportIfFailed(restart()) } else { AudioDeviceStop(aggregate, proc) }
         }
     }
 
@@ -132,7 +134,12 @@ final class AppAudioTap: @unchecked Sendable {
     /// waits, CoreAudio starts it. Call it with `lock` held.
     private func startIfPlaying() {
         guard !waits, let proc, !isRunning, processes.contains(where: Self.plays) else { return }
-        AudioDeviceStart(aggregate, proc)
+        reportIfFailed(AudioDeviceStart(aggregate, proc))
+    }
+
+    /// For a start no call from StableBar made, so none can throw its failure.
+    private func reportIfFailed(_ status: OSStatus) {
+        if status != noErr { failed(self) }
     }
 
     private func follow(_ processes: [AudioObjectID]) {
