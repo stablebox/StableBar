@@ -26,7 +26,7 @@ final class AppAudioTap: @unchecked Sendable {
     /// StableBar's calls come one at a time, but the processes' listener runs alongside them, so what they share sits
     /// behind this.
     private let lock = NSLock()
-    private lazy var listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.waitOnceQuiet() }
+    private lazy var listener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.processesChanged() }
     private static let listenerQueue = DispatchQueue(label: "org.stablebar.mixer.taps")
 
     @available(macOS 14.2, *)
@@ -72,7 +72,7 @@ final class AppAudioTap: @unchecked Sendable {
         }
         try check(status, "follow the app’s processes")
         follow(processes.map { AudioObjectID($0) })
-        waitOnceQuiet()
+        processesChanged()
     }
 
     /// Starts the device should CoreAudio not have when the app plays, and makes it wait once the app stops. Starting a
@@ -87,7 +87,7 @@ final class AppAudioTap: @unchecked Sendable {
 
     /// Stops the device and starts it again, which makes it wait for the app's sound while the app is quiet. A macOS that
     /// runs it at once instead would keep it running between sounds, so there it stays stopped while the app is quiet,
-    /// and `setPlaying(true)` starts it when StableBar hears the app play. Call it with `lock` held.
+    /// and starts as soon as one of the app's processes plays. Call it with `lock` held.
     @discardableResult
     private func restart() -> OSStatus {
         guard let proc else { return noErr }
@@ -113,9 +113,26 @@ final class AppAudioTap: @unchecked Sendable {
 
     private func wait(unlessChangedSince change: Int) {
         lock.withLock {
-            guard changes == change, let proc, isRunning, !processes.contains(where: Self.plays) else { return }
+            guard changes == change, let proc else { return }
+            // A process can report that it plays a moment after it says it changed.
+            guard isRunning else { return startIfPlaying() }
+            guard !processes.contains(where: Self.plays) else { return }
             if waits { restart() } else { AudioDeviceStop(aggregate, proc) }
         }
+    }
+
+    /// The app's processes started or stopped playing, or changed. StableBar can miss the quiet between two sounds and
+    /// then never asks for the next one, so the tap starts its device itself.
+    private func processesChanged() {
+        lock.withLock { startIfPlaying() }
+        waitOnceQuiet()
+    }
+
+    /// Starts the device where it doesn't wait for the app's sound, once one of the app's processes plays. Where it
+    /// waits, CoreAudio starts it. Call it with `lock` held.
+    private func startIfPlaying() {
+        guard !waits, let proc, !isRunning, processes.contains(where: Self.plays) else { return }
+        AudioDeviceStart(aggregate, proc)
     }
 
     private func follow(_ processes: [AudioObjectID]) {
