@@ -88,7 +88,8 @@ struct SoundDetails: View {
                     ForEach(devices, id: \.["id"]) { device in
                         SoundDeviceRow(name: device["name"] ?? "", selected: device["selected"] == "true", radius: cardRadius,
                                        appearance: appearance) {
-                            context.selectAudioDevice(device["id"]!, input)
+                            // Sent as a control's value, so the popup stays open as Control Center's does.
+                            context.runAction(.selectAudioDevice(device["id"]!, input: input), ["VALUE": device["id"]!])
                         }
                     }
                 }

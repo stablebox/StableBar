@@ -516,6 +516,8 @@ enum BlockAction: Sendable {
     case command(String)
     case set(NativeSetting)
     case nowPlaying(NowPlaying.Command)
+    /// Makes the audio device with this ID the default output, or with `input` the default input.
+    case selectAudioDevice(String, input: Bool)
 }
 
 struct PopupControlOption: Decodable, Sendable {

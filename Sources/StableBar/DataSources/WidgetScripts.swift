@@ -275,6 +275,9 @@ final class WidgetScripts {
                     try await BlockingWork.run { try setting.set(value) }
                 case let .nowPlaying(command):
                     try await NowPlaying.send(command)
+                case let .selectAudioDevice(id, input):
+                    // coreaudiod answers once it has moved every app's sound, which takes tens of milliseconds.
+                    try await BlockingWork.run { try AudioMonitor.setDefaultDevice(id, input: input) }
                 }
                 if let script, scripts[widget.id] === script {
                     refresh(widget, event: ScriptEvent(sender: "action", environment: event.environment))
@@ -314,12 +317,7 @@ final class WidgetScripts {
 
     /// Makes the audio device with `id` the default output, or with `input` the default input, for a click on `widget`.
     func selectAudioDevice(_ id: String, input: Bool, widget: WidgetConfiguration) {
-        do {
-            try AudioMonitor.setDefaultDevice(id, input: input)
-            if actionErrors[widget.id] != nil { actionErrors[widget.id] = nil }
-        } catch {
-            actionErrors[widget.id] = errorMessage(error)
-        }
+        runAction(.selectAudioDevice(id, input: input), widget: widget)
     }
 
     func stop() {
