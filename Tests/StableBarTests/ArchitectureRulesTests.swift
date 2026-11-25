@@ -71,6 +71,18 @@ private func looksUpTheIcon(_ code: String) -> Bool {
     }
 }
 
+/// On a 1x screen, macOS leaves out the part of a pixel a border covers along its top and left edges, so a border whose
+/// width isn't a whole number of pixels, from the code or from a theme, comes out uneven. `pixelBorder` rounds it.
+@Test func bordersAreDrawnInWholePixels() throws {
+    let files = try swiftSources()
+    #expect(files.count > 100)
+    for file in files where file.path != "StableBar/Bar/PixelBorder.swift" {
+        #expect(code(file.text).firstMatch(of: #/\bstrokeBorder\s*\(/#) == nil, """
+            \(file.path) calls strokeBorder, whose width can fall between pixels on a 1x screen: call pixelBorder
+            """)
+    }
+}
+
 @Test func theIconCheckFindsTheIconMacOSLooksUp() {
     #expect(looksUpTheIcon(code("Image(nsImage: NSApp.applicationIconImage)")))
     #expect(looksUpTheIcon(code("NSImage(named: NSImage.applicationIconName)")))
