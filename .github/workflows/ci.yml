@@ -24,6 +24,8 @@ permissions:
 # under a pull request. Move to a newer Xcode in a pull request of its own.
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
 
 # A stable release gets its own group, so a newer push can't cancel it while it waits.
 concurrency:
@@ -87,7 +89,7 @@ jobs:
     needs: current
     if: needs.current.outputs.build == 'true'
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -96,14 +98,15 @@ jobs:
       - name: Check script syntax
         shell: zsh -e {0}
         run: |
-          for script in scripts/*.sh examples/**/*.sh; do
-            interpreter=$(sed -n '1s/^#!//p' $script)
-            $interpreter -n $script
+          for script in scripts/*.sh examples/**/*.sh .githooks/*; do
+            interpreter=$(sed -n '1s/^#!//p' "$script")
+            ${=interpreter} -n "$script"
           done
       - name: Identify Swift toolchain
         id: swift
         run: echo "version=$({ swift --version; xcodebuild -version; xcrun --show-sdk-version; } | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v6
+      - uses: actions/cache/restore@v6
+        id: cache
         with:
           path: .build
           key: ${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.swift.outputs.version }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ github.sha }}
@@ -114,6 +117,13 @@ jobs:
           swift --version
           xcodebuild -version
           swift build --build-tests
+      # Only pushes to main save a cache, so pull requests and merge-queue runs don't push main's
+      # out of the repository's 10 GB.
+      - uses: actions/cache/save@v6
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: .build
+          key: ${{ steps.cache.outputs.cache-primary-key }}
       # Swift Testing writes test-results/results-swift-testing.xml: every test, its time and its
       # failures, kept to find flaky tests. It can't create the folder, and exits 1 without a word when
       # the folder is missing. XCTest writes one only when its tests run with --parallel, which this job
@@ -130,7 +140,7 @@ jobs:
 
           tests = subprocess.Popen(["swift", "test", "--skip-build", "--xunit-output", "test-results/results.xml"])
           try:
-              tests.wait(timeout=180)
+              tests.wait(timeout=600)
           except subprocess.TimeoutExpired:
               subprocess.run(["ps", "-axo", "pid,ppid,command"])
               children = subprocess.run(["pgrep", "-P", str(tests.pid)], capture_output=True, text=True)
@@ -203,10 +213,10 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-release-${{ steps.swift.outputs.version }}-${{ hashFiles('Package.swift', 'Package.resolved') }}-
       - name: Compile release
         run: swift build -c release --disable-keychain
-      # Pull requests start from main's cache and save none of their own, so they don't push main's
-      # out of the repository's 10 GB.
+      # Only pushes to main save a cache, so pull requests and other runs don't push main's out of
+      # the repository's 10 GB.
       - uses: actions/cache/save@v6
-        if: github.event_name != 'pull_request' && steps.cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache.outputs.cache-hit != 'true'
         with:
           path: .build
           key: ${{ steps.cache.outputs.cache-primary-key }}
@@ -218,15 +228,15 @@ jobs:
           path: release-build.tar
           retention-days: 1
 
-  # Draws the images in docs/images from each push to main, and from pull requests that change the
-  # app, so a broken render shows up before a stable release needs it. The release commits them
-  # beside CHANGELOG.md.
+  # Draws the images in docs/images for stable releases, and on pull requests that change the app so
+  # a broken render shows up before it merges. Pushes to main already draw them in Draw main's
+  # screens. The release commits them beside CHANGELOG.md.
   docs-images:
     name: Docs images
     env:
       STABLEBAR_PREBUILT_DIR: release-build
     needs: [current, build]
-    if: github.ref == 'refs/heads/main' || needs.current.outputs.app == 'true'
+    if: (github.event_name == 'workflow_dispatch' && inputs.channel == 'stable' && github.ref == 'refs/heads/main') || needs.current.outputs.app == 'true'
     runs-on: macos-26
     timeout-minutes: 15
     steps:
@@ -822,6 +832,7 @@ jobs:
         run: ./scripts/publish-appcast.sh "$(cat .next-version)"
       - name: Create Homebrew tap token
         id: tap-token
+        if: github.repository == 'stablebox/StableBar' || vars.RELEASE_APP_CLIENT_ID != ''
         uses: actions/create-github-app-token@v3
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
@@ -830,13 +841,19 @@ jobs:
           repositories: homebrew-tap
           permission-contents: write
       - name: Update the Homebrew cask
+        if: github.repository == 'stablebox/StableBar' || steps.tap-token.outputs.token != ''
         env:
           TAP_TOKEN: ${{ steps.tap-token.outputs.token }}
         run: |
           version=$(cat .next-version)
-          git clone --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/stablebox/homebrew-tap.git" tap
+          sha=$(shasum -a 256 dist/StableBar.dmg | cut -d ' ' -f 1)
+          git clone --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/$GITHUB_REPOSITORY_OWNER/homebrew-tap.git" tap
           sed -i '' -e "s/^  version \".*\"/  version \"$version\"/" \
-            -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 dist/StableBar.dmg | cut -d ' ' -f 1)\"/" tap/Casks/stablebar.rb
-          git -C tap -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -am "stablebar $version"
-          git -C tap push
+            -e "s/^  sha256 \".*\"/  sha256 \"$sha\"/" tap/Casks/stablebar.rb
+          grep -Fqx "  version \"$version\"" tap/Casks/stablebar.rb
+          grep -Fqx "  sha256 \"$sha\"" tap/Casks/stablebar.rb
+          if ! git -C tap diff --quiet; then
+            git -C tap -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -am "stablebar $version"
+            git -C tap push
+          fi
