@@ -165,6 +165,7 @@ final class WindowClearance: NSObject {
     private var permissionTimer: Timer?
     private var pending: Set<pid_t> = []
     private var task: Task<Void, Never>?
+    private var retries: [pid_t: (at: Date, task: Task<Void, Never>)] = [:]
 
     var isRunning: Bool { permissionTimer != nil }
 
@@ -200,7 +201,7 @@ final class WindowClearance: NSObject {
         let element: AXUIElement
         let observer: AXObserver
         var windows: [AXUIElement] = []
-        var adjustedFrames: [AXUIElement: CGRect] = [:]
+        var adjustments: [AXUIElement: WindowAdjustment] = [:]
     }
 
     init(macOSVersion: MacOSVersion = MacOSVersion()) {
@@ -211,7 +212,7 @@ final class WindowClearance: NSObject {
     func update(windows: Bool, notifications: Bool, displays: [WindowClearanceDisplay]) {
         if self.displays != displays {
             self.displays = displays
-            for pid in applications.keys { applications[pid]!.adjustedFrames.removeAll() }
+            for pid in applications.keys { applications[pid]!.adjustments.removeAll() }
         }
         keepsWindowsClear = windows
         keepsNotificationsClear = notifications && macOSVersion.supportsNotificationClearance
@@ -260,6 +261,7 @@ final class WindowClearance: NSObject {
         for (pid, application) in applications where !running.contains(where: { $0.processIdentifier == pid }) {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(application.observer), .commonModes)
             applications.removeValue(forKey: pid)
+            retries.removeValue(forKey: pid)?.task.cancel()
         }
         for app in running {
             let pid = app.processIdentifier
@@ -347,6 +349,18 @@ final class WindowClearance: NSObject {
         }
     }
 
+    /// Schedules a pass over `pid`'s windows at `date`, unless one is already due sooner.
+    private func schedule(_ pid: pid_t, at date: Date) {
+        if let retry = retries[pid], retry.at <= date { return }
+        retries[pid]?.task.cancel()
+        retries[pid] = (date, Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0, date.timeIntervalSinceNow)))
+            guard !Task.isCancelled, let self else { return }
+            retries[pid] = nil
+            schedule(pid)
+        })
+    }
+
     private func adjustWindows(_ pid: pid_t) {
         guard var application = applications[pid],
               NSRunningApplication(processIdentifier: pid)?.isHidden == false,
@@ -355,7 +369,7 @@ final class WindowClearance: NSObject {
                              kAXWindowDeminiaturizedNotification, kAXUIElementDestroyedNotification]
         for window in application.windows where !windows.contains(window) {
             for name in notifications { AXObserverRemoveNotification(application.observer, window, name as CFString) }
-            application.adjustedFrames.removeValue(forKey: window)
+            application.adjustments.removeValue(forKey: window)
         }
         for window in windows {
             if !application.windows.contains(window) {
@@ -366,27 +380,22 @@ final class WindowClearance: NSObject {
                 }
             }
             guard let frame = ordinaryWindowFrame(window) else { continue }
-            guard let target = frameClearOfBar(frame, displays: displays) else {
-                application.adjustedFrames.removeValue(forKey: window)
-                continue
-            }
-            guard frame != application.adjustedFrames[window] else { continue }
-            var movable: DarwinBoolean = false
-            guard AXUIElementIsAttributeSettable(window, kAXPositionAttribute as CFString, &movable) == .success,
-                  movable.boolValue else { continue }
-            application.adjustedFrames[window] = frame
-            if target.size != frame.size {
-                var resizable: DarwinBoolean = false
-                guard AXUIElementIsAttributeSettable(window, kAXSizeAttribute as CFString, &resizable) == .success,
-                      resizable.boolValue else { continue }
-                var size = target.size
-                if AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!) == .success {
+            let target = frameClearOfBar(frame, displays: displays)
+            let event = WindowAdjustment.Event.seen(frame: frame, target: target,
+                                                    canMove: target != nil && isSettable(kAXPositionAttribute, of: window),
+                                                    canResize: target != nil && isSettable(kAXSizeAttribute, of: window), at: Date())
+            for effect in application.adjustments[window, default: WindowAdjustment()].handle(event) {
+                switch effect {
+                case .resize(var size):
+                    AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)
                     schedule(pid)
+                case .move(var position):
+                    AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &position)!)
+                    schedule(pid)
+                case .checkAgain(let date):
+                    schedule(pid, at: date)
                 }
-                continue
             }
-            var position = target.origin
-            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &position)!)
         }
         application.windows = windows
         applications[pid] = application
@@ -396,6 +405,8 @@ final class WindowClearance: NSObject {
         task?.cancel()
         task = nil
         pending.removeAll()
+        for retry in retries.values { retry.task.cancel() }
+        retries.removeAll()
         for application in applications.values {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(application.observer), .commonModes)
         }
@@ -419,6 +430,11 @@ private func attribute(_ name: String, of element: AXUIElement) -> CFTypeRef? {
     var value: CFTypeRef?
     guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
     return value
+}
+
+private func isSettable(_ name: String, of element: AXUIElement) -> Bool {
+    var settable: DarwinBoolean = false
+    return AXUIElementIsAttributeSettable(element, name as CFString, &settable) == .success && settable.boolValue
 }
 
 private func windowFrame(_ window: AXUIElement) -> CGRect? {
