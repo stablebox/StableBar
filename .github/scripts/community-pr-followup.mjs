@@ -68,6 +68,15 @@ function maxTime(...values) {
   return latest;
 }
 
+function minTime(...values) {
+  let earliest = null;
+  for (const value of values) {
+    const ms = typeof value === "number" ? value : parseTime(value);
+    if (ms !== null && (earliest === null || ms < earliest)) earliest = ms;
+  }
+  return earliest;
+}
+
 /** Whether a GraphQL or REST user object represents a bot account. */
 export function isBotUser(user) {
   if (!user) return true;
@@ -199,7 +208,13 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
   const authorLogin = pr.author.login.toLowerCase();
   const isAuthor = (user) => !isBotUser(user) && user?.login?.toLowerCase() === authorLogin;
 
-  const headCommitAt = maxTime(pr.headCommit?.pushedDate, pr.headCommit?.committedDate, pr.headCommit?.authoredDate);
+  // GitHub no longer populates Commit.pushedDate, so also use the earliest check-suite or check-run
+  // timestamp on the head commit (immutable across reruns) to detect fast-forward pushes of older commits.
+  const firstHeadCheckAt = minTime(
+    ...(pr.headCommit?.checkSuiteCreatedAts ?? []),
+    ...(pr.statusContexts ?? []).map((item) => (item?.__typename === "CheckRun" || "conclusion" in (item ?? {}) ? item.startedAt : item?.createdAt)),
+  );
+  const headCommitAt = maxTime(pr.headCommit?.pushedDate, pr.headCommit?.committedDate, pr.headCommit?.authoredDate, firstHeadCheckAt);
   const timelineAt = maxTime(...(pr.timelineDates ?? []));
 
   let lastAuthorCommentAt = null;
@@ -585,6 +600,9 @@ const PR_FIELDS = `
         authoredDate
         committedDate
         pushedDate
+        checkSuites(first: 10) {
+          nodes { createdAt }
+        }
         statusCheckRollup {
           contexts(first: 100) {
             nodes {
@@ -692,6 +710,7 @@ function normalizeGraphQLPullRequest(node) {
       authoredDate: headCommit.authoredDate,
       committedDate: headCommit.committedDate,
       pushedDate: headCommit.pushedDate,
+      checkSuiteCreatedAts: (headCommit.checkSuites?.nodes ?? []).map((suite) => suite?.createdAt).filter(Boolean),
     } : null,
     statusContexts: headCommit?.statusCheckRollup?.contexts?.nodes ?? [],
     timelineDates: (node.timelineItems?.nodes ?? []).map((item) => item?.createdAt).filter(Boolean),

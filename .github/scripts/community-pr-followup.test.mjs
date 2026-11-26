@@ -185,7 +185,7 @@ test("ready PR waiting on author nudges at 7 days, waits before 14, and closes 7
   assert.equal(day14.daysSinceNudge, 7);
 });
 
-test("nudge from an earlier headSha cannot authorize closing after a push with old commit dates", () => {
+test("nudge from an earlier headSha cannot authorize closing and old-dated pushes reset activity via checkSuite timing", () => {
   const failing = [{ __typename: "CheckRun", name: "Test", status: "COMPLETED", conclusion: "FAILURE", completedAt: daysAgo(14) }];
   const oldNudge = formatAuthorNudgeComment({
     authorLogin: "alice",
@@ -196,7 +196,21 @@ test("nudge from an earlier headSha cannot authorize closing after a push with o
     closeInDays: 7,
     now: BASE_TIME - 7 * DAY_MS,
   });
+  // Fast-forward push of a locally-old commit today: checkSuite created 1 day ago resets the clock
+  // and clears waiting-for-author rather than re-nudging immediately.
   const readyAfterPush = evaluatePullRequest(makePR({
+    headRefOid: "new-head",
+    createdAt: daysAgo(14),
+    headCommit: { oid: "new-head", committedDate: daysAgo(12), authoredDate: daysAgo(12), checkSuiteCreatedAts: [daysAgo(1)] },
+    statusContexts: failing,
+    labels: [LABELS.waitingForAuthor.name],
+    comments: [botComment(oldNudge, daysAgo(7))],
+  }), { now: BASE_TIME });
+  assert.equal(readyAfterPush.action, "none");
+  assert.deepEqual(readyAfterPush.labelsToRemove, [LABELS.waitingForAuthor.name]);
+
+  // Even without checkSuite timing, a changed headSha never authorizes closing on an older nudge.
+  const readyAfterPushNoChecks = evaluatePullRequest(makePR({
     headRefOid: "new-head",
     createdAt: daysAgo(14),
     headCommit: { oid: "new-head", committedDate: daysAgo(12), authoredDate: daysAgo(12) },
@@ -204,7 +218,28 @@ test("nudge from an earlier headSha cannot authorize closing after a push with o
     labels: [LABELS.waitingForAuthor.name],
     comments: [botComment(oldNudge, daysAgo(7))],
   }), { now: BASE_TIME });
-  assert.equal(readyAfterPush.action, "nudge-author");
+  assert.equal(readyAfterPushNoChecks.action, "nudge-author");
+
+  // Later reruns do not push the inactivity clock forward (earliest checkSuite/checkRun wins).
+  const rerunDoesNotReset = evaluatePullRequest(makePR({
+    headRefOid: "same-head",
+    createdAt: daysAgo(10),
+    headCommit: { oid: "same-head", committedDate: daysAgo(10), checkSuiteCreatedAts: [daysAgo(10), daysAgo(1)] },
+    statusContexts: [{ __typename: "CheckRun", name: "Test", status: "COMPLETED", conclusion: "FAILURE", startedAt: daysAgo(1), completedAt: daysAgo(1) }],
+  }), { now: BASE_TIME });
+  assert.equal(rerunDoesNotReset.action, "nudge-author");
+
+  // Fast-forward push of an old-dated commit after CHANGES_REQUESTED moves the PR to maintainers.
+  const changesAddressedByOldCommit = evaluatePullRequest(makePR({
+    headRefOid: "new-head",
+    createdAt: daysAgo(15),
+    headCommit: { oid: "new-head", committedDate: daysAgo(12), checkSuiteCreatedAts: [daysAgo(5)] },
+    reviews: [
+      { author: { __typename: "User", login: "Seb-GRAF" }, authorAssociation: "OWNER", state: "CHANGES_REQUESTED", submittedAt: daysAgo(8) },
+    ],
+  }), { now: BASE_TIME });
+  assert.equal(changesAddressedByOldCommit.court, "maintainer");
+  assert.equal(changesAddressedByOldCommit.action, "remind-maintainers");
 
   const oldDraftNudge = formatAuthorNudgeComment({
     authorLogin: "alice",
