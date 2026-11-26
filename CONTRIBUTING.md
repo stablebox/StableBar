@@ -106,9 +106,9 @@ Reviews are requested automatically from the people listed in [CODEOWNERS](.gith
 
 ## Commits and releases
 
-Pull requests run `swift test` on macOS and check that every commit message, and the pull request title, follows [Conventional Commits](https://www.conventionalcommits.org). Squash merges use the title as the commit message. The tests load every configuration, module and package in `examples`, and the **Test** job parses each script in `scripts` and `examples` with the shell its first line names. The **Test pull request checks** job runs `node --test` on the scripts in `.github/scripts`: the logic of `Linked issue`, `Description` and the [before and after screens](#before-and-after-screens).
+Pull requests run `swift test` on macOS and check that every commit message, and the pull request title, follows [Conventional Commits](https://www.conventionalcommits.org). Squash merges use the title as the commit message. The tests load every configuration, module and package in `examples`, and the **Test** job parses each script in `scripts`, `examples` and `.githooks` with the shell its first line names. The **Test pull request checks** job runs `node --test` on the scripts in `.github/scripts`: the logic of `Linked issue`, `Description` and the [before and after screens](#before-and-after-screens).
 
-A pull request that changes `Sources`, `Resources`, `Package.swift`, `Package.resolved`, `scripts` or the CI workflow also compiles the release and draws the [docs images](#docs-images), as `main` does. If it changes `Resources`, `scripts` or the workflow, the **Package** job builds the DMG as a beta would, ad-hoc signed because pull requests get no Developer ID, and checks its signature, version and starter configuration. **Draw screens** runs when the app, `scenes`, the `examples` scenes read or the comparison scripts change, and **Draw website screens** when `site` changes.
+A pull request that changes `Sources`, `Resources`, `Package.swift`, `Package.resolved`, `scripts` or the CI workflow also compiles the release and draws the [docs images](#docs-images). If it changes `Resources`, `scripts` or the workflow, the **Package** job builds the DMG as a beta would, ad-hoc signed because pull requests get no Developer ID, and checks its signature, version and starter configuration. **Draw screens** runs when the app, `scenes`, the `examples` scenes read or the comparison scripts change, and **Draw website screens** when `site` changes.
 
 [semantic-release](https://github.com/semantic-release/semantic-release) reads the commits since the last stable release and decides the next version. Only `feat`, `fix`, `perf` and `refactor` commits that change app inputs (`Sources`, `Resources`, `Package.swift`, `Package.resolved` or `scripts`, except `scripts/set-site-version.sh`) count. Website, guide, CI and test files do not count, regardless of the commit type.
 
@@ -119,7 +119,7 @@ A pull request that changes `Sources`, `Resources`, `Package.swift`, `Package.re
 | An eligible app commit with `!` or a `BREAKING CHANGE:` footer | Major: 0.1.0 → 1.0.0 |
 | `build:`, `chore:`, `ci:`, `docs:`, `style:`, `test:` | None |
 
-Queued pushes skip builds when `main` has already moved on. GitHub runs only a few macOS jobs at once for the account, and `main`'s runs wait for a free Mac like pull requests' do. Tests and release compilation run in parallel, with separate Swift build caches for debug and release. Pull requests restore `main`'s release cache but don't save their own. Packaging uses the compiled binary from the same workflow run only after both jobs pass; signing, notarization and publication still happen in the release job.
+Queued pushes skip builds when `main` has already moved on. GitHub runs only a few macOS jobs at once for the account, and `main`'s runs wait for a free Mac like pull requests' do. Tests and release compilation run in parallel, with separate Swift build caches for debug and release. Pull requests and merge-queue runs restore `main`'s caches without saving their own. Packaging uses the compiled binary from the same workflow run only after both jobs pass; signing, notarization and publication still happen in the release job.
 
 Both release channels come from `main`:
 
@@ -162,7 +162,7 @@ Release jobs set `STABLEBAR_RELEASE_BUILD=1` when packaging to preserve their st
 
 ## Docs images
 
-`scripts/render-docs-images.sh` draws the images in `docs/images` from the app's own bar, popup and Settings views, with sample data, a fixed date (Thursday 22 October 2026, 09:41 UTC) and a local, empty Store index, and writes them as WebP. Like [scenes](#scenes), each is drawn once its views hold still, so two runs of one commit on one Mac draw the same pixels. It needs `cwebp`: `brew install webp`. The **Docs images** CI job draws them on every push to `main` and on pull requests that change the app, and a stable release commits them, so a change to the bar, popups or Settings doesn't need new images. To show something new, add a scene to [DocsImages.swift](Sources/StableBar/Rendering/DocsImages.swift).
+`scripts/render-docs-images.sh` draws the images in `docs/images` from the app's own bar, popup and Settings views, with sample data, a fixed date (Thursday 22 October 2026, 09:41 UTC) and a local, empty Store index, and writes them as WebP. Like [scenes](#scenes), each is drawn once its views hold still, so two runs of one commit on one Mac draw the same pixels. It needs `cwebp`: `brew install webp`. The **Docs images** CI job draws them on pull requests that change the app and during a stable release, which commits them, so a change to the bar, popups or Settings doesn't need new images. To show something new, add a scene to [DocsImages.swift](Sources/StableBar/Rendering/DocsImages.swift).
 
 ## Scenes
 
