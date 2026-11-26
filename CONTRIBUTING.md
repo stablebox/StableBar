@@ -102,6 +102,8 @@ Reviews are requested automatically from the people listed in [CODEOWNERS](.gith
 
 [cubic](https://cubic.dev) also reviews every pull request once it is out of draft. [CodeRabbit](https://coderabbit.ai) reviews pull requests labeled `deep-review`: the label is added automatically when a pull request changes more than 400 lines or a file listed in [.github/deep-review-paths](.github/deep-review-paths), and you can add it yourself, or ask a maintainer to, when a change is risky. Fix each comment from either or reply why not, then resolve its thread: unresolved conversations block merging. Their rules come from [AGENTS.md](AGENTS.md), [cubic.yaml](cubic.yaml) and [.coderabbit.yaml](.coderabbit.yaml). CodeRabbit allows each pull request author only a few reviews per hour. When its limit holds a review back, the Deep review workflow asks it again every hour, so there's no need to ask with `@coderabbitai review`.
 
+Open community pull requests are followed up on daily by [Community PR follow-up](.github/workflows/community-pr-followup.yml). A pull request waiting on its author (failing checks, merge conflicts, requested changes or unresolved threads) gets `waiting-for-author` and a check-in after 7 days, and closes automatically 7 days later without an update (drafts get 14 days before a check-in and 14 days after). A ready pull request waiting on maintainers (review, `visual-ok` or first-time CI approval) never closes automatically; after 4 days it gets `needs-review` and reminds maintainers. Add `keep-open` to pause follow-ups on a pull request.
+
 [DECISIONS.md](DECISIONS.md) lists the lasting decisions about releases, reviews and code. A pull request that sets a new rule or policy adds an entry there.
 
 ## Commits and releases

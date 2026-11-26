@@ -1,0 +1,95 @@
+name: Community PR follow-up
+
+# Follows up on open community pull requests so they don't sit idle without action:
+# - Waiting on contributor (failing checks, conflicts, requested changes, unresolved threads):
+#   labels waiting-for-author and nudges after 7 days, then closes 7 days later if still silent.
+# - Draft PRs get a longer window: nudge after 14 days, close 14 days later.
+# - Waiting on maintainers (ready for review, visual-ok, or first-time CI approval):
+#   never marks stale or closes; labels needs-review and reminds maintainers after 4 days.
+# - Add `keep-open` to pause follow-ups on a pull request.
+#
+# Runs the default branch's copy of this workflow and of .github/scripts, so a pull request never
+# runs its own code here. The logic and its tests are in .github/scripts/community-pr-followup.mjs.
+on:
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Log planned actions without commenting, labeling, or closing
+        type: boolean
+        default: true
+      pull_request:
+        description: Optional single pull request number to inspect
+        type: string
+        required: false
+  pull_request_target:
+    types: [synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: community-pr-followup-${{ github.event_name == 'pull_request_target' && github.event.pull_request.number || 'sweep' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
+
+jobs:
+  clear-waiting:
+    name: Clear waiting-for-author label
+    if: >-
+      github.event_name == 'pull_request_target'
+      && contains(github.event.pull_request.labels.*.name, 'waiting-for-author')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            .github/CODEOWNERS
+            .github/scripts
+          persist-credentials: false
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const { clearWaitingLabel } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/community-pr-followup.mjs`);
+            await clearWaitingLabel({ github, context, core });
+
+  sweep:
+    name: Follow up on community PRs
+    if: github.event_name != 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            .github/CODEOWNERS
+            .github/scripts
+          persist-credentials: false
+      - uses: actions/github-script@v9
+        env:
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          PULL_REQUEST: ${{ inputs.pull_request || '' }}
+        with:
+          script: |
+            const { runSweep } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/community-pr-followup.mjs`);
+            const dryRun = process.env.DRY_RUN === "true";
+            const pullRequestNumber = process.env.PULL_REQUEST ? Number(process.env.PULL_REQUEST) : null;
+            if (process.env.PULL_REQUEST && (!Number.isInteger(pullRequestNumber) || pullRequestNumber <= 0)) {
+              throw new Error(`Invalid pull_request input: ${process.env.PULL_REQUEST}`);
+            }
+            const results = await runSweep({ github, context, core, dryRun, pullRequestNumber });
+            const acted = results.filter((r) => ["nudge-author", "close-author", "remind-maintainers"].includes(r.action));
+            await core.summary
+              .addHeading(dryRun ? "Community PR follow-up (dry run)" : "Community PR follow-up", 3)
+              .addRaw(`Inspected ${results.length} open pull request(s); ${acted.length} action(s) ${dryRun ? "planned" : "taken"}.\n`)
+              .write();
