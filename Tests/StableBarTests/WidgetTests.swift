@@ -1433,6 +1433,28 @@ func setupKeepsStarterWidgetsChangedByOverrides(inProfile: Bool) throws {
     #expect(configuration.workspaceSource == .spaces)
 }
 
+/// Settings reads a widget's layout after the theme's tokens have replaced their references.
+@Test func settingsNamesEveryLayoutChoiceOnceItsTokensResolve() throws {
+    for (type, choices) in [("clock", WidgetLayoutChoice.clock), ("calendar", WidgetLayoutChoice.calendar)] {
+        for choice in choices {
+            // The theme's warning color, then one the file sets itself.
+            for tokens in [[:], ["warning": ConfigurationValue.string("#123456")]] {
+                var widget: [String: ConfigurationValue] = ["id": .string("it"), "type": .string(type), "position": .string("right")]
+                if choice.layout != .null { widget["layout"] = choice.layout }
+                let file = ConfigurationValue.object(["tokens": .object(tokens), "widgets": .array([.object(widget)])])
+                var loader = ConfigurationLoader()
+                loader.themesDirectory = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+                    .deletingLastPathComponent().appending(path: "Resources/themes")
+                _ = try loader.load(FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).json"),
+                                    data: JSONEncoder().encode(file))
+                let loaded = try #require(try loader.document["widgets"]?.decoded([[String: ConfigurationValue]].self).first)
+                let resolved = try loader.document["tokens"]?.decoded([String: ConfigurationValue].self) ?? [:]
+                #expect(WidgetLayoutChoice.current(loaded["layout"], in: choices, tokens: resolved) == choice, "\(choice.title)")
+            }
+        }
+    }
+}
+
 /// Setup gives a widget only a display that Settings names, so Settings never calls one of its layouts custom.
 @Test func setupWidgetsUseDisplaysThatSettingsOffers() {
     let sets = SetupPreferences.Preset.allCases.flatMap { preset in

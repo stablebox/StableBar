@@ -6,7 +6,37 @@
         "id": "calendar",
         "type": "calendar",
         "position": "right",
-        "details": true
+        "details": true,
+        "layout": {
+          "type": "row", "hideWhen": { "field": "phase", "equals": "none" }, "style": { "spacing": 6 },
+          "children": [
+            { "type": "symbol", "name": "calendar", "hideWhen": { "field": "phase", "equals": "live" } },
+            {
+              "type": "symbol", "name": "circle.fill", "showWhen": { "field": "phase", "equals": "live" },
+              "style": { "iconSize": 7, "foreground": { "light": "#28a745", "dark": "#30d158" } }
+            },
+            { "type": "field", "field": "text", "hideWhen": { "field": "access", "equals": "granted" } },
+            { "type": "field", "field": "title", "hideWhenEmpty": "title", "style": { "maxWidth": 170 } },
+            { "type": "field", "field": "start", "role": "secondary", "showWhen": { "field": "phase", "equals": "later" } },
+            {
+              "type": "row", "showWhen": [{ "field": "phase", "equals": "soon" }, { "field": "phase", "equals": "now" }],
+              "style": { "spacing": 3, "foreground": "@token.warning" },
+              "children": [{ "type": "text", "text": "in" }, { "type": "field", "field": "minutes" }, { "type": "text", "text": "min" }]
+            },
+            {
+              "type": "row", "showWhen": { "field": "phase", "equals": "live" }, "role": "secondary", "style": { "spacing": 3 },
+              "children": [{ "type": "field", "field": "minutes" }, { "type": "text", "text": "min left" }]
+            },
+            {
+              "type": "text", "text": "Join", "hideWhenEmpty": "joinCommand", "hideWhen": { "field": "phase", "equals": "later" },
+              "onClickField": "joinCommand",
+              "style": {
+                "background": { "light": "#34c75938", "dark": "#30d15847" }, "cornerRadius": 8,
+                "paddingHorizontal": 8, "paddingVertical": 2, "fontWeight": "semibold"
+              }
+            }
+          ]
+        }
       }
     ],
     "providers": {
@@ -23,7 +53,8 @@
         "title": "Design review",
         "start": "09:55",
         "end": "10:30",
-        "minutes": "14"
+        "minutes": "14",
+        "joinCommand": "open 'https://meet.google.com/abc-defg-hij'"
       }
     }
   },

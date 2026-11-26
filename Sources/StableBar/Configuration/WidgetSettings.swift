@@ -193,6 +193,12 @@ struct WidgetLayoutChoice: Equatable {
     static let clock = [Self(title: "One text", layout: .null), dateAndTimeApart]
     static let calendar = [Self(title: "Title and minutes", layout: .null), countdownAndJoin]
 
+    /// The choice a loaded widget's `layout` shows, or nil for a custom one. Loading replaces token references, so each
+    /// choice is compared with the same `tokens` in place.
+    static func current(_ layout: ConfigurationValue?, in choices: [Self], tokens: [String: ConfigurationValue]) -> Self? {
+        choices.first { (try? substituteConfigurationReferences($0.layout, prefix: "@token.", values: tokens)) == layout ?? .null }
+    }
+
     private static func decoded(_ json: String) -> ConfigurationValue {
         try! JSONDecoder().decode(ConfigurationValue.self, from: Data(json.utf8))
     }

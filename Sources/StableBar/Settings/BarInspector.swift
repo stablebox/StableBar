@@ -407,8 +407,8 @@ struct BarInspector: View {
             else if let name = widget.providerName, store.configuration?.providers[name]?.type == "calendar" { WidgetLayoutChoice.calendar }
             else { nil }
         if let layoutChoices {
-            let layout = editor.properties(for: widget.id)["layout"] ?? .null
-            let current = layoutChoices.first { $0.layout == layout }
+            let tokens = (try? store.effectiveDocument["tokens"]?.decoded([String: ConfigurationValue].self)) ?? [:]
+            let current = WidgetLayoutChoice.current(editor.properties(for: widget.id)["layout"], in: layoutChoices, tokens: tokens)
             SettingsGroup("Display") {
                 SettingRow(title: "Show") {
                     Picker("Show", selection: Binding(get: { current?.title ?? "" }, set: { title in
