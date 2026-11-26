@@ -1,11 +1,5 @@
-// Follow-up automation for open community pull requests, run by .github/workflows/community-pr-followup.yml
-// from the default branch so fork pull requests never run their own copy.
-//
-// Classifies each open community pull request as waiting on its author or waiting on maintainers:
-// - Ready PRs waiting on the author get a specific nudge after 7 days and auto-close 7 days later.
-// - Draft PRs get a longer window: a nudge after 14 days and auto-close 14 days later.
-// - Ready PRs waiting on maintainers never go stale or close; maintainers get a reminder after 4 days.
-// - The `keep-open` label pauses all nudges, reminders and auto-closing.
+// Follow-up logic for open community pull requests. .github/workflows/community-pr-followup.yml
+// checks out the default branch's copy of this module so fork pull requests never run their own.
 import { readFileSync } from "node:fs";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -33,6 +27,7 @@ export const LABELS = {
 };
 
 const TEAM_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+const DECISIVE_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "DISMISSED"]);
 const FAILING_CHECK_CONCLUSIONS = new Set(["FAILURE", "TIMED_OUT", "STARTUP_FAILURE"]);
 const FAILING_STATUS_STATES = new Set(["FAILURE", "ERROR"]);
 const MARKER_PREFIX = "<!-- stablebar-community-pr-followup ";
@@ -112,7 +107,7 @@ export function defaultCodeowners(codeownersText) {
   return owners;
 }
 
-/** Parses our own follow-up marker from a bot comment, ignoring non-bot or malformed comments. */
+/** Parses our own follow-up marker from a bot comment, preferring GitHub's publication timestamp. */
 export function readFollowupMarker(comment) {
   const actor = comment?.author ?? comment?.user;
   if (!actor || !isBotUser(actor)) return null;
@@ -121,7 +116,7 @@ export function readFollowupMarker(comment) {
   try {
     const data = JSON.parse(match[1]);
     if (!data || typeof data !== "object" || typeof data.kind !== "string") return null;
-    const at = parseTime(data.at) ?? parseTime(comment.createdAt ?? comment.created_at);
+    const at = parseTime(comment.createdAt ?? comment.created_at) ?? parseTime(data.at);
     return { ...data, at };
   } catch {
     return null;
@@ -231,7 +226,8 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
     if (isAuthor(comment.author)) lastAuthorCommentAt = maxTime(lastAuthorCommentAt, at);
   }
 
-  // Track latest decisive human maintainer review per reviewer, plus human review timestamps.
+  // Track latest decisive human maintainer review per reviewer, including DISMISSED so dismissed
+  // change requests no longer block.
   const latestMaintainerReview = new Map();
   let lastHumanReviewAt = null;
   let lastAuthorReviewAt = null;
@@ -241,7 +237,7 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
     const at = parseTime(review.submittedAt);
     lastHumanReviewAt = maxTime(lastHumanReviewAt, at);
     if (isAuthor(review.author)) lastAuthorReviewAt = maxTime(lastAuthorReviewAt, at);
-    if (isTeamMember(review.author, review.authorAssociation) && (review.state === "APPROVED" || review.state === "CHANGES_REQUESTED")) {
+    if (isTeamMember(review.author, review.authorAssociation) && DECISIVE_REVIEW_STATES.has(review.state)) {
       const login = review.author.login;
       const prev = latestMaintainerReview.get(login);
       if (!prev || (at ?? 0) >= (prev.at ?? 0)) {
@@ -250,7 +246,7 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
     }
   }
 
-  // Inspect unresolved review threads: threads where the last comment isn't the author's wait on the author.
+  // Pick each unresolved thread's newest reply by createdAt rather than array order.
   let unresolvedAuthorThreads = 0;
   let unresolvedMaintainerThreads = 0;
   let lastAuthorThreadAt = null;
@@ -258,16 +254,20 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
 
   for (const thread of pr.reviewThreads ?? []) {
     const threadComments = thread.comments ?? [];
+    let latestComment = null;
+    let latestCommentAt = null;
     for (const c of threadComments) {
-      if (isBotUser(c.author)) continue;
       const at = parseTime(c.createdAt);
+      if (latestComment === null || (at ?? -Infinity) >= (latestCommentAt ?? -Infinity)) {
+        latestComment = c;
+        latestCommentAt = at;
+      }
+      if (isBotUser(c.author)) continue;
       lastHumanThreadAt = maxTime(lastHumanThreadAt, at);
       if (isAuthor(c.author)) lastAuthorThreadAt = maxTime(lastAuthorThreadAt, at);
     }
-    if (thread.isResolved) continue;
-    const lastComment = threadComments.at(-1);
-    if (!lastComment) continue;
-    if (isAuthor(lastComment.author)) {
+    if (thread.isResolved || !latestComment) continue;
+    if (isAuthor(latestComment.author)) {
       unresolvedMaintainerThreads += 1;
     } else {
       unresolvedAuthorThreads += 1;
@@ -278,10 +278,12 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
   const lastAuthorActivityAt = maxTime(createdAt, headCommitAt, timelineAt, lastAuthorCommentAt, lastAuthorReviewAt, lastAuthorThreadAt);
   const lastHumanActivityAt = maxTime(lastAuthorActivityAt, lastHumanCommentAt, lastHumanReviewAt, lastHumanThreadAt);
 
-  // Draft PRs are always in the author's court, with longer windows.
   if (pr.isDraft) {
     const labelsToRemove = hasLabel(LABELS.needsReview.name) ? [LABELS.needsReview.name] : [];
-    const activeNudge = lastAuthorNudge && lastAuthorNudge.draft === true && (lastAuthorNudge.at ?? 0) >= lastHumanActivityAt
+    const activeNudge = lastAuthorNudge
+      && lastAuthorNudge.draft === true
+      && lastAuthorNudge.headSha === pr.headRefOid
+      && (lastAuthorNudge.at ?? 0) >= lastHumanActivityAt
       ? lastAuthorNudge
       : null;
 
@@ -310,7 +312,6 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
       };
     }
 
-    // Author acted since an earlier nudge: clear waiting-for-author if still present.
     if (hasLabel(LABELS.waitingForAuthor.name)) labelsToRemove.push(LABELS.waitingForAuthor.name);
     const daysIdle = (now - lastHumanActivityAt) / DAY_MS;
     if (daysIdle >= policy.draftNudgeDays) {
@@ -335,7 +336,6 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
     };
   }
 
-  // Non-draft PR: check all author-side and maintainer-side blockers.
   const { failingChecks, visualReviewPending, baseChanged } = analyzeChecks(pr.statusContexts ?? []);
   const changesRequestedReviews = [...latestMaintainerReview.values()].filter((r) => r.state === "CHANGES_REQUESTED");
   const latestChangesRequestedAt = maxTime(...changesRequestedReviews.map((r) => r.at));
@@ -352,7 +352,10 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
 
   if (authorBlockers.length > 0) {
     const labelsToRemove = hasLabel(LABELS.needsReview.name) ? [LABELS.needsReview.name] : [];
-    const activeNudge = lastAuthorNudge && lastAuthorNudge.draft === false && (lastAuthorNudge.at ?? 0) >= lastHumanActivityAt
+    const activeNudge = lastAuthorNudge
+      && lastAuthorNudge.draft === false
+      && lastAuthorNudge.headSha === pr.headRefOid
+      && (lastAuthorNudge.at ?? 0) >= lastHumanActivityAt
       ? lastAuthorNudge
       : null;
 
@@ -406,7 +409,6 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
     };
   }
 
-  // No author blockers: ball is in the maintainers' court.
   const labelsToRemove = hasLabel(LABELS.waitingForAuthor.name) ? [LABELS.waitingForAuthor.name] : [];
   const maintainerReasons = [];
   if (pr.awaitingWorkflowApproval) maintainerReasons.push("workflow-approval");
@@ -416,7 +418,9 @@ export function evaluatePullRequest(pr, { now, policy = POLICY, fallbackReviewer
   if (maintainerReasons.length === 0) maintainerReasons.push("review");
 
   const reviewersToPing = selectReviewersToPing(pr, latestMaintainerReview, fallbackReviewers);
-  const activeReminder = lastMaintainerReminder && (lastMaintainerReminder.at ?? 0) >= lastHumanActivityAt
+  const activeReminder = lastMaintainerReminder
+    && (!lastMaintainerReminder.headSha || lastMaintainerReminder.headSha === pr.headRefOid)
+    && (lastMaintainerReminder.at ?? 0) >= lastHumanActivityAt
     ? lastMaintainerReminder
     : null;
 
@@ -554,85 +558,113 @@ export function formatMaintainerReminderComment({ headSha, reviewersToPing, main
   ].join("\n");
 }
 
+const PR_FIELDS = `
+  number
+  state
+  title
+  isDraft
+  createdAt
+  mergeable
+  authorAssociation
+  author { __typename login }
+  headRefOid
+  headRefName
+  headRepository { nameWithOwner }
+  labels(first: 50) { nodes { name } }
+  reviewRequests(first: 20) {
+    nodes {
+      requestedReviewer {
+        ... on User { login }
+      }
+    }
+  }
+  commits(last: 1) {
+    nodes {
+      commit {
+        oid
+        authoredDate
+        committedDate
+        pushedDate
+        statusCheckRollup {
+          contexts(first: 100) {
+            nodes {
+              __typename
+              ... on CheckRun { name status conclusion startedAt completedAt }
+              ... on StatusContext { context state description createdAt }
+            }
+          }
+        }
+      }
+    }
+  }
+  timelineItems(last: 30, itemTypes: [READY_FOR_REVIEW_EVENT, CONVERT_TO_DRAFT_EVENT, REOPENED_EVENT, HEAD_REF_FORCE_PUSHED_EVENT]) {
+    nodes {
+      __typename
+      ... on ReadyForReviewEvent { createdAt }
+      ... on ConvertToDraftEvent { createdAt }
+      ... on ReopenedEvent { createdAt }
+      ... on HeadRefForcePushedEvent { createdAt }
+    }
+  }
+  reviews(last: 50) {
+    nodes {
+      author { __typename login }
+      authorAssociation
+      state
+      submittedAt
+    }
+  }
+  reviewThreads(first: 100) {
+    nodes {
+      id
+      isResolved
+      comments(first: 100) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          author { __typename login }
+          authorAssociation
+          createdAt
+        }
+      }
+    }
+  }
+  comments(last: 100) {
+    nodes {
+      author { __typename login }
+      authorAssociation
+      body
+      createdAt
+    }
+  }
+`;
+
 const OPEN_PRS_QUERY = `
 query($owner: String!, $repo: String!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequests(states: OPEN, first: 50, after: $cursor, orderBy: { field: CREATED_AT, direction: ASC }) {
       pageInfo { hasNextPage endCursor }
-      nodes {
-        number
-        title
-        isDraft
-        createdAt
-        mergeable
-        authorAssociation
-        author { __typename login }
-        headRefOid
-        headRefName
-        headRepository { nameWithOwner }
-        labels(first: 50) { nodes { name } }
-        reviewRequests(first: 20) {
-          nodes {
-            requestedReviewer {
-              ... on User { login }
-            }
-          }
-        }
-        commits(last: 1) {
-          nodes {
-            commit {
-              oid
-              authoredDate
-              committedDate
-              pushedDate
-              statusCheckRollup {
-                contexts(first: 100) {
-                  nodes {
-                    __typename
-                    ... on CheckRun { name status conclusion startedAt completedAt }
-                    ... on StatusContext { context state description createdAt }
-                  }
-                }
-              }
-            }
-          }
-        }
-        timelineItems(last: 30, itemTypes: [READY_FOR_REVIEW_EVENT, CONVERT_TO_DRAFT_EVENT, REOPENED_EVENT, HEAD_REF_FORCE_PUSHED_EVENT]) {
-          nodes {
-            __typename
-            ... on ReadyForReviewEvent { createdAt }
-            ... on ConvertToDraftEvent { createdAt }
-            ... on ReopenedEvent { createdAt }
-            ... on HeadRefForcePushedEvent { createdAt }
-          }
-        }
-        reviews(last: 50) {
-          nodes {
-            author { __typename login }
-            authorAssociation
-            state
-            submittedAt
-          }
-        }
-        reviewThreads(first: 100) {
-          nodes {
-            isResolved
-            comments(first: 20) {
-              nodes {
-                author { __typename login }
-                authorAssociation
-                createdAt
-              }
-            }
-          }
-        }
-        comments(last: 100) {
-          nodes {
-            author { __typename login }
-            authorAssociation
-            body
-            createdAt
-          }
+      nodes { ${PR_FIELDS} }
+    }
+  }
+}`;
+
+const SINGLE_PR_QUERY = `
+query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) { ${PR_FIELDS} }
+  }
+}`;
+
+const THREAD_COMMENTS_QUERY = `
+query($threadId: ID!, $cursor: String!) {
+  node(id: $threadId) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          author { __typename login }
+          authorAssociation
+          createdAt
         }
       }
     }
@@ -643,6 +675,7 @@ function normalizeGraphQLPullRequest(node) {
   const headCommit = node.commits?.nodes?.[0]?.commit ?? null;
   return {
     number: node.number,
+    state: node.state ?? "OPEN",
     title: node.title,
     isDraft: node.isDraft,
     createdAt: node.createdAt,
@@ -664,11 +697,29 @@ function normalizeGraphQLPullRequest(node) {
     timelineDates: (node.timelineItems?.nodes ?? []).map((item) => item?.createdAt).filter(Boolean),
     reviews: node.reviews?.nodes ?? [],
     reviewThreads: (node.reviewThreads?.nodes ?? []).map((thread) => ({
+      id: thread.id ?? null,
       isResolved: thread.isResolved,
-      comments: thread.comments?.nodes ?? [],
+      comments: [...(thread.comments?.nodes ?? [])],
+      commentsPageInfo: thread.comments?.pageInfo ?? { hasNextPage: false, endCursor: null },
     })),
     comments: node.comments?.nodes ?? [],
   };
+}
+
+/** Fetches remaining comments on any review thread that exceeded the initial page. */
+async function hydrateThreadComments({ github, pr }) {
+  for (const thread of pr.reviewThreads ?? []) {
+    if (!thread.id || !thread.commentsPageInfo?.hasNextPage) continue;
+    let cursor = thread.commentsPageInfo.endCursor;
+    while (cursor) {
+      const data = await github.graphql(THREAD_COMMENTS_QUERY, { threadId: thread.id, cursor });
+      const page = data?.node?.comments;
+      if (!page) break;
+      thread.comments.push(...(page.nodes ?? []));
+      cursor = page.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
+    }
+    thread.commentsPageInfo = { hasNextPage: false, endCursor: null };
+  }
 }
 
 async function hasActionRequiredWorkflowRuns({ github, owner, repo, pr }) {
@@ -683,6 +734,24 @@ async function hasActionRequiredWorkflowRuns({ github, owner, repo, pr }) {
   return (data.workflow_runs ?? []).some((run) => run.event === "pull_request"
     && (!pr.headRefName || run.head_branch === pr.headRefName)
     && (!pr.headRepository || !run.head_repository?.full_name || run.head_repository.full_name === pr.headRepository));
+}
+
+async function hydrateCommunityPullRequest({ github, owner, repo, pr }) {
+  await hydrateThreadComments({ github, pr });
+  if (!pr.isDraft && !pr.labels.includes(LABELS.keepOpen)) {
+    pr.awaitingWorkflowApproval = await hasActionRequiredWorkflowRuns({ github, owner, repo, pr });
+  }
+}
+
+async function fetchSinglePullRequest({ github, owner, repo, number }) {
+  const data = await github.graphql(SINGLE_PR_QUERY, { owner, repo, number });
+  const node = data?.repository?.pullRequest;
+  if (!node) return null;
+  const pr = normalizeGraphQLPullRequest(node);
+  if (pr.state === "OPEN" && isCommunityAuthor(pr.author, pr.authorAssociation)) {
+    await hydrateCommunityPullRequest({ github, owner, repo, pr });
+  }
+  return pr;
 }
 
 async function ensureLabel({ github, owner, repo, labelSpec, knownLabels }) {
@@ -713,8 +782,26 @@ async function listOpenPullRequests({ github, owner, repo }) {
   return prs;
 }
 
+async function applyLabelChanges({ github, owner, repo, number, labelsToAdd, labelsToRemove, labelSpecsByName, knownLabels }) {
+  for (const labelName of labelsToAdd ?? []) {
+    const spec = labelSpecsByName.get(labelName);
+    if (spec) await ensureLabel({ github, owner, repo, labelSpec: spec, knownLabels });
+  }
+  if ((labelsToAdd ?? []).length > 0) {
+    await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels: labelsToAdd });
+  }
+  for (const labelName of labelsToRemove ?? []) {
+    try {
+      await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: labelName });
+    } catch (error) {
+      if (error?.status !== 404) throw error;
+    }
+  }
+}
+
 /**
  * Runs the daily follow-up sweep across open community pull requests (or a single PR if `pullRequestNumber` is set).
+ * Catches and records per-PR errors so one failing PR does not block follow-ups on the rest.
  */
 export async function runSweep({ github, context, core, dryRun = false, pullRequestNumber = null, now = Date.now(), fallbackReviewers = defaultCodeowners() }) {
   const { owner, repo } = context.repo;
@@ -732,63 +819,87 @@ export async function runSweep({ github, context, core, dryRun = false, pullRequ
       results.push({ number: pr.number, action: "skip", reason: "not-community" });
       continue;
     }
-    if (!pr.isDraft && !pr.labels.includes(LABELS.keepOpen)) {
-      pr.awaitingWorkflowApproval = await hasActionRequiredWorkflowRuns({ github, owner, repo, pr });
-    }
-    const decision = evaluatePullRequest(pr, { now, fallbackReviewers });
-    results.push({ number: pr.number, ...decision });
 
-    const summary = `#${pr.number} (${pr.author.login}): ${decision.action}`
-      + (decision.court ? ` [court=${decision.court}]` : "")
-      + (decision.reason ? ` (${decision.reason})` : "");
-    core.info(dryRun ? `[dry-run] ${summary}` : summary);
+    try {
+      await hydrateCommunityPullRequest({ github, owner, repo, pr });
+      let activePr = pr;
+      let decision = evaluatePullRequest(activePr, { now, fallbackReviewers });
 
-    if (dryRun) continue;
+      const summary = `#${activePr.number} (${activePr.author.login}): ${decision.action}`
+        + (decision.court ? ` [court=${decision.court}]` : "")
+        + (decision.reason ? ` (${decision.reason})` : "");
+      core.info(dryRun ? `[dry-run] ${summary}` : summary);
 
-    for (const labelName of decision.labelsToAdd ?? []) {
-      const spec = labelSpecsByName.get(labelName);
-      if (spec) await ensureLabel({ github, owner, repo, labelSpec: spec, knownLabels });
-    }
-    if ((decision.labelsToAdd ?? []).length > 0) {
-      await github.rest.issues.addLabels({ owner, repo, issue_number: pr.number, labels: decision.labelsToAdd });
-    }
-    for (const labelName of decision.labelsToRemove ?? []) {
-      try {
-        await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: labelName });
-      } catch (error) {
-        if (error?.status !== 404) throw error;
+      if (dryRun) {
+        results.push({ number: activePr.number, ...decision });
+        continue;
       }
-    }
 
-    if (decision.action === "nudge-author") {
-      const body = formatAuthorNudgeComment({
-        authorLogin: pr.author.login,
-        headSha: pr.headRefOid,
-        isDraft: pr.isDraft,
-        blockers: decision.blockers,
-        daysIdle: decision.daysIdle,
-        closeInDays: decision.closeInDays,
-        now,
+      // Re-verify live PR state right before nudging or closing so concurrent pushes, replies or
+      // keep-open labels are never overridden by the earlier bulk snapshot.
+      if (decision.action === "nudge-author" || decision.action === "close-author") {
+        const expectedAction = decision.action;
+        const fresh = await fetchSinglePullRequest({ github, owner, repo, number: activePr.number });
+        const freshDecision = fresh && fresh.state === "OPEN"
+          ? evaluatePullRequest(fresh, { now, fallbackReviewers })
+          : null;
+        if (!fresh || fresh.state !== "OPEN" || fresh.headRefOid !== activePr.headRefOid || freshDecision?.action !== expectedAction) {
+          core.info(`#${activePr.number}: skipped ${expectedAction} because PR state changed before write.`);
+          results.push({ number: activePr.number, action: "skip", reason: "state-changed" });
+          continue;
+        }
+        activePr = fresh;
+        decision = freshDecision;
+      }
+
+      await applyLabelChanges({
+        github,
+        owner,
+        repo,
+        number: activePr.number,
+        labelsToAdd: decision.labelsToAdd,
+        labelsToRemove: decision.labelsToRemove,
+        labelSpecsByName,
+        knownLabels,
       });
-      await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
-    } else if (decision.action === "close-author") {
-      const body = formatAuthorCloseComment({
-        headSha: pr.headRefOid,
-        isDraft: pr.isDraft,
-        daysSinceNudge: decision.daysSinceNudge,
-        now,
-      });
-      await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
-      await github.rest.pulls.update({ owner, repo, pull_number: pr.number, state: "closed" });
-    } else if (decision.action === "remind-maintainers") {
-      const body = formatMaintainerReminderComment({
-        headSha: pr.headRefOid,
-        reviewersToPing: decision.reviewersToPing,
-        maintainerReasons: decision.maintainerReasons,
-        daysIdle: decision.daysIdle,
-        now,
-      });
-      await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+
+      if (decision.action === "nudge-author") {
+        const body = formatAuthorNudgeComment({
+          authorLogin: activePr.author.login,
+          headSha: activePr.headRefOid,
+          isDraft: activePr.isDraft,
+          blockers: decision.blockers,
+          daysIdle: decision.daysIdle,
+          closeInDays: decision.closeInDays,
+          now,
+        });
+        await github.rest.issues.createComment({ owner, repo, issue_number: activePr.number, body });
+      } else if (decision.action === "close-author") {
+        // Close before posting the closure notice so a failed close never leaves a misleading notice on an open PR.
+        await github.rest.pulls.update({ owner, repo, pull_number: activePr.number, state: "closed" });
+        const body = formatAuthorCloseComment({
+          headSha: activePr.headRefOid,
+          isDraft: activePr.isDraft,
+          daysSinceNudge: decision.daysSinceNudge,
+          now,
+        });
+        await github.rest.issues.createComment({ owner, repo, issue_number: activePr.number, body });
+      } else if (decision.action === "remind-maintainers") {
+        const body = formatMaintainerReminderComment({
+          headSha: activePr.headRefOid,
+          reviewersToPing: decision.reviewersToPing,
+          maintainerReasons: decision.maintainerReasons,
+          daysIdle: decision.daysIdle,
+          now,
+        });
+        await github.rest.issues.createComment({ owner, repo, issue_number: activePr.number, body });
+      }
+
+      results.push({ number: activePr.number, ...decision });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      (core.warning ?? core.info)(`#${pr.number}: follow-up failed: ${message}`);
+      results.push({ number: pr.number, action: "error", error: message });
     }
   }
 

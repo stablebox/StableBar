@@ -89,7 +89,15 @@ jobs:
             }
             const results = await runSweep({ github, context, core, dryRun, pullRequestNumber });
             const acted = results.filter((r) => ["nudge-author", "close-author", "remind-maintainers"].includes(r.action));
+            const failed = results.filter((r) => r.action === "error");
+            const lines = [`Inspected ${results.length} open pull request(s); ${acted.length} action(s) ${dryRun ? "planned" : "taken"}.`];
+            if (failed.length > 0) {
+              lines.push("", "Failures:", ...failed.map((r) => `- #${r.number}: ${r.error}`));
+            }
             await core.summary
               .addHeading(dryRun ? "Community PR follow-up (dry run)" : "Community PR follow-up", 3)
-              .addRaw(`Inspected ${results.length} open pull request(s); ${acted.length} action(s) ${dryRun ? "planned" : "taken"}.\n`)
+              .addRaw(`${lines.join("\n")}\n`)
               .write();
+            if (failed.length > 0) {
+              core.setFailed(`Follow-up failed for ${failed.length} pull request(s): ${failed.map((r) => `#${r.number}`).join(", ")}`);
+            }

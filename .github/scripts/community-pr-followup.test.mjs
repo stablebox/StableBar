@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   DAY_MS,
   LABELS,
@@ -21,6 +22,7 @@ const daysAgo = (days) => new Date(BASE_TIME - days * DAY_MS).toISOString();
 function makePR(overrides = {}) {
   return {
     number: 100,
+    state: "OPEN",
     title: "fix: sample community change",
     isDraft: false,
     createdAt: daysAgo(10),
@@ -62,12 +64,13 @@ test("isCommunityAuthor excludes team members and bots", () => {
   assert.equal(isCommunityAuthor(null, "NONE"), false);
 });
 
-test("defaultCodeowners reads fallback reviewers from the repository CODEOWNERS", () => {
-  assert.deepEqual(defaultCodeowners(), ["Seb-GRAF"]);
+test("defaultCodeowners parses wildcard user owners and matches the repository file", () => {
   assert.deepEqual(defaultCodeowners("# comment\n* @alice @bob @org/team\n/docs/ @carol\n"), ["alice", "bob"]);
+  const repoCodeowners = readFileSync(new URL("../CODEOWNERS", import.meta.url), "utf8");
+  assert.deepEqual(defaultCodeowners(), defaultCodeowners(repoCodeowners));
 });
 
-test("readFollowupMarker only trusts bot comments", () => {
+test("readFollowupMarker trusts only bot comments and prefers publication createdAt", () => {
   const body = formatAuthorNudgeComment({
     authorLogin: "alice",
     headSha: "abc1234",
@@ -75,16 +78,19 @@ test("readFollowupMarker only trusts bot comments", () => {
     blockers: [{ kind: "merge-conflicts" }],
     daysIdle: 7,
     closeInDays: 7,
-    now: BASE_TIME,
+    now: BASE_TIME - 60_000,
   });
 
-  const parsed = readFollowupMarker(botComment(body, new Date(BASE_TIME).toISOString()));
+  const publishedAt = new Date(BASE_TIME).toISOString();
+  const parsed = readFollowupMarker(botComment(body, publishedAt));
   assert.equal(parsed?.kind, "author-nudge");
   assert.equal(parsed?.headSha, "abc1234");
   assert.equal(parsed?.draft, false);
   assert.equal(parsed?.at, BASE_TIME);
 
-  // Human users cannot spoof the marker.
+  const fallbackParsed = readFollowupMarker(botComment(body, null));
+  assert.equal(fallbackParsed?.at, BASE_TIME - 60_000);
+
   assert.equal(readFollowupMarker({ author: { __typename: "User", login: "alice" }, body, createdAt: daysAgo(1) }), null);
 });
 
@@ -119,12 +125,10 @@ test("ready PR waiting on author nudges at 7 days, waits before 14, and closes 7
     { __typename: "CheckRun", name: "Test", status: "COMPLETED", conclusion: "FAILURE", completedAt: daysAgo(6) },
   ];
 
-  // Day 6: too early to nudge.
   const day6 = evaluatePullRequest(makePR({ createdAt: daysAgo(6), headCommit: { pushedDate: daysAgo(6) }, statusContexts: failing }), { now: BASE_TIME });
   assert.equal(day6.action, "none");
   assert.equal(day6.court, "author");
 
-  // Day 7: nudge author, add waiting-for-author, remove stale needs-review if present.
   const day7 = evaluatePullRequest(makePR({
     createdAt: daysAgo(7),
     headCommit: { pushedDate: daysAgo(7) },
@@ -140,7 +144,6 @@ test("ready PR waiting on author nudges at 7 days, waits before 14, and closes 7
     { kind: "merge-conflicts" },
   ]);
 
-  // Day 13 (6 days after nudge): still waiting in grace period.
   const nudgeBody = formatAuthorNudgeComment({
     authorLogin: "alice",
     headSha: "abc1234",
@@ -160,7 +163,6 @@ test("ready PR waiting on author nudges at 7 days, waits before 14, and closes 7
   assert.equal(day13.action, "wait");
   assert.equal(day13.reason, "already-nudged");
 
-  // Day 14 (7 days after nudge): auto-close.
   const oldNudgeBody = formatAuthorNudgeComment({
     authorLogin: "alice",
     headSha: "abc1234",
@@ -181,6 +183,47 @@ test("ready PR waiting on author nudges at 7 days, waits before 14, and closes 7
   assert.equal(day14.daysSinceNudge, 7);
 });
 
+test("nudge from an earlier headSha cannot authorize closing after a push with old commit dates", () => {
+  const failing = [{ __typename: "CheckRun", name: "Test", status: "COMPLETED", conclusion: "FAILURE", completedAt: daysAgo(14) }];
+  const oldNudge = formatAuthorNudgeComment({
+    authorLogin: "alice",
+    headSha: "old-head",
+    isDraft: false,
+    blockers: [{ kind: "failing-checks", checks: ["Test"] }],
+    daysIdle: 7,
+    closeInDays: 7,
+    now: BASE_TIME - 7 * DAY_MS,
+  });
+  const readyAfterPush = evaluatePullRequest(makePR({
+    headRefOid: "new-head",
+    createdAt: daysAgo(14),
+    headCommit: { oid: "new-head", committedDate: daysAgo(12), authoredDate: daysAgo(12) },
+    statusContexts: failing,
+    labels: [LABELS.waitingForAuthor.name],
+    comments: [botComment(oldNudge, daysAgo(7))],
+  }), { now: BASE_TIME });
+  assert.equal(readyAfterPush.action, "nudge-author");
+
+  const oldDraftNudge = formatAuthorNudgeComment({
+    authorLogin: "alice",
+    headSha: "old-head",
+    isDraft: true,
+    blockers: ["draft"],
+    daysIdle: 14,
+    closeInDays: 14,
+    now: BASE_TIME - 14 * DAY_MS,
+  });
+  const draftAfterPush = evaluatePullRequest(makePR({
+    isDraft: true,
+    headRefOid: "new-head",
+    createdAt: daysAgo(28),
+    headCommit: { oid: "new-head", committedDate: daysAgo(20), authoredDate: daysAgo(20) },
+    labels: [LABELS.waitingForAuthor.name],
+    comments: [botComment(oldDraftNudge, daysAgo(14))],
+  }), { now: BASE_TIME });
+  assert.equal(draftAfterPush.action, "nudge-author");
+});
+
 test("bot comments do not reset the inactivity clock, while author comments and reopens do", () => {
   const failing = [{ __typename: "CheckRun", name: "Test", status: "COMPLETED", conclusion: "FAILURE", completedAt: daysAgo(8) }];
   const botNoise = { author: { __typename: "Bot", login: "coderabbitai" }, body: "rate limited", createdAt: daysAgo(1) };
@@ -193,7 +236,6 @@ test("bot comments do not reset the inactivity clock, while author comments and 
   }), { now: BASE_TIME });
   assert.equal(withBotNoise.action, "nudge-author");
 
-  // Author replied after the nudge -> clears waiting-for-author and resets clock.
   const nudgeBody = formatAuthorNudgeComment({
     authorLogin: "alice",
     headSha: "abc1234",
@@ -201,7 +243,7 @@ test("bot comments do not reset the inactivity clock, while author comments and 
     blockers: [{ kind: "failing-checks", checks: ["Test"] }],
     daysIdle: 7,
     closeInDays: 7,
-    now: daysAgo(8) ? BASE_TIME - 8 * DAY_MS : BASE_TIME,
+    now: BASE_TIME - 8 * DAY_MS,
   });
   const afterAuthorReply = evaluatePullRequest(makePR({
     createdAt: daysAgo(15),
@@ -216,7 +258,6 @@ test("bot comments do not reset the inactivity clock, while author comments and 
   assert.equal(afterAuthorReply.action, "none");
   assert.deepEqual(afterAuthorReply.labelsToRemove, [LABELS.waitingForAuthor.name]);
 
-  // Reopened PR does not immediately re-close.
   const reopened = evaluatePullRequest(makePR({
     createdAt: daysAgo(30),
     headCommit: { pushedDate: daysAgo(30) },
@@ -230,7 +271,6 @@ test("bot comments do not reset the inactivity clock, while author comments and 
 });
 
 test("draft PRs use the longer 14d nudge and 14d close windows", () => {
-  // Day 10: still too early for draft nudge (even though ready PRs nudge at 7d).
   const day10 = evaluatePullRequest(makePR({
     isDraft: true,
     createdAt: daysAgo(10),
@@ -240,7 +280,6 @@ test("draft PRs use the longer 14d nudge and 14d close windows", () => {
   assert.equal(day10.action, "none");
   assert.deepEqual(day10.labelsToRemove, [LABELS.needsReview.name]);
 
-  // Day 14: nudge draft.
   const day14 = evaluatePullRequest(makePR({
     isDraft: true,
     createdAt: daysAgo(14),
@@ -250,7 +289,6 @@ test("draft PRs use the longer 14d nudge and 14d close windows", () => {
   assert.equal(day14.isDraft, true);
   assert.equal(day14.closeInDays, 14);
 
-  // Day 24 (10 days after draft nudge): still waiting.
   const draftNudge10d = formatAuthorNudgeComment({
     authorLogin: "alice",
     headSha: "abc1234",
@@ -269,7 +307,6 @@ test("draft PRs use the longer 14d nudge and 14d close windows", () => {
   }), { now: BASE_TIME });
   assert.equal(day24.action, "wait");
 
-  // Day 28 (14 days after draft nudge): close draft.
   const draftNudge14d = formatAuthorNudgeComment({
     authorLogin: "alice",
     headSha: "abc1234",
@@ -290,8 +327,7 @@ test("draft PRs use the longer 14d nudge and 14d close windows", () => {
   assert.equal(day28.isDraft, true);
 });
 
-test("review threads and CHANGES_REQUESTED distinguish waiting on author vs waiting on maintainer", () => {
-  // Maintainer requested changes 8 days ago; author has not pushed or replied -> author's court.
+test("review threads, CHANGES_REQUESTED, and DISMISSED reviews classify ownership accurately", () => {
   const waitingAuthor = evaluatePullRequest(makePR({
     createdAt: daysAgo(9),
     headCommit: { pushedDate: daysAgo(9) },
@@ -308,7 +344,19 @@ test("review threads and CHANGES_REQUESTED distinguish waiting on author vs wait
     { kind: "unresolved-threads", count: 1 },
   ]);
 
-  // Author pushed a fix and replied in the thread 5 days ago -> maintainer's court (re-review + thread-reply).
+  // Dismissing an earlier CHANGES_REQUESTED clears that blocker.
+  const dismissed = evaluatePullRequest(makePR({
+    createdAt: daysAgo(10),
+    headCommit: { pushedDate: daysAgo(10) },
+    reviews: [
+      { author: { __typename: "User", login: "Seb-GRAF" }, authorAssociation: "OWNER", state: "CHANGES_REQUESTED", submittedAt: daysAgo(8) },
+      { author: { __typename: "User", login: "Seb-GRAF" }, authorAssociation: "OWNER", state: "DISMISSED", submittedAt: daysAgo(5) },
+    ],
+  }), { now: BASE_TIME });
+  assert.equal(dismissed.court, "maintainer");
+  assert.equal(dismissed.action, "remind-maintainers");
+
+  // Unordered review thread comments still pick the newest reply by createdAt.
   const waitingMaintainer = evaluatePullRequest(makePR({
     createdAt: daysAgo(10),
     headCommit: { pushedDate: daysAgo(5) },
@@ -321,8 +369,8 @@ test("review threads and CHANGES_REQUESTED distinguish waiting on author vs wait
       {
         isResolved: false,
         comments: [
-          { author: { __typename: "User", login: "Seb-GRAF" }, authorAssociation: "OWNER", createdAt: daysAgo(8) },
           { author: { __typename: "User", login: "alice" }, authorAssociation: "FIRST_TIME_CONTRIBUTOR", createdAt: daysAgo(5) },
+          { author: { __typename: "User", login: "Seb-GRAF" }, authorAssociation: "OWNER", createdAt: daysAgo(8) },
         ],
       },
     ],
@@ -336,7 +384,6 @@ test("review threads and CHANGES_REQUESTED distinguish waiting on author vs wait
 });
 
 test("PRs waiting on maintainers remind once after 4 days (including workflow approval and visual-ok) and never close", () => {
-  // Day 3: too early.
   const day3 = evaluatePullRequest(makePR({
     createdAt: daysAgo(3),
     headCommit: { pushedDate: daysAgo(3) },
@@ -346,7 +393,6 @@ test("PRs waiting on maintainers remind once after 4 days (including workflow ap
   assert.equal(day3.action, "none");
   assert.deepEqual(day3.labelsToRemove, [LABELS.needsReview.name]);
 
-  // Day 4: remind maintainers with specific reasons.
   const day4 = evaluatePullRequest(makePR({
     createdAt: daysAgo(4),
     headCommit: { pushedDate: daysAgo(4) },
@@ -361,7 +407,6 @@ test("PRs waiting on maintainers remind once after 4 days (including workflow ap
   assert.deepEqual(day4.reviewersToPing, ["M4n0x", "Seb-GRAF"]);
   assert.deepEqual(day4.labelsToAdd, [LABELS.needsReview.name]);
 
-  // Day 30 after maintainer reminder: still waits, NEVER closes or double-pings.
   const reminderBody = formatMaintainerReminderComment({
     headSha: "abc1234",
     reviewersToPing: ["M4n0x", "Seb-GRAF"],
@@ -410,35 +455,35 @@ test("comment formatting sanitizes check names and embeds valid markers", () => 
   assert.equal(readFollowupMarker(botComment(reminder, new Date(BASE_TIME).toISOString()))?.kind, "maintainer-reminder");
 });
 
-test("runSweep executes dry-run and live actions against GitHub API mocks", async () => {
-  const calls = { labelsCreated: [], labelsAdded: [], labelsRemoved: [], comments: [], closed: [] };
-  const makeGitHub = (nodes, actionRequiredShas = new Set()) => ({
-    graphql: async () => ({ repository: { pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes } } }),
-    rest: {
-      actions: {
-        listWorkflowRunsForRepo: async ({ head_sha }) => ({
-          data: {
-            workflow_runs: actionRequiredShas.has(head_sha)
-              ? [{ event: "pull_request", head_branch: "fix/ready", head_repository: { full_name: "bob/StableBar" } }]
-              : [],
-          },
-        }),
-      },
-      issues: {
-        createLabel: async (args) => { calls.labelsCreated.push(args.name); },
-        addLabels: async (args) => { calls.labelsAdded.push(args); },
-        removeLabel: async (args) => { calls.labelsRemoved.push(args); },
-        createComment: async (args) => { calls.comments.push(args); },
-      },
-      pulls: {
-        update: async (args) => { calls.closed.push(args); },
-      },
-    },
-  });
+function makeGraphQLNode(overrides = {}) {
+  return {
+    number: 1,
+    state: "OPEN",
+    title: "Community PR",
+    isDraft: false,
+    createdAt: daysAgo(5),
+    mergeable: "MERGEABLE",
+    authorAssociation: "FIRST_TIME_CONTRIBUTOR",
+    author: { __typename: "User", login: "bob" },
+    headRefOid: "sha-1",
+    headRefName: "fix/ready",
+    headRepository: { nameWithOwner: "bob/StableBar" },
+    labels: { nodes: [] },
+    reviewRequests: { nodes: [{ requestedReviewer: { login: "Seb-GRAF" } }] },
+    commits: { nodes: [{ commit: { oid: "sha-1", pushedDate: daysAgo(5), statusCheckRollup: { contexts: { nodes: [] } } } }] },
+    timelineItems: { nodes: [] },
+    reviews: { nodes: [] },
+    reviewThreads: { nodes: [] },
+    comments: { nodes: [] },
+    ...overrides,
+  };
+}
 
-  const oldNudge = formatAuthorNudgeComment({
-    authorLogin: "carol",
-    headSha: "sha-close",
+test("runSweep handles dry-run, live close ordering, thread pagination, recheck abort, and per-PR error isolation", async () => {
+  const ops = [];
+  const oldNudge = (login, headSha) => formatAuthorNudgeComment({
+    authorLogin: login,
+    headSha,
     isDraft: false,
     blockers: [{ kind: "merge-conflicts" }],
     daysIdle: 7,
@@ -446,100 +491,163 @@ test("runSweep executes dry-run and live actions against GitHub API mocks", asyn
     now: BASE_TIME - 7 * DAY_MS,
   });
 
-  const nodes = [
-    {
-      number: 1,
-      title: "Team PR",
-      isDraft: false,
-      createdAt: daysAgo(20),
-      mergeable: "CONFLICTING",
-      authorAssociation: "COLLABORATOR",
-      author: { __typename: "User", login: "M4n0x" },
-      headRefOid: "sha-team",
-      headRefName: "ci/x",
-      headRepository: { nameWithOwner: "stablebox/StableBar" },
-      labels: { nodes: [] },
-      reviewRequests: { nodes: [] },
-      commits: { nodes: [{ commit: { oid: "sha-team", pushedDate: daysAgo(20), statusCheckRollup: { contexts: { nodes: [] } } } }] },
-      timelineItems: { nodes: [] },
-      reviews: { nodes: [] },
-      reviewThreads: { nodes: [] },
-      comments: { nodes: [] },
+  const pr1 = makeGraphQLNode({
+    number: 1,
+    authorAssociation: "COLLABORATOR",
+    author: { __typename: "User", login: "M4n0x" },
+    mergeable: "CONFLICTING",
+    createdAt: daysAgo(20),
+    commits: { nodes: [{ commit: { oid: "sha-team", pushedDate: daysAgo(20), statusCheckRollup: { contexts: { nodes: [] } } } }] },
+  });
+
+  // Paginated review thread: page 1 ends with maintainer, page 2 has author reply -> maintainer's court.
+  const pr2 = makeGraphQLNode({
+    number: 2,
+    headRefOid: "sha-ready",
+    createdAt: daysAgo(8),
+    commits: { nodes: [{ commit: { oid: "sha-ready", pushedDate: daysAgo(8), statusCheckRollup: { contexts: { nodes: [] } } } }] },
+    reviewThreads: {
+      nodes: [{
+        id: "thread-2",
+        isResolved: false,
+        comments: {
+          pageInfo: { hasNextPage: true, endCursor: "c1" },
+          nodes: [{ author: { __typename: "User", login: "Seb-GRAF" }, authorAssociation: "OWNER", createdAt: daysAgo(8) }],
+        },
+      }],
     },
-    {
-      number: 2,
-      title: "Community PR waiting on CI approval",
-      isDraft: false,
-      createdAt: daysAgo(5),
-      mergeable: "MERGEABLE",
-      authorAssociation: "FIRST_TIME_CONTRIBUTOR",
-      author: { __typename: "User", login: "bob" },
-      headRefOid: "sha-ready",
-      headRefName: "fix/ready",
-      headRepository: { nameWithOwner: "bob/StableBar" },
-      labels: { nodes: [] },
-      reviewRequests: { nodes: [{ requestedReviewer: { login: "Seb-GRAF" } }] },
-      commits: { nodes: [{ commit: { oid: "sha-ready", pushedDate: daysAgo(5), statusCheckRollup: { contexts: { nodes: [] } } } }] },
-      timelineItems: { nodes: [] },
-      reviews: { nodes: [] },
-      reviewThreads: { nodes: [] },
-      comments: { nodes: [] },
+  });
+
+  // Eligible to close and stays eligible on recheck -> closes BEFORE posting comment.
+  const pr3 = makeGraphQLNode({
+    number: 3,
+    author: { __typename: "User", login: "carol" },
+    headRefOid: "sha-close",
+    headRefName: "fix/close",
+    headRepository: { nameWithOwner: "carol/StableBar" },
+    mergeable: "CONFLICTING",
+    createdAt: daysAgo(15),
+    labels: { nodes: [{ name: LABELS.waitingForAuthor.name }] },
+    commits: { nodes: [{ commit: { oid: "sha-close", pushedDate: daysAgo(15), statusCheckRollup: { contexts: { nodes: [] } } } }] },
+    comments: { nodes: [botComment(oldNudge("carol", "sha-close"), daysAgo(7))] },
+  });
+
+  // Eligible to close in bulk snapshot, but maintainer adds keep-open before write -> close aborted.
+  const pr4 = makeGraphQLNode({
+    number: 4,
+    author: { __typename: "User", login: "dave" },
+    headRefOid: "sha-race",
+    headRefName: "fix/race",
+    headRepository: { nameWithOwner: "dave/StableBar" },
+    mergeable: "CONFLICTING",
+    createdAt: daysAgo(15),
+    labels: { nodes: [{ name: LABELS.waitingForAuthor.name }] },
+    commits: { nodes: [{ commit: { oid: "sha-race", pushedDate: daysAgo(15), statusCheckRollup: { contexts: { nodes: [] } } } }] },
+    comments: { nodes: [botComment(oldNudge("dave", "sha-race"), daysAgo(7))] },
+  });
+  const pr4Fresh = { ...pr4, labels: { nodes: [{ name: LABELS.waitingForAuthor.name }, { name: LABELS.keepOpen }] } };
+
+  // Fails on label write, but PR #6 still runs afterwards.
+  const pr5 = makeGraphQLNode({
+    number: 5,
+    author: { __typename: "User", login: "erin" },
+    headRefOid: "sha-err",
+    createdAt: daysAgo(6),
+    commits: { nodes: [{ commit: { oid: "sha-err", pushedDate: daysAgo(6), statusCheckRollup: { contexts: { nodes: [] } } } }] },
+  });
+  const pr6 = makeGraphQLNode({
+    number: 6,
+    author: { __typename: "User", login: "frank" },
+    headRefOid: "sha-after",
+    createdAt: daysAgo(6),
+    commits: { nodes: [{ commit: { oid: "sha-after", pushedDate: daysAgo(6), statusCheckRollup: { contexts: { nodes: [] } } } }] },
+  });
+
+  const nodes = [pr1, pr2, pr3, pr4, pr5, pr6];
+  const singleNodes = new Map([[3, pr3], [4, pr4Fresh]]);
+
+  const makeGitHub = () => ({
+    graphql: async (query, vars) => {
+      if (query.includes("pullRequests(states: OPEN")) {
+        return { repository: { pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes } } };
+      }
+      if (query.includes("pullRequest(number:")) {
+        return { repository: { pullRequest: singleNodes.get(vars.number) ?? null } };
+      }
+      if (query.includes("PullRequestReviewThread")) {
+        return {
+          node: {
+            comments: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: [{ author: { __typename: "User", login: "bob" }, authorAssociation: "FIRST_TIME_CONTRIBUTOR", createdAt: daysAgo(5) }],
+            },
+          },
+        };
+      }
+      throw new Error(`Unexpected query: ${query}`);
     },
-    {
-      number: 3,
-      title: "Community PR abandoned after nudge",
-      isDraft: false,
-      createdAt: daysAgo(15),
-      mergeable: "CONFLICTING",
-      authorAssociation: "CONTRIBUTOR",
-      author: { __typename: "User", login: "carol" },
-      headRefOid: "sha-close",
-      headRefName: "fix/close",
-      headRepository: { nameWithOwner: "carol/StableBar" },
-      labels: { nodes: [{ name: LABELS.waitingForAuthor.name }] },
-      reviewRequests: { nodes: [] },
-      commits: { nodes: [{ commit: { oid: "sha-close", pushedDate: daysAgo(15), statusCheckRollup: { contexts: { nodes: [] } } } }] },
-      timelineItems: { nodes: [] },
-      reviews: { nodes: [] },
-      reviewThreads: { nodes: [] },
-      comments: { nodes: [botComment(oldNudge, daysAgo(7))] },
+    rest: {
+      actions: {
+        listWorkflowRunsForRepo: async ({ head_sha }) => ({
+          data: {
+            workflow_runs: head_sha === "sha-ready"
+              ? [{ event: "pull_request", head_branch: "fix/ready", head_repository: { full_name: "bob/StableBar" } }]
+              : [],
+          },
+        }),
+      },
+      issues: {
+        createLabel: async (args) => { ops.push(["createLabel", args.name]); },
+        addLabels: async (args) => {
+          if (args.issue_number === 5) throw new Error("Simulated label failure");
+          ops.push(["addLabels", args.issue_number, args.labels]);
+        },
+        removeLabel: async (args) => { ops.push(["removeLabel", args.issue_number, args.name]); },
+        createComment: async (args) => { ops.push(["comment", args.issue_number, args.body]); },
+      },
+      pulls: {
+        update: async (args) => { ops.push(["close", args.pull_number, args.state]); },
+      },
     },
-  ];
+  });
 
   const context = { repo: { owner: "stablebox", repo: "StableBar" } };
-  const logs = [];
-  const core = { info: (msg) => logs.push(msg) };
+  const warnings = [];
+  const core = { info: () => {}, warning: (msg) => warnings.push(msg) };
 
-  // Dry run mutates nothing.
   const dryResults = await runSweep({
-    github: makeGitHub(nodes, new Set(["sha-ready"])),
+    github: makeGitHub(),
     context,
     core,
     dryRun: true,
     now: BASE_TIME,
     fallbackReviewers: ["Seb-GRAF"],
   });
-  assert.deepEqual(dryResults.map((r) => [r.number, r.action]), [[1, "skip"], [2, "remind-maintainers"], [3, "close-author"]]);
-  assert.equal(calls.comments.length, 0);
-  assert.equal(calls.closed.length, 0);
-  assert.equal(calls.labelsAdded.length, 0);
+  assert.deepEqual(
+    dryResults.map((r) => [r.number, r.action]),
+    [[1, "skip"], [2, "remind-maintainers"], [3, "close-author"], [4, "close-author"], [5, "remind-maintainers"], [6, "remind-maintainers"]],
+  );
+  assert.equal(ops.length, 0);
 
-  // Live run labels, comments, and closes appropriately.
-  await runSweep({
-    github: makeGitHub(nodes, new Set(["sha-ready"])),
+  const liveResults = await runSweep({
+    github: makeGitHub(),
     context,
     core,
     dryRun: false,
     now: BASE_TIME,
     fallbackReviewers: ["Seb-GRAF"],
   });
-  assert.deepEqual(calls.labelsCreated, [LABELS.needsReview.name]);
-  assert.deepEqual(calls.labelsAdded, [{ owner: "stablebox", repo: "StableBar", issue_number: 2, labels: [LABELS.needsReview.name] }]);
-  assert.equal(calls.comments.length, 2);
-  assert.equal(calls.comments[0].issue_number, 2);
-  assert.match(calls.comments[0].body, /waiting for approval/);
-  assert.equal(calls.comments[1].issue_number, 3);
-  assert.deepEqual(calls.closed, [{ owner: "stablebox", repo: "StableBar", pull_number: 3, state: "closed" }]);
+  assert.deepEqual(
+    liveResults.map((r) => [r.number, r.action]),
+    [[1, "skip"], [2, "remind-maintainers"], [3, "close-author"], [4, "skip"], [5, "error"], [6, "remind-maintainers"]],
+  );
+  assert.equal(warnings.length, 1);
+
+  // Verify PR #3 closed BEFORE posting the closure notice, and PR #4 was never closed or commented on.
+  const pr3Ops = ops.filter((op) => op[1] === 3).map((op) => op[0]);
+  assert.deepEqual(pr3Ops, ["close", "comment"]);
+  assert.equal(ops.some((op) => op[1] === 4), false);
+  assert.equal(ops.some((op) => op[0] === "comment" && op[1] === 6), true);
 });
 
 test("clearWaitingLabel removes waiting-for-author on community PR activity", async () => {
@@ -572,7 +680,6 @@ test("clearWaitingLabel removes waiting-for-author on community PR activity", as
   assert.equal(cleared, true);
   assert.deepEqual(removed, [{ owner: "stablebox", repo: "StableBar", issue_number: 42, name: LABELS.waitingForAuthor.name }]);
 
-  // Skips team PRs.
   const skipped = await clearWaitingLabel({
     github,
     core,
