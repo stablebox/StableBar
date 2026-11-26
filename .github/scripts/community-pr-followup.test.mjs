@@ -67,7 +67,9 @@ test("isCommunityAuthor excludes team members and bots", () => {
 test("defaultCodeowners parses wildcard user owners and matches the repository file", () => {
   assert.deepEqual(defaultCodeowners("# comment\n* @alice @bob @org/team\n/docs/ @carol\n"), ["alice", "bob"]);
   const repoCodeowners = readFileSync(new URL("../CODEOWNERS", import.meta.url), "utf8");
-  assert.deepEqual(defaultCodeowners(), defaultCodeowners(repoCodeowners));
+  const owners = defaultCodeowners();
+  assert.ok(owners.length > 0);
+  assert.deepEqual(owners, defaultCodeowners(repoCodeowners));
 });
 
 test("readFollowupMarker trusts only bot comments and prefers publication createdAt", () => {

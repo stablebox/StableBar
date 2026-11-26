@@ -618,7 +618,7 @@ const PR_FIELDS = `
     nodes {
       id
       isResolved
-      comments(first: 100) {
+      comments(first: 20) {
         pageInfo { hasNextPage endCursor }
         nodes {
           author { __typename login }
@@ -641,7 +641,7 @@ const PR_FIELDS = `
 const OPEN_PRS_QUERY = `
 query($owner: String!, $repo: String!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
-    pullRequests(states: OPEN, first: 50, after: $cursor, orderBy: { field: CREATED_AT, direction: ASC }) {
+    pullRequests(states: OPEN, first: 25, after: $cursor, orderBy: { field: CREATED_AT, direction: ASC }) {
       pageInfo { hasNextPage endCursor }
       nodes { ${PR_FIELDS} }
     }
