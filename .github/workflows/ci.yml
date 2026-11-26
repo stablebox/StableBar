@@ -832,7 +832,7 @@ jobs:
         run: ./scripts/publish-appcast.sh "$(cat .next-version)"
       - name: Create Homebrew tap token
         id: tap-token
-        if: vars.RELEASE_APP_CLIENT_ID != ''
+        if: github.repository == 'stablebox/StableBar' || vars.RELEASE_APP_CLIENT_ID != ''
         uses: actions/create-github-app-token@v3
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
@@ -841,14 +841,17 @@ jobs:
           repositories: homebrew-tap
           permission-contents: write
       - name: Update the Homebrew cask
-        if: steps.tap-token.outputs.token != ''
+        if: github.repository == 'stablebox/StableBar' || steps.tap-token.outputs.token != ''
         env:
           TAP_TOKEN: ${{ steps.tap-token.outputs.token }}
         run: |
           version=$(cat .next-version)
+          sha=$(shasum -a 256 dist/StableBar.dmg | cut -d ' ' -f 1)
           git clone --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/$GITHUB_REPOSITORY_OWNER/homebrew-tap.git" tap
           sed -i '' -e "s/^  version \".*\"/  version \"$version\"/" \
-            -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 dist/StableBar.dmg | cut -d ' ' -f 1)\"/" tap/Casks/stablebar.rb
+            -e "s/^  sha256 \".*\"/  sha256 \"$sha\"/" tap/Casks/stablebar.rb
+          grep -Fqx "  version \"$version\"" tap/Casks/stablebar.rb
+          grep -Fqx "  sha256 \"$sha\"" tap/Casks/stablebar.rb
           if ! git -C tap diff --quiet; then
             git -C tap -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
               commit -am "stablebar $version"
