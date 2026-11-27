@@ -128,7 +128,7 @@ final class WidgetPopup {
     let pins = PopupPins()
 
     init(present: @escaping (PopupPanel, Bool) -> Void = { panel, onHover in
-        if onHover { panel.orderFront(nil) } else { panel.makeKeyAndOrderFront(nil) }
+        if onHover || !panel.canBecomeKey { panel.orderFront(nil) } else { panel.makeKeyAndOrderFront(nil) }
         panel.makeFirstResponder(nil)
     }, mouseLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }, clock: any Clock<Duration> = ContinuousClock()) {
         self.present = present
@@ -233,7 +233,7 @@ final class WidgetPopup {
     private func keepOpen() {
         pinned = true
         hoverTask?.cancel()
-        if let panel, !panel.isKeyWindow {
+        if let panel, panel.canBecomeKey, !panel.isKeyWindow {
             panel.makeKey()
             panel.makeFirstResponder(nil)
         }
@@ -275,12 +275,15 @@ final class WidgetPopup {
         }
     }
 
-    /// Shows the widget's `row` in a tray under it. `sidePadding` is the widget's own, so the row lines up with it.
+    /// Shows the widget's `row`, an app's menu titles, in a tray under it. `sidePadding` is the widget's own, so the
+    /// row lines up with it.
     func showRow(widget: WidgetConfiguration, defaults: WidgetStyle, store: BarStore, anchor: NSView, sidePadding: Double,
                  @ViewBuilder row: () -> some View) {
         openTooltip(id: widget.id, style: WidgetStyle(background: widget.popupBackground).inheriting(widget.style), defaults: defaults, store: store, anchor: anchor,
                     maxWidth: anchor.window!.screen!.visibleFrame.width - 16, alignment: .leading, sidePadding: sidePadding,
                     ignoresMouseEvents: false) { _ in row() }
+        // Leaves the keyboard with the app unless the bar has it, as under `--focus`.
+        panel!.leavesKeyboard = !anchor.window!.isKeyWindow
         self.store = store
         watchEvents(anchor: anchor, pinnable: false)
     }
@@ -413,6 +416,7 @@ final class WidgetPopup {
                                                   width: width + shadowInset * 2, height: 0),
                                styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.opensUpward = upward
+        if case .appMenu = popup.layout.content { panel.leavesKeyboard = !window.isKeyWindow }
         let host = NSHostingView(rootView: PopupCanvas(size: panel.size, inset: shadowInset, upward: upward) {
             PopupView(popup: popup, style: style, store: store, widget: widget, backgrounds: backgrounds, navigation: panel.navigation,
                       size: panel.size)
@@ -661,7 +665,11 @@ final class WidgetPopup {
             }
             return handled ? nil : event
         }
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+        // A popup that leaves the keyboard with the app in front hears Escape only as that app gets it.
+        var outside: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown]
+        if panel?.leavesKeyboard == true { outside.insert(.keyDown) }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: outside) { [weak self] event in
+            if event.type == .keyDown && event.keyCode != 53 { return }
             MainActor.assumeIsolated {
                 // Answering a permission prompt the popup asked for, such as System Audio Recording, leaves it open.
                 guard !AppWatcher.pointerIsOnPermissionPrompt() else { return }

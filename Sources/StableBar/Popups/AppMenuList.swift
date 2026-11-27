@@ -8,7 +8,7 @@ struct AppMenuList: View {
     @State private var submenu: AXUIElement?
     @State private var keyWidth: CGFloat = 0
     @State private var optionHeld = false
-    @State private var flagsMonitor: Any?
+    @State private var flagsMonitors: [Any] = []
 
     var body: some View {
         let rows = rows
@@ -35,13 +35,21 @@ struct AppMenuList: View {
         .onPreferenceChange(MenuKeyWidth.self) { keyWidth = $0 }
         .onAppear {
             optionHeld = NSEvent.modifierFlags.contains(.option)
-            flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
-                optionHeld = event.modifierFlags.contains(.option)
-                return event
-            }
+            // A menu that leaves the keyboard with the app in front gets no modifier events, as that app does. The global
+            // monitor hears those, with the Accessibility access that app menus need anyway.
+            flagsMonitors = [
+                NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+                    optionHeld = event.modifierFlags.contains(.option)
+                    return event
+                },
+                NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { event in
+                    optionHeld = event.modifierFlags.contains(.option)
+                },
+            ].compactMap { $0 }
         }
         .onDisappear {
-            if let flagsMonitor { NSEvent.removeMonitor(flagsMonitor) }
+            flagsMonitors.forEach(NSEvent.removeMonitor)
+            flagsMonitors = []
         }
     }
 

@@ -11,7 +11,10 @@ final class PopupPanel: NSPanel {
     var opensUpward = false
     /// What resizes a pinnable popup from its edges.
     var resizeEdges: PopupResizeEdges?
-    override var canBecomeKey: Bool { true }
+    /// Leaves the keyboard with the app in front, even when clicked, as a native menu does. For another app's menus: the
+    /// app can drop a command that arrives while none of its windows has the keyboard, as VS Code does.
+    var leavesKeyboard = false
+    override var canBecomeKey: Bool { !leavesKeyboard }
     override var canBecomeMain: Bool { false }
     @objc var hasKeyAppearance: Bool { true }
 

@@ -221,6 +221,7 @@ final class AppMenu: NSObject {
                                                    width: size.width, height: size.height),
                                styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.title = "App submenu"
+        panel.leavesKeyboard = (window as? PopupPanel)?.leavesKeyboard == true
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
