@@ -15,6 +15,12 @@ import Testing
             == BarMotion.smooth.animation)
     }
 
+    @Test func motionNoneChangesTheBarAtOnceWhateverItsDuration() throws {
+        for json in [#"{"motion":"none"}"#, #"{"motion":"none","animationDuration":0.5}"#] {
+            #expect(BarStore.profileChangeAnimation(try bar(json), profilesChange: true, editing: false, reduceMotion: false) == nil)
+        }
+    }
+
     @Test(arguments: [(false, false, false), (true, true, false), (true, false, true)])
     func editsEditingAndReduceMotionChangeTheBarAtOnce(profilesChange: Bool, editing: Bool, reduceMotion: Bool) throws {
         #expect(BarStore.profileChangeAnimation(try bar("{}"), profilesChange: profilesChange, editing: editing,

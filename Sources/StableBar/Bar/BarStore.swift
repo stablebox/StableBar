@@ -168,9 +168,10 @@ final class BarStore: NSObject {
     }
 
     /// How the bar moves to a new configuration: with its motion when profiles change on their own, and
-    /// at once for edits, while the bar is being edited in place and under Reduce Motion.
+    /// at once for edits, while the bar is being edited in place, under Reduce Motion and with motion
+    /// `none`, which `animationDuration` doesn't turn on.
     static func profileChangeAnimation(_ bar: BarSettings, profilesChange: Bool, editing: Bool, reduceMotion: Bool) -> WidgetAnimation? {
-        guard profilesChange, !editing, !reduceMotion else { return nil }
+        guard profilesChange, !editing, !reduceMotion, bar.motion != .none else { return nil }
         return bar.animation
     }
 
