@@ -7,6 +7,9 @@ final class WidgetScripts {
     var actionErrors: [String: String] = [:]
     var scripts: [String: ScriptWidget] = [:]
     var providers: [String: ScriptWidget] = [:]
+    /// Scripts of widgets that are turned off, suspended with their last output, by widget ID. Turned
+    /// on again unchanged, the widget shows that output at once while its script runs.
+    private var parked: [String: (widget: WidgetConfiguration, script: ScriptWidget)] = [:]
     /// Outputs that providers of these types show instead of running, by type, such as setup's sample meeting.
     var setupOutputs: [String: ScriptOutput] = [:] {
         didSet {
@@ -37,6 +40,14 @@ final class WidgetScripts {
     func run(_ next: Configuration) {
         guard let store else { return }
         let previous = store.configuration?.widgets ?? []
+        let environmentChanged = store.configuration?.environment != next.environment
+        let runsSame = { (old: WidgetConfiguration?, new: WidgetConfiguration?) in
+            old?.content == new?.content && old?.timeout == new?.timeout && old?.environment == new?.environment && !environmentChanged
+        }
+        for (id, kept) in parked where !runsSame(kept.widget, next.widgets.first { $0.id == id }) {
+            kept.script.stop()
+            parked.removeValue(forKey: id)
+        }
         for (id, script) in scripts {
             let old = previous.first { $0.id == id }
             let new = next.widgets.first { $0.id == id && $0.enabled }
@@ -44,10 +55,14 @@ final class WidgetScripts {
                 scripts.removeValue(forKey: id)
                 continue
             }
-            if old?.content != new?.content || old?.timeout != new?.timeout
-                || old?.environment != new?.environment || store.configuration?.environment != next.environment {
-                script.stop()
+            if !runsSame(old, new) {
                 scripts.removeValue(forKey: id)
+                if let old, let off = next.widgets.first(where: { $0.id == id && !$0.enabled }), runsSame(old, off) {
+                    script.suspend()
+                    parked[id] = (off, script)
+                } else {
+                    script.stop()
+                }
             }
         }
         let usedProviders = next.activeProviders
@@ -87,6 +102,9 @@ final class WidgetScripts {
         for widget in next.widgets where widget.enabled {
             switch widget.content {
             case let .provider(name): scripts[widget.id] = providers[name]
+            case .script where scripts[widget.id] == nil && parked[widget.id] != nil:
+                // `updateSuspension` resumes it, unless scripts are paused.
+                scripts[widget.id] = parked.removeValue(forKey: widget.id)!.script
             case let .script(command, interval) where scripts[widget.id] == nil:
                 let script = ScriptWidget()
                 scripts[widget.id] = script
@@ -325,6 +343,8 @@ final class WidgetScripts {
 
     func stop() {
         for script in scripts.values { script.stop() }
+        for kept in parked.values { kept.script.stop() }
+        parked.removeAll()
         for provider in providers.values { provider.stop() }
         providers.removeAll()
         scripts.removeAll()

@@ -805,6 +805,83 @@ private func battery(_ state: String) -> ScriptOutput {
     #expect(store.widgetScripts.providers.isEmpty)
 }
 
+/// A widget a profile turns off for a while comes back with what it showed, then runs again.
+@Test @MainActor func aWidgetTurnedOffAndOnAgainShowsItsLastOutputAtOnce() async throws {
+    let url = try writeTemporaryConfiguration(#"""
+    {"widgets":[{"id":"usage","type":"script","position":"right","interval":null,
+      "command":"echo run >> \"$CONFIG_DIR/runs\"; printf 'run %s' $(wc -l < \"$CONFIG_DIR/runs\")"}],
+     "profiles":[{"name":"Elsewhere","when":{"app":"com.example.other"},
+                  "configuration":{"widgetOverrides":{"usage":{"enabled":false}}}}]}
+    """#)
+    defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+    let store = BarStore(configurationURL: url)
+    defer { store.stop() }
+    store.configurationStore.refreshContext(ConfigurationContext(app: "com.example.code"))
+    store.configurationStore.reloadConfiguration()
+    let usage = try #require(store.widgetScripts.scripts["usage"])
+    try await awaitCondition { usage.output.text == "run 1" }
+    store.configurationStore.refreshContext(ConfigurationContext(app: "com.example.other"))
+    #expect(store.widgetScripts.scripts["usage"] == nil)
+    #expect(usage.diagnostics.suspended)
+    store.configurationStore.refreshContext(ConfigurationContext(app: "com.example.code"))
+    #expect(store.widgetScripts.scripts["usage"] === usage)
+    #expect(usage.output.text == "run 1")
+    try await awaitCondition { usage.output.text == "run 2" }
+}
+
+/// A `temporary` that ran out while the widget was turned off doesn't show again when it comes back.
+@Test @MainActor func aWidgetTurnedOnAgainDoesNotReplayAnExpiredTemporary() async throws {
+    let url = try writeTemporaryConfiguration(#"""
+    {"widgets":[{"id":"saver","type":"script","position":"right","interval":null,"command":"sh \"$CONFIG_DIR/run.sh\""}]}
+    """#)
+    let directory = url.deletingLastPathComponent()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try Data(#"""
+    echo run >> "$CONFIG_DIR/runs"
+    n=$(wc -l < "$CONFIG_DIR/runs" | tr -d ' ')
+    if [ "$n" = 1 ]; then printf '{"text":"run 1","temporary":{"fields":{"text":"Saving"},"duration":1}}'
+    else printf '{"text":"run %s"}' "$n"; fi
+    """#.utf8).write(to: directory.appending(path: "run.sh"))
+    let store = BarStore(configurationURL: url)
+    defer { store.stop() }
+    store.configurationStore.reloadConfiguration()
+    let presentation = try #require(store.barPresentation.presentations["saver"])
+    let clock = TestClock()
+    presentation.clock = clock
+    try await awaitCondition { presentation.temporaryFields == ["text": "Saving"] }
+    try await clock.waitForSleepers()
+    clock.advance(by: .seconds(1))
+    try await awaitCondition { presentation.temporaryFields == nil }
+    let saver = try #require(store.widgetScripts.scripts["saver"])
+    try store.configurationStore.applyEdits([ConfigurationEdit(action: .set, id: "saver", properties: ["enabled": .bool(false)])], persist: false)
+    try store.configurationStore.applyEdits([ConfigurationEdit(action: .set, id: "saver", properties: ["enabled": .bool(true)])], persist: false)
+    #expect(store.widgetScripts.scripts["saver"] === saver)
+    #expect(presentation.temporaryFields == nil)
+    try await awaitCondition { saver.output.text == "run 2" }
+    #expect(presentation.temporaryFields == nil)
+}
+
+/// What a widget showed before it was turned off doesn't outlast a change to what it runs.
+@Test @MainActor func aWidgetChangedWhileTurnedOffStartsAfresh() async throws {
+    let url = try writeTemporaryConfiguration(#"""
+    {"widgets":[{"id":"usage","type":"script","position":"right","interval":null,"command":"printf old"}]}
+    """#)
+    defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+    let store = BarStore(configurationURL: url)
+    defer { store.stop() }
+    store.configurationStore.reloadConfiguration()
+    let old = try #require(store.widgetScripts.scripts["usage"])
+    try await awaitCondition { old.output.text == "old" }
+    try store.configurationStore.applyEdits([ConfigurationEdit(action: .set, id: "usage", properties: ["enabled": .bool(false)])], persist: false)
+    try store.configurationStore.applyEdits([ConfigurationEdit(action: .set, id: "usage", properties: ["command": .string("printf new")])],
+                                            persist: false)
+    try store.configurationStore.applyEdits([ConfigurationEdit(action: .set, id: "usage", properties: ["enabled": .bool(true)])], persist: false)
+    let new = try #require(store.widgetScripts.scripts["usage"])
+    #expect(new !== old)
+    #expect(new.output.text != "old")
+    try await awaitCondition { new.output.text == "new" }
+}
+
 @Test @MainActor func aProviderNamedAfterABuiltInSourceKeepsThatSourceFromStarting() async throws {
     let url = try writeTemporaryConfiguration(#"""
     {"providers":{"battery":{"type":"command","command":"printf helper"}},

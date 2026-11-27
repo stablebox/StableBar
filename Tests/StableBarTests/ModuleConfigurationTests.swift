@@ -374,12 +374,12 @@ private func writeConfiguration(_ json: String, to url: URL) throws {
     {"includes":["../shared/status.json"],"widgetOverrides":{"status":{"enabled":true}}}
     """#, to: root)
     for _ in 0..<100 {
-        if store.widgetScripts.scripts["status"]?.output.text == "startup" { break }
+        if store.widgetScripts.scripts["status"]?.output.text == "resume" { break }
         try await Task.sleep(for: .milliseconds(20))
     }
     #expect(store.configuration?.widgets[0].enabled == true)
-    #expect(store.widgetScripts.scripts["status"]?.output.text == "startup")
-    #expect(store.widgetScripts.scripts["status"] !== script)
+    #expect(store.widgetScripts.scripts["status"] === script)
+    #expect(script.output.text == "resume")
     #expect(store.configurationError == nil)
 }
 
