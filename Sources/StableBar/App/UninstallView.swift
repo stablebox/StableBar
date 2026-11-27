@@ -61,7 +61,7 @@ final class UninstallController {
             }
         case .quit:
             Self.endSheets(of: NSApp.windows)
-            NSApp.terminate(nil)
+            QuitLog.quit(.uninstall)
         }
     }
 

@@ -10,7 +10,7 @@ extension BarStore {
                                                         "configuration": .string(configurationStore.sharedConfigurationURL.path)]) { $1 })
         case .quit:
             // Terminating right away would exit before the command gets its reply.
-            Task { NSApp.terminate(nil) }
+            Task { QuitLog.quit(.command) }
         case .customize:
             if let id = request.id { onWindowRequest?(.customizeItem(.widget(id))) }
             else { onWindowRequest?(.customize) }

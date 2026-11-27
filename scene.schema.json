@@ -206,8 +206,8 @@
     "group": { "description": "For `settings`, without `widget`: the group whose page Settings → Bar draws, with its widgets listed under it.", "type": "string" },
     "view": { "description": "For `popup`: the view of the widget's popup to draw in place of its layout, under its back arrow.", "type": "string" },
     "section": {
-      "description": "The Settings section to draw when no widget is named. `help` opens the first answer of its Questions; `feedback` draws Send feedback in Help, with a sample bug, bug report, GitHub account and coding agent; `crashes` draws Crashes in Status, with sample crash reports of a release, of a development build and of a launch that dyld stopped, which Crashes leaves out.",
-      "enum": ["general", "bar", "theme", "profiles", "packages", "help", "feedback", "crashes"]
+      "description": "The Settings section to draw when no widget is named. `help` opens the first answer of its Questions; `feedback` draws Send feedback in Help, with a sample bug, bug report, GitHub account and coding agent; `crashes` draws Crashes in Status, with sample crash reports of a release, of a development build and of a launch that dyld stopped, which Crashes leaves out; `quits` draws Unexpected quits in Status, with sample quits that loginwindow and `osascript` asked for.",
+      "enum": ["general", "bar", "theme", "profiles", "packages", "help", "feedback", "crashes", "quits"]
     },
     "package": { "description": "With section packages, the installed package whose settings to draw.", "type": "string" },
     "themeLink": { "description": "A theme folder relative to this file, opened as a link on Settings Theme. Requires draw settings and section theme, without a widget.", "type": "string" },

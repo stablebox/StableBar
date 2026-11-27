@@ -116,7 +116,12 @@ enum SceneRenderer {
             throw CommandFailure(message: "crashes: No defaults to draw with.")
         }
         let now = DocsImages.date
-        store.crashReports = CrashReports(directories: [crashes], defaults: crashDefaults, now: { now })
+        // Unexpected quits reads these samples, never the quit history of the Mac that draws.
+        let quitFolder = directory.appending(path: "Quits", directoryHint: .isDirectory)
+        try? FileManager.default.removeItem(at: quitFolder)
+        let quits = QuitHistory(directory: quitFolder)
+        if scene.section == .quits { writeQuitSamples(to: quits, now: now) }
+        store.crashReports = CrashReports(directories: [crashes], defaults: crashDefaults, quitHistory: quits, now: { now })
         try DocsImages.offline(store, in: directory)
         store.barPresentation.preparePresentations()
         if let path = scene.themeLink {
@@ -406,10 +411,14 @@ enum SceneRenderer {
                     editor.feedback = feedbackDraft
                 case .crashes:
                     editor.showCrashes()
+                case .quits:
+                    editor.showCrashes()
+                    editor.diagnosticSelection = .quits
                 }
             }
             let waitsForThemes = scene.widget == nil && (scene.section == .theme || scene.tab?.isBarTab == true)
             let waitsForCrashes = scene.widget == nil && scene.section == .crashes
+            let waitsForQuits = scene.widget == nil && scene.section == .quits
             let library = store.packageLibrary
             // A package widget's Content tab loads the package's settings, which a busy Mac can take seconds to do.
             let widgetPackage = scene.widget.flatMap { id in
@@ -432,6 +441,7 @@ enum SceneRenderer {
                     && (store.pendingLinks.bar.map { $0.entries != nil } ?? true)
                     // Crashes marks what it shows as seen once it has read the reports.
                     && (!waitsForCrashes || (!store.crashReports.reports.isEmpty && store.crashReports.unseen.isEmpty))
+                    && (!waitsForQuits || !store.crashReports.quits.isEmpty)
                     && (scene.package == nil || library.draft?.inspection.manifest.id == scene.package)
                     && (widgetPackage.map { id in
                         library.error != nil || library.draft.map { $0.inspection.manifest.id == id && library.isActive($0) } == true
@@ -691,6 +701,21 @@ enum SceneRenderer {
 
     /// The Calendars control's sample Mac: an iCloud account, and a Google account whose main calendar takes its address.
     private static let calendarsSample = ["iCloud": ["Family", "Home", "Work"], "jane@example.com": ["Holidays", "jane@example.com"]]
+
+    /// Quits for Unexpected quits in Status: one loginwindow asked for while the Mac slept, one a script asked for, and
+    /// one from the menu, which the list leaves out.
+    private static func writeQuitSamples(to history: QuitHistory, now: Date) {
+        history.append(QuitRecord(date: now.addingTimeInterval(-4 * 24 * 3600), cause: .menu, version: "0.19.0"), now: now)
+        history.append(QuitRecord(date: now.addingTimeInterval(-3 * 24 * 3600 + 1200), cause: .appleEvent,
+                                  sender: QuitRecord.Sender(pid: 8121, name: "osascript", path: "/usr/bin/osascript",
+                                                            parent: "zsh (8090)"),
+                                  version: "0.19.0"), now: now)
+        history.append(QuitRecord(date: now.addingTimeInterval(-5 * 3600), cause: .appleEvent,
+                                  sender: QuitRecord.Sender(pid: 412, name: "loginwindow", bundleID: "com.apple.loginwindow",
+                                                            path: "/System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow",
+                                                            parent: "launchd (1)"),
+                                  conditions: ["system asleep", "displays asleep"], version: "0.19.0"), now: now)
+    }
 
     /// Crash reports as macOS writes them, for Crashes in Status: one of a release, one of a development build, and one
     /// of a launch that dyld stopped, which Crashes leaves out.

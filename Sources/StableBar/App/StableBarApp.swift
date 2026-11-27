@@ -291,18 +291,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         didSet { updatePanels() }
     }
     private var statusItem: NSStatusItem!
+    let quitHistory: QuitHistory
 
     convenience init(configurationURL: URL) {
-        self.init(store: BarStore(configurationURL: configurationURL))
+        self.init(store: BarStore(configurationURL: configurationURL), quitHistory: .standard)
     }
 
-    init(store: BarStore, panels: [CGDirectDisplayID: BarPanel] = [:]) {
+    /// `quitHistory` defaults to none so a test that quits a delegate leaves the Mac's quit history alone.
+    init(store: BarStore, panels: [CGDirectDisplayID: BarPanel] = [:], quitHistory: QuitHistory = .none) {
         self.store = store
         self.panels = panels
+        self.quitHistory = quitHistory
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        QuitLog.logLaunch(history: quitHistory)
         // Read the small defaults record before the menu or runtime control can open either window.
         store.configurationStore.prepareScreenSetup(ScreenSetup(NSScreen.screens.map(BarDisplay.init)))
         applicationMoveResume.load(for: store)
@@ -359,7 +363,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.control = control
         } catch {
             FileHandle.standardError.write(Data("\(error.localizedDescription)\n".utf8))
-            NSApp.terminate(nil)
+            QuitLog.quit(.controlTaken)
             return
         }
         if Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil {
@@ -630,7 +634,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func openSetup(reopened: Bool) {
         setup.show(store: store, reopened: reopened, editBar: { [weak self] in self?.store.barEditing.begin() })
     }
-    @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func quit() { QuitLog.quit(.menu) }
 
     /// `stablebar://add-source` opens Settings › Store with the Add source form filled in, and `stablebar://package`
     /// opens it on a package; nothing is added until the user confirms.
@@ -648,6 +652,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         store.barEditing.end()
         themeTrial.cancel()
         store.configurationStore.flushCustomization()
+        QuitLog.recordQuit(pauses: store.widgetScripts.pauses, history: quitHistory)
         return .terminateNow
     }
 

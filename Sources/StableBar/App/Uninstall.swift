@@ -52,6 +52,11 @@ struct UninstallSnapshot: Equatable {
             .filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
+    /// What a bar writes as it quits, which can appear after the snapshot, so uninstalling removes it either way.
+    static func writtenWhileQuitting(home: URL) -> [URL] {
+        [home.appending(path: "Library/Application Support/StableBar/Quits", directoryHint: .isDirectory)]
+    }
+
     static let caskrooms = ["/opt/homebrew/Caskroom", "/usr/local/Caskroom"].map { URL(filePath: $0, directoryHint: .isDirectory) }
 
     static func installedByHomebrew(caskrooms: [URL] = caskrooms) -> Bool {
@@ -104,9 +109,17 @@ enum UninstallStep: Hashable {
         case .keychain: "Run security delete-generic-password -s StableBar in Terminal until it finds no item."
         case let .configuration(url): "Move \(abbreviated(url)) to the Trash in Finder."
         case .permissions: "Remove StableBar in System Settings → Privacy & Security → \(MacOSVersion().accessibilityName), Screen Recording, Calendars and Automation."
-        case let .files(urls): "Delete \((urls.map(abbreviated) + ["~/Library/Preferences/org.stablebar.app.plist"]).joined(separator: ", "))."
+        case let .files(urls):
+            "Delete \(Self.listed(urls)), ~/Library/Preferences/org.stablebar.app.plist."
         case .app: "Drag StableBar from Applications to the Trash."
         }
+    }
+}
+
+extension UninstallStep {
+    private static func listed(_ urls: [URL]) -> String {
+        (urls + UninstallSnapshot.writtenWhileQuitting(home: FileManager.default.homeDirectoryForCurrentUser)).map(abbreviated)
+            .joined(separator: ", ")
     }
 }
 
@@ -160,6 +173,18 @@ enum Uninstall {
     static func leftToDo(_ outcomes: [UninstallOutcome]) -> String {
         outcomes.compactMap { outcome in outcome.error.map { "\(outcome.step.title)\n\($0) \(outcome.step.fix)" } }
             .joined(separator: "\n\n")
+    }
+
+    /// The snapshot's files and what the bars wrote as they quit.
+    static func removeFiles(_ urls: [URL], home: URL) throws {
+        let written = UninstallSnapshot.writtenWhileQuitting(home: home)
+        try remove(urls + written)
+        for url in written {
+            let parent = url.deletingLastPathComponent()
+            if (try? FileManager.default.contentsOfDirectory(atPath: parent.path))?.isEmpty == true {
+                try? FileManager.default.removeItem(at: parent)
+            }
+        }
     }
 
     static func remove(_ urls: [URL]) throws {
@@ -252,7 +277,7 @@ enum UninstallSystem {
         case .permissions:
             _ = try await runCommand("/usr/bin/tccutil", arguments: ["reset", "All", bundleID])
         case let .files(urls):
-            try Uninstall.remove(urls)
+            try Uninstall.removeFiles(urls, home: FileManager.default.homeDirectoryForCurrentUser)
             // Deleting the domain leaves an empty property list. UserDefaults writes it seconds later, even after
             // StableBar has quit, while defaults writes it at once, so the file can go too. defaults fails when there's
             // no domain left, as after brew uninstall --zap.

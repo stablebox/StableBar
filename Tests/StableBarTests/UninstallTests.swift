@@ -287,3 +287,32 @@ private let app = URL(filePath: "/Applications/StableBar.app", directoryHint: .i
     #expect(SettingsSearchResult.allCases.filter { $0.matches("uninstall stablebar") } == [.uninstall])
     #expect(SettingsSearchResult.uninstall.matches("remove app"))
 }
+
+@Test func uninstallingRemovesTheQuitHistoryABarWroteAsItQuit() throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let caches = home.appending(path: "Library/Caches/org.stablebar.app", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: caches, withIntermediateDirectories: true)
+    let files = UninstallSnapshot.files(home: home, bundleID: "org.stablebar.app")
+    #expect(files == [caches])
+
+    // The bar records its quit only once uninstalling asks it to quit, after the snapshot.
+    let support = home.appending(path: "Library/Application Support/StableBar", directoryHint: .isDirectory)
+    let quits = support.appending(path: "Quits", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: quits, withIntermediateDirectories: true)
+    try Data("{}".utf8).write(to: quits.appending(path: "1-quit.json"))
+    try Uninstall.removeFiles(files, home: home)
+    #expect(!FileManager.default.fileExists(atPath: caches.path))
+    #expect(!FileManager.default.fileExists(atPath: support.path))
+    // Nothing to remove is fine.
+    try Uninstall.removeFiles(files, home: home)
+
+    // A configuration file kept in Application Support/StableBar survives uninstall.
+    try FileManager.default.createDirectory(at: quits, withIntermediateDirectories: true)
+    let siblingConfig = support.appending(path: "config.json")
+    try Data("{}".utf8).write(to: siblingConfig)
+    try Data("{}".utf8).write(to: quits.appending(path: "2-quit.json"))
+    try Uninstall.removeFiles([], home: home)
+    #expect(!FileManager.default.fileExists(atPath: quits.path))
+    #expect(FileManager.default.fileExists(atPath: siblingConfig.path))
+}

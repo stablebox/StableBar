@@ -314,7 +314,7 @@ private struct BarContextMenu: View {
             item("Share My Bar…", .share) { if let screen = store.barPanel(display)?.screen { barShare.show(store: store, screen: screen) } }
             item("Send Feedback…", .feedback) { NSApp.sendAction(#selector(AppDelegate.showFeedback), to: NSApp.delegate, from: nil) }
             item("Settings…", .settings) { store.onWindowRequest?(.customize) }
-            item("Quit StableBar", .quit) { NSApp.terminate(nil) }
+            item("Quit StableBar", .quit) { QuitLog.quit(.menu) }
         }
         .labelStyle(.titleAndIcon)
     }

@@ -1,0 +1,10 @@
+{
+  "$schema": "../scene.schema.json",
+  "configuration": "../Resources/config.json",
+  "appearances": [
+    "dark"
+  ],
+  "draw": "settings",
+  "section": "quits",
+  "height": 900
+}

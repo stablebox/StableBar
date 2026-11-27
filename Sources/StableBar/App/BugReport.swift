@@ -4,8 +4,8 @@ import EventKit
 import Foundation
 
 /// What Copy bug report in Status and `StableBar --report` give to paste into an issue: versions, this Mac, the
-/// configuration's theme and packages, StableBar's recent crashes and, from a running bar, its access, connection and
-/// problems. Home folders become `~`. Configuration values aren't included, so secrets stay out.
+/// configuration's theme and packages, StableBar's recent crashes and quits and, from a running bar, its access, connection
+/// and problems. Home folders become `~`. Configuration values aren't included, so secrets stay out.
 struct BugReport: Equatable, Sendable {
     /// What only a running bar knows. A report made while no bar runs with the configuration goes without it.
     struct Live: Codable, Equatable, Sendable {
@@ -25,6 +25,8 @@ struct BugReport: Equatable, Sendable {
     var packages: [String]
     var workspaceTool: String
     var crashes: [String]
+    /// The last quits, newest first, which tell a quit someone chose from one another process asked for.
+    var quits: [String] = []
     var live: Live?
     /// Whether a bar runs with the configuration even though `live` is missing, as when it predates the report request.
     var barRunning = false
@@ -55,8 +57,11 @@ struct BugReport: Equatable, Sendable {
         }
         lines += list(crashes.isEmpty ? "Crashes in the last 30 days" : "Crashes in the last 30 days (Settings → Status → Crashes has each report)",
                       crashes)
+        if !quits.isEmpty { lines += list("Recent quits", quits) }
         return CrashReport.redacted(lines.joined(separator: "\n"))
     }
+
+    static let quitLimit = 5
 
     /// Gathers everything but `live` from this Mac, the configuration file and the crash reports.
     @MainActor static func gather(configuration url: URL, live: Live?, barRunning: Bool = false, path: String) async -> BugReport {
@@ -64,10 +69,14 @@ struct BugReport: Equatable, Sendable {
         let crashes = await Task.detached(priority: .userInitiated) {
             CrashReports.read(CrashReports.folders, since: Date().addingTimeInterval(-CrashReports.window)).map(\.summary)
         }.value
+        let quits = await Task.detached(priority: .userInitiated) {
+            QuitHistory.standard.records().prefix(quitLimit).map { $0.summary() }
+        }.value
         return BugReport(version: MacFacts.version, system: MacFacts.system, mac: MacFacts.mac, displays: MacFacts.displays,
                          configuration: "\(url.path), \(summary.text)", theme: summary.theme, packages: summary.packages,
-                         workspaceTool: await workspaceTool(summary.workspaceSource, path: path), crashes: crashes, live: live,
-                         barRunning: barRunning)
+                         workspaceTool: await workspaceTool(summary.workspaceSource, path: path), crashes: crashes,
+                         quits: quits,
+                         live: live, barRunning: barRunning)
     }
 
     /// The workspace manager the configuration's widgets read, with its version and where it is.
