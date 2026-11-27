@@ -15,7 +15,7 @@ final class ApplicationMoveController {
          error: String? = nil,
          relaunch: @escaping @Sendable (ApplicationMoveTransaction, ApplicationMoveResume) async throws -> Void = {
              try await ApplicationMoveRelaunch.prepare($0, resume: $1)
-         }, quit: @escaping () -> Void = { NSApp.terminate(nil) }) {
+         }, quit: @escaping () -> Void = { QuitLog.quit(.applicationMove) }) {
         self.isInApplications = isInApplications
         self.mover = mover
         self.error = error

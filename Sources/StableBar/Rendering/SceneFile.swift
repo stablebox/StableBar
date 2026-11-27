@@ -12,7 +12,7 @@ struct SceneFile: Decodable {
     }
     enum Appearance: String, Decodable, CaseIterable { case dark, light }
     /// A Settings section, named as the toolbar names it, `feedback` for Send feedback in Help, or `crashes` for Crashes in Status.
-    enum Section: String, Decodable, CaseIterable { case general, bar, theme, profiles, packages, help, feedback, crashes }
+    enum Section: String, Decodable, CaseIterable { case general, bar, theme, profiles, packages, help, feedback, crashes, quits }
     /// A tab of a widget's Settings page (content, style, behavior), or, without a widget in the Bar or Theme section, Appearance's
     /// Bar page, which holds what the bar's look and placement tabs held (look, placement).
     enum Tab: String, Decodable, CaseIterable {

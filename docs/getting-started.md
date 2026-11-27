@@ -178,4 +178,4 @@ If StableBar is already gone, undo its changes by hand:
 1. Turn off **Automatically hide and show the menu bar** in **System Settings → Menu Bar**, or **Control Center** before macOS 26.
 2. Remove StableBar from **System Settings → General → Login Items** and from **Accessibility** (**Device Control and Data Access** from macOS 27), **Screen Recording**, **Calendars**, **Automation** and **Location Services** in **System Settings → Privacy & Security**.
 3. Run `sudo rm /usr/local/bin/stablebar` if StableBar installed that command, and `security delete-generic-password -s StableBar` until it finds no item.
-4. Delete `~/.config/stablebar`, `~/Library/Caches/org.stablebar.app`, `~/Library/Caches/org.stablebar.app.sparkle`, `~/Library/Caches/StableBar`, `~/Library/HTTPStorages/org.stablebar.app` and `~/Library/Preferences/org.stablebar.app.plist`.
+4. Delete `~/.config/stablebar`, `~/Library/Caches/org.stablebar.app`, `~/Library/Caches/org.stablebar.app.sparkle`, `~/Library/Caches/StableBar`, `~/Library/HTTPStorages/org.stablebar.app`, `~/Library/Application Support/StableBar/Quits` and `~/Library/Preferences/org.stablebar.app.plist`.

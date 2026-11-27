@@ -57,9 +57,9 @@ enum WidgetStatus: Equatable {
     }
 }
 
-/// What Status shows: the overview of every widget, StableBar's recent crashes or one widget.
+/// What Status shows: the overview of every widget, StableBar's recent crashes or unexpected quits, or one widget.
 enum DiagnosticsSelection: Hashable {
-    case overview, crashes, widget(String)
+    case overview, crashes, quits, widget(String)
 }
 
 struct DiagnosticsView: View {
@@ -112,6 +112,8 @@ struct DiagnosticsView: View {
                 }
                 if editor.diagnosticSelection == .crashes {
                     CrashesView(crashes: store.crashReports)
+                } else if editor.diagnosticSelection == .quits {
+                    QuitsView(crashes: store.crashReports)
                 } else if let widget = widgets.first(where: { $0.id == selectedID }) {
                     details(widget)
                 } else {
@@ -148,6 +150,18 @@ struct DiagnosticsView: View {
                 Image(systemName: "exclamationmark.octagon")
             }
             .tag(DiagnosticsSelection.crashes)
+            if !crashes.quits.isEmpty || editor.diagnosticSelection == .quits {
+                Label {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Unexpected quits").foregroundStyle(.primary)
+                        Text(crashes.quits.isEmpty ? "None in 30 days" : "\(crashes.quits.count) in 30 days")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "power")
+                }
+                .tag(DiagnosticsSelection.quits)
+            }
             ForEach(widgets.sorted { needingAttention.contains($0.id) && !needingAttention.contains($1.id) }) { widget in
                 let status = store.widgetScripts.widgetStatus(for: widget)
                 Label {
@@ -177,6 +191,12 @@ struct DiagnosticsView: View {
                     LabeledContent("Crashes in the last 30 days") {
                         Text(String(store.crashReports.reports.count))
                         Button("Show") { editor.diagnosticSelection = .crashes }
+                    }
+                }
+                if !store.crashReports.quits.isEmpty {
+                    LabeledContent("Unexpected quits in the last 30 days") {
+                        Text(String(store.crashReports.quits.count))
+                        Button("Show") { editor.diagnosticSelection = .quits }
                     }
                 }
             } header: {

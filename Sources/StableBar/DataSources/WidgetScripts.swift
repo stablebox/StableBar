@@ -25,7 +25,7 @@ final class WidgetScripts {
         }
     }
     private var visibleWidgets: [Int: Set<String>] = [:]
-    private var pauses: Set<PauseReason> = []
+    private(set) var pauses: Set<PauseReason> = []
     var popupWidgetID: String?
     private(set) var inspectedWidgetID: String?
     private(set) var inspectorOpen = false

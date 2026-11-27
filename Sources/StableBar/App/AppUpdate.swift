@@ -99,6 +99,14 @@ final class AppUpdate: NSObject, SPUUserDriver, SPUUpdaterDelegate {
         updater.checkForUpdateInformation()
     }
 
+    func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
+        QuitLog.expect(.update)
+    }
+
+    func updater(_ updater: SPUUpdater, didAbortWithError error: any Error) {
+        QuitLog.forget(.update)
+    }
+
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         foundUpdate = true
     }
@@ -273,6 +281,8 @@ final class AppUpdate: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     }
 
     func dismissUpdateInstallation() {
+        // Sparkle ends the session without quitting when an installation fails or is cancelled.
+        QuitLog.forget(.update)
         reply = nil
         if keepingOffer { return }
         version = nil
