@@ -636,33 +636,40 @@ final class WidgetPopup {
         }
     }
 
+    /// Whether the open popup keeps `event`, one for a StableBar window, from reaching it. On the way, the event can close
+    /// the popup or hold it open.
+    func consumes(_ event: NSEvent, anchor: NSView) -> Bool {
+        // A window of the popup's own, such as a chooser's panel, handles its events like the popup. A click further up
+        // counts as inside too, as in a submenu of a menu opened from a tray, while Escape there still closes the tray:
+        // the submenu has no handler for it.
+        guard event.window?.parent == nil || event.window?.parent !== panel else { return false }
+        if event.type != .keyDown, event.window?.isDescendant(of: panel) == true { return false }
+        if event.type == .keyDown {
+            if event.keyCode == 53 {
+                let navigation = panel!.navigation
+                if navigation.view == nil { close() } else { navigation.view = nil }
+                return true
+            }
+        } else if event.type == .leftMouseUp {
+            if closesAfterClick { Task { @MainActor in if closesAfterClick { close() } } }
+        } else if event.window === panel {
+            keepOpen()
+        } else {
+            let onAnchor = event.window === anchor.window && anchor.bounds.contains(anchor.convert(event.locationInWindow, from: nil))
+            if !onAnchor {
+                if morphPopups && event.type == .leftMouseDown && event.window === anchor.window {
+                    closesAfterClick = true
+                } else {
+                    close()
+                }
+            }
+        }
+        return false
+    }
+
     private func watchEvents(anchor: NSView, pinnable: Bool) {
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .rightMouseDown, .keyDown]) { [weak self] event in
-            let handled = MainActor.assumeIsolated {
-                // A window of the popup's own, such as a chooser's panel, handles its events like the popup.
-                guard let self, event.window?.parent == nil || event.window?.parent !== self.panel else { return false }
-                if event.type == .keyDown {
-                    if event.keyCode == 53 {
-                        let navigation = self.panel!.navigation
-                        if navigation.view == nil { self.close() } else { navigation.view = nil }
-                        return true
-                    }
-                } else if event.type == .leftMouseUp {
-                    if self.closesAfterClick { Task { @MainActor in if self.closesAfterClick { self.close() } } }
-                } else if event.window === self.panel {
-                    self.keepOpen()
-                } else {
-                    let onAnchor = event.window === anchor.window && anchor.bounds.contains(anchor.convert(event.locationInWindow, from: nil))
-                    if !onAnchor {
-                        if self.morphPopups && event.type == .leftMouseDown && event.window === anchor.window {
-                            self.closesAfterClick = true
-                        } else {
-                            self.close()
-                        }
-                    }
-                }
-                return false
-            }
+            let handled = MainActor.assumeIsolated { self?.consumes(event, anchor: anchor) == true }
             return handled ? nil : event
         }
         // A popup that leaves the keyboard with the app in front hears Escape only as that app gets it.
@@ -918,6 +925,14 @@ final class WidgetPopup {
 
     func removeAnchor(_ view: NSView) {
         if anchor === view || hoveredAnchor === view { close() }
+    }
+}
+
+private extension NSWindow {
+    /// Whether this window is a child of `window`, directly or through other windows.
+    func isDescendant(of window: NSWindow?) -> Bool {
+        guard let parent else { return false }
+        return parent === window || parent.isDescendant(of: window)
     }
 }
 
