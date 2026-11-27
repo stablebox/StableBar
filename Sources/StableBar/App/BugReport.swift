@@ -69,10 +69,13 @@ struct BugReport: Equatable, Sendable {
         let crashes = await Task.detached(priority: .userInitiated) {
             CrashReports.read(CrashReports.folders, since: Date().addingTimeInterval(-CrashReports.window)).map(\.summary)
         }.value
+        let quits = await Task.detached(priority: .userInitiated) {
+            QuitHistory.standard.records().prefix(quitLimit).map { $0.summary() }
+        }.value
         return BugReport(version: MacFacts.version, system: MacFacts.system, mac: MacFacts.mac, displays: MacFacts.displays,
                          configuration: "\(url.path), \(summary.text)", theme: summary.theme, packages: summary.packages,
                          workspaceTool: await workspaceTool(summary.workspaceSource, path: path), crashes: crashes,
-                         quits: QuitHistory.standard.records().prefix(quitLimit).map { $0.summary() },
+                         quits: quits,
                          live: live, barRunning: barRunning)
     }
 

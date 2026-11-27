@@ -30,7 +30,7 @@ final class CrashReports {
     @ObservationIgnored private let quitHistory: QuitHistory
     @ObservationIgnored private var quitGeneration = 0
 
-    init(directories: [URL] = CrashReports.folders, defaults: UserDefaults = .standard, quitHistory: QuitHistory = .standard,
+    init(directories: [URL] = CrashReports.folders, defaults: UserDefaults = .standard, quitHistory: QuitHistory = .none,
          now: @escaping @Sendable () -> Date = { Date() }) {
         self.directories = directories
         self.defaults = defaults

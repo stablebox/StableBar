@@ -21,7 +21,7 @@ final class BarStore: NSObject {
     let windowClearance = WindowClearance()
     let menuBarDelay = MenuBarDelay()
     let appMenu: AppMenu
-    var crashReports = CrashReports()
+    var crashReports = CrashReports(quitHistory: .standard)
     let popup: WidgetPopup
     let innerPopup = WidgetPopup()
     var update: AppUpdate?

@@ -243,15 +243,20 @@ struct QuitHistory: Sendable {
         stored().map(\.record).filter { now.timeIntervalSince($0.date) < Self.window }.sorted(by: Self.newestFirst)
     }
 
-    /// Writes `record` to a file of its own, then removes the quits past 30 days and beyond the newest ten.
+    /// Writes `record` to a file of its own, then removes the quits past 30 days and beyond the newest ten. Unexpected
+    /// quits count apart from the others, so quitting and updating StableBar never push them out of Status.
     func append(_ record: QuitRecord, now: Date = Date()) {
         guard let directory, let data = try? JSONEncoder().encode(record) else { return }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let name = "\(Int64(record.date.timeIntervalSince1970 * 1000))-\(UUID().uuidString).json"
         try? data.write(to: directory.appending(path: name), options: .atomic)
-        let kept = stored().sorted { Self.newestFirst($0.record, $1.record) }
-        for (index, entry) in kept.enumerated() where index >= Self.limit || now.timeIntervalSince(entry.record.date) >= Self.window {
-            try? FileManager.default.removeItem(at: entry.file)
+        var counts: [Bool: Int] = [:]
+        for entry in stored().sorted(by: { Self.newestFirst($0.record, $1.record) }) {
+            let index = counts[entry.record.isUnexpected, default: 0]
+            counts[entry.record.isUnexpected] = index + 1
+            if index >= Self.limit || now.timeIntervalSince(entry.record.date) >= Self.window {
+                try? FileManager.default.removeItem(at: entry.file)
+            }
         }
     }
 

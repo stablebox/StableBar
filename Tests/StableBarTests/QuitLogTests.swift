@@ -205,6 +205,20 @@ private func ownAuditToken() throws -> Data {
     #expect(FileManager.default.fileExists(atPath: future.path))
 }
 
+@Test func quitsYouChoseNeverPushOutUnexpectedOnes() {
+    let folder = temporaryFolder()
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let history = QuitHistory(directory: folder)
+    let unexpected = QuitRecord(date: date.addingTimeInterval(-3600), cause: .appleEvent, reason: "quit")
+    history.append(unexpected, now: date)
+    for minute in (0..<(QuitHistory.limit + 2)).reversed() {
+        history.append(QuitRecord(date: date.addingTimeInterval(-Double(minute) * 60), cause: .menu), now: date)
+    }
+    let records = history.records(now: date)
+    #expect(records.filter { !$0.isUnexpected }.count == QuitHistory.limit)
+    #expect(records.filter(\.isUnexpected).map(\.date) == [unexpected.date])
+}
+
 @Test func quitsWrittenAtOnceAndDismissedMeanwhileAreAllKept() async throws {
     let folder = temporaryFolder()
     defer { try? FileManager.default.removeItem(at: folder) }
