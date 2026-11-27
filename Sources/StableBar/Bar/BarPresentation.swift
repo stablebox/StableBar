@@ -84,8 +84,12 @@ final class BarPresentation {
                                              display: script?.output.display,
                                              visibility: visibilityAnimation(widget.transition ?? configuration.bar.motion.transition, animation: animation,
                                                                              reduceMotion: reduceMotion))
-            presentations[widget.id]?.show(script?.output.temporary, output: script?.outputNumber ?? 0,
-                                           animation: reduceMotion ? nil : animation)
+            // A widget turned off has no script; its output number stays, so the parked script's last
+            // `temporary`, shown already, doesn't show again when the widget comes back.
+            if let script {
+                presentations[widget.id]?.show(script.output.temporary, output: script.outputNumber,
+                                               animation: reduceMotion ? nil : animation)
+            }
         }
         let bar = resolveStyle(barStyleLayers(configuration.bar.style, overrides: overrides), states: StyleStates(mode: mode))
         if barStyle != bar { barStyle = bar }
