@@ -4,6 +4,7 @@ import SwiftUI
 enum MarkdownBlock: Equatable {
     case paragraph(String)
     case heading(String)
+    case blockquote(String)
     /// A list item, its marker a bullet or the item's number, indented by `depth`.
     case item(marker: String, text: String, depth: Int)
     case code(String)
@@ -15,6 +16,8 @@ enum MarkdownBlock: Equatable {
         var blocks: [MarkdownBlock] = []
         // The lines of a paragraph, or of a table when they start with a pipe.
         var paragraph: [Substring] = []
+        var quote: [Substring] = []
+        var quotedParagraphLines: IndexSet?
         var code: [Substring]?
         // The open code block's fence, which only a run of its character at least as long closes.
         var opener: Substring = ""
@@ -26,7 +29,26 @@ enum MarkdownBlock: Equatable {
             }
             paragraph = []
         }
-        for line in markdown.split(separator: "\n", omittingEmptySubsequences: false) {
+        func endQuote() {
+            guard !quote.isEmpty else { return }
+            blocks.append(.blockquote(quote.joined(separator: "\n")))
+            quote = []
+        }
+        for (index, line) in markdown.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+            if code == nil, let quoted = line.wholeMatch(of: /[ ]{0,3}>[ \t]?(.*)/) {
+                endParagraph()
+                quote.append(quoted.1)
+                continue
+            }
+            if !quote.isEmpty, !line.allSatisfy(\.isWhitespace) {
+                let lines = quotedParagraphLines ?? quoteParagraphLines(in: markdown)
+                quotedParagraphLines = lines
+                if lines.contains(index + 1) {
+                    quote.append(line)
+                    continue
+                }
+            }
+            endQuote()
             let fence = fence(line)
             if let lines = code {
                 if let fence, fence.run.first == opener.first, fence.run.count >= opener.count, fence.rest.allSatisfy(\.isWhitespace) {
@@ -54,7 +76,23 @@ enum MarkdownBlock: Equatable {
         }
         if let code { blocks.append(.code(code.joined(separator: "\n"))) }
         endParagraph()
+        endQuote()
         return blocks
+    }
+
+    /// Foundation's block parser decides which unmarked lines continue a quoted paragraph.
+    private static func quoteParagraphLines(in markdown: String) -> IndexSet {
+        var lines = IndexSet()
+        guard let parsed = try? AttributedString(markdown: markdown, options: .init(appliesSourcePositionAttributes: true))
+        else { return lines }
+        for run in parsed.runs {
+            guard let position = run.markdownSourcePosition, position.startLine <= position.endLine,
+                  let components = run.presentationIntent?.components, components.first?.kind == .paragraph,
+                  components.contains(where: { $0.kind == .blockQuote })
+            else { continue }
+            lines.insert(integersIn: position.startLine ... position.endLine)
+        }
+        return lines
     }
 
     /// The run of three or more backticks or tildes that starts a code fence on `line`, and what follows it.
@@ -77,7 +115,7 @@ enum MarkdownBlock: Equatable {
     }
 }
 
-/// Markdown drawn block by block: paragraphs, headings, lists, code and tables.
+/// Markdown drawn block by block: paragraphs, headings, blockquotes, lists, code and tables.
 struct MarkdownBlocks: View {
     let markdown: String
 
@@ -89,6 +127,12 @@ struct MarkdownBlocks: View {
                     Self.inline(text)
                 case let .heading(text):
                     Self.inline(text).fontWeight(.semibold)
+                case let .blockquote(text):
+                    Self.inline(text)
+                        .padding(.leading, 10)
+                        .overlay(alignment: .leading) {
+                            Rectangle().fill(.foreground.opacity(0.3)).frame(width: 2)
+                        }
                 case let .item(marker, text, depth):
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(marker)

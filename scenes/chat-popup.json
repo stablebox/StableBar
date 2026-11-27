@@ -288,7 +288,7 @@
         "turns": [
           {
             "question": "How much does 3D printing filament cost in Switzerland?",
-            "answer": "Filament usually costs about **CHF 20–30 per 1 kg spool**.\n\n| Material | Price (1 kg) |\n|---|---|\n| PLA | CHF 20–25 |\n| PETG | CHF 20–30 |\n| ABS / ASA | CHF 25–35 |\n\n- **PLA** is the easiest to print.\n- **PETG** is tougher and handles heat better.",
+            "answer": "Filament usually costs about **CHF 20–30 per 1 kg spool**.\n\n| Material | Price (1 kg) |\n|---|---|\n| PLA | CHF 20–25 |\n| PETG | CHF 20–30 |\n| ABS / ASA | CHF 25–35 |\n\n> **PLA** is the easiest to print.\n>\n> **PETG** is tougher and handles heat better.",
             "copy": "true",
             "retry": ""
           },

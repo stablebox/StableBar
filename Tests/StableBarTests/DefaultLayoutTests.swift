@@ -342,6 +342,42 @@ func listEntriesDrawInOrderWithTheirSpacing(direction: (property: String, type: 
     #expect(MarkdownBlock.blocks("~~~\n```\n~~~") == [.code("```")])
 }
 
+@Test func markdownAnswersGroupQuotedLinesAndPreserveParagraphBreaks() {
+    let answer = """
+    Here is a draft.
+    > First line
+    >
+      > **Second paragraph**
+
+    What changed
+
+    >Another quote
+    """
+    #expect(MarkdownBlock.blocks(answer) == [
+        .paragraph("Here is a draft."),
+        .blockquote("First line\n\n**Second paragraph**"),
+        .paragraph("What changed"),
+        .blockquote("Another quote")
+    ])
+
+    #expect(MarkdownBlock.blocks("~~~\n> quoted literally\n~~~") == [.code("> quoted literally")])
+    #expect(MarkdownBlock.blocks(#"\> escaped marker"#) == [.paragraph(#"\> escaped marker"#)])
+}
+
+@Test func markdownAnswersKeepUnmarkedParagraphContinuationsInBlockquotes() {
+    #expect(MarkdownBlock.blocks("> First line\n**Second line**\n> Third line\n# Outside") == [
+        .blockquote("First line\n**Second line**\nThird line"),
+        .heading("Outside")
+    ])
+    #expect(MarkdownBlock.blocks("> Quoted\n\nOutside") == [.blockquote("Quoted"), .paragraph("Outside")])
+    #expect(MarkdownBlock.blocks("> Quoted\n>\nOutside") == [.blockquote("Quoted\n"), .paragraph("Outside")])
+    #expect(MarkdownBlock.blocks("> Quoted\n- Outside") == [.blockquote("Quoted"), .item(marker: "•", text: "Outside", depth: 0)])
+    #expect(MarkdownBlock.blocks("> Quoted\n~~~\nOutside\n~~~") == [.blockquote("Quoted"), .code("Outside")])
+    #expect(MarkdownBlock.blocks("> Quoted\n---") == [.blockquote("Quoted"), .paragraph("---")])
+    #expect(MarkdownBlock.blocks("> ## Heading\nOutside") == [.blockquote("## Heading"), .paragraph("Outside")])
+    #expect(MarkdownBlock.blocks("> ~~~\n> code\nOutside") == [.blockquote("~~~\ncode"), .paragraph("Outside")])
+}
+
 /// A drawing is one frame, so this checks the still shapes: playing in the measuring copy and under
 /// Reduce Motion, and settled when the source is off.
 @Test @MainActor func equalizersDrawStillWhileMeasuredAndSettleWhenTheirSourceIsOff() throws {
