@@ -101,7 +101,7 @@ final class ConfigurationStore {
         let reload = nextWithSameAppAndDisplays != context || (next.app != context.app && configurationLoader.matchesApps)
             || (next.displays != context.displays && configurationLoader.matchesDisplays)
         context = next
-        if reload { readConfiguration(leavingEditMode: false) }
+        if reload { readConfiguration(leavingEditMode: false, profilesChange: true) }
     }
 
     func scheduleReload() {
@@ -125,7 +125,7 @@ final class ConfigurationStore {
         readConfiguration(leavingEditMode: false)
     }
 
-    private func readConfiguration(leavingEditMode: Bool) {
+    private func readConfiguration(leavingEditMode: Bool, profilesChange: Bool = false) {
         guard let store else { return }
         if leavingEditMode { store.barEditing.end() }
         defer { configurationWatcher.watch(configurationLoader.dependencies) }
@@ -146,7 +146,7 @@ final class ConfigurationStore {
                 let root = try editedDocument([])
                 next = try configurationLoader.load(configurationURL, data: configurationData(root), context: context)
             }
-            apply(next)
+            apply(next, profilesChange: profilesChange)
         } catch {
             store.configurationError = errorMessage(error)
         }
@@ -471,16 +471,16 @@ final class ConfigurationStore {
         if fromCustomization { store.customizationHistory.dropUnavailableHistory() }
     }
 
-    private func apply(_ next: Configuration) {
+    private func apply(_ next: Configuration, profilesChange: Bool = false) {
         guard let store else { return }
         normalComposition = (next, configurationLoader)
         if let triedTheme {
             do {
                 let (preview, loader) = try configurationTryingTheme(triedTheme.choice, edits: triedTheme.edits)
-                store.display(preview, loader: loader)
+                store.display(preview, loader: loader, profilesChange: profilesChange)
             } catch { store.configurationError = errorMessage(error) }
         } else {
-            store.display(next, loader: configurationLoader)
+            store.display(next, loader: configurationLoader, profilesChange: profilesChange)
         }
     }
 

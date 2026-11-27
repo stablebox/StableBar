@@ -126,7 +126,9 @@ final class BarStore: NSObject {
         barPresentation.preparePresentations()
     }
 
-    func display(_ next: Configuration, loader: ConfigurationLoader) {
+    /// Shows `next`. With `profilesChange`, the active profiles changed with the situation, such as the
+    /// app in front, so widgets join and leave the bar with their transitions.
+    func display(_ next: Configuration, loader: ConfigurationLoader, profilesChange: Bool = false) {
         let profilesChanged = profiles != loader.profiles
         adopt(loader)
         if effectiveDocument == loader.document, screenDocuments == loader.screenDocuments, configuration?.providers == next.providers {
@@ -139,12 +141,20 @@ final class BarStore: NSObject {
         }
         popup.close()
         widgetScripts.run(next)
-        configuration = next
-        managesConnections = true
-        appWatcher.readAppMenu()
-        appWatcher.readMenuBarItems()
-        appMenu.mirror.references = next.liveMenuBarItems
-        barPresentation.preparePresentations()
+        let show = {
+            self.configuration = next
+            self.managesConnections = true
+            self.appWatcher.readAppMenu()
+            self.appWatcher.readMenuBarItems()
+            self.appMenu.mirror.references = next.liveMenuBarItems
+            self.barPresentation.preparePresentations()
+        }
+        if let animation = BarStore.profileChangeAnimation(next.bar, profilesChange: profilesChange, editing: barEditing.isActive,
+                                                           reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion) {
+            animation.animate(show)
+        } else {
+            show()
+        }
         effectiveDocument = loader.document
         let sources = configurationStore.packageSources.filter { !$0.isStore }
         Task { [packageStoreClient] in await packageStoreClient.setPrivateSources(sources) }
@@ -155,6 +165,13 @@ final class BarStore: NSObject {
         widgetScripts.observeEvents(of: next)
         widgetScripts.updateSuspension()
         onConfigurationChange?()
+    }
+
+    /// How the bar moves to a new configuration: with its motion when profiles change on their own, and
+    /// at once for edits, while the bar is being edited in place and under Reduce Motion.
+    static func profileChangeAnimation(_ bar: BarSettings, profilesChange: Bool, editing: Bool, reduceMotion: Bool) -> WidgetAnimation? {
+        guard profilesChange, !editing, !reduceMotion else { return nil }
+        return bar.animation
     }
 
     func setPopupVisibleWidget(_ id: String?, anchor: NSView? = nil) {
