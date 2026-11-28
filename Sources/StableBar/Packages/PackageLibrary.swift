@@ -187,10 +187,17 @@ final class PackageLibrary {
     }
 
     func update(for manifest: WidgetPackageManifest) -> PackageIndex.Entry? {
-        guard let sourceID = updateSourceID(for: manifest) else { return nil }
-        return entries.first {
+        guard let sourceID = updateSourceID(for: manifest), let entry = entries.first(where: {
             $0.sourceID == sourceID && $0.id == manifest.id && $0.version.compare(manifest.version, options: .numeric) == .orderedDescending
+        }) else { return nil }
+        // An older copy has nothing to get once the source's own copy of that version, or a later one, is installed.
+        // A folder build of the version doesn't count: it may hold other files.
+        let record = records[manifest.id]
+        let alreadyInstalled = installed.contains {
+            $0.id == manifest.id && $0.version.compare(entry.version, options: .numeric) != .orderedAscending
+                && record?.isLocal(version: $0.version) != true
         }
+        return alreadyInstalled ? nil : entry
     }
 
     /// The name of the other source that installed this entry's ID, which must be uninstalled before getting it.
@@ -202,9 +209,12 @@ final class PackageLibrary {
     var updates: [WidgetPackageManifest] { installedPackages.filter { update(for: $0) != nil } }
 
     func update(_ manifest: WidgetPackageManifest) async {
-        guard let store, let entry = update(for: manifest) else { return }
+        guard store != nil, update(for: manifest) != nil else { return }
         updating.insert(manifest.id)
         defer { updating.remove(manifest.id) }
+        // The version may have been installed since the list was read, such as from the command line.
+        await loadInstalled()
+        guard let store, let entry = update(for: manifest) else { return }
         do {
             let downloaded = try await client.packageForAdding(entry)
             let values = try downloaded.manifest.values(WidgetSetup(store: store).savedSettings(for: downloaded.manifest))
