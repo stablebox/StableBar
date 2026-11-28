@@ -187,10 +187,21 @@ final class PackageLibrary {
     }
 
     func update(for manifest: WidgetPackageManifest) -> PackageIndex.Entry? {
-        guard let sourceID = updateSourceID(for: manifest) else { return nil }
-        return entries.first {
+        guard let sourceID = updateSourceID(for: manifest), let entry = entries.first(where: {
             $0.sourceID == sourceID && $0.id == manifest.id && $0.version.compare(manifest.version, options: .numeric) == .orderedDescending
-        }
+        }) else { return nil }
+        // An older copy has nothing to get once the source's own copy of that version, or a later one, is installed.
+        guard let newest = newestVersion(of: manifest.id, from: sourceID),
+              newest.compare(entry.version, options: .numeric) != .orderedAscending else { return entry }
+        return nil
+    }
+
+    /// The newest installed version that holds the source's own files.
+    /// A folder build, or a copy without a record, doesn't count: it may hold other files.
+    private func newestVersion(of id: String, from sourceID: String?) -> String? {
+        guard let record = records[id], record.source == sourceID else { return nil }
+        return installed.filter { $0.id == id && !record.isLocal(version: $0.version) }.map(\.version)
+            .max { $0.compare($1, options: .numeric) == .orderedAscending }
     }
 
     /// The name of the other source that installed this entry's ID, which must be uninstalled before getting it.
@@ -202,9 +213,12 @@ final class PackageLibrary {
     var updates: [WidgetPackageManifest] { installedPackages.filter { update(for: $0) != nil } }
 
     func update(_ manifest: WidgetPackageManifest) async {
-        guard let store, let entry = update(for: manifest) else { return }
+        guard store != nil, let offered = update(for: manifest)?.key else { return }
         updating.insert(manifest.id)
         defer { updating.remove(manifest.id) }
+        // The version may have been installed since the list was read, such as from the command line.
+        // When the offer changed, the page shows the new one instead of applying it unseen.
+        guard await loadInstalled(), let store, let entry = update(for: manifest), entry.key == offered else { return }
         do {
             let downloaded = try await client.packageForAdding(entry)
             let values = try downloaded.manifest.values(WidgetSetup(store: store).savedSettings(for: downloaded.manifest))
@@ -247,6 +261,15 @@ final class PackageLibrary {
     private func applyUpdate(_ draft: PackageDraft) async throws {
         guard let store else { return }
         let manifest = draft.inspection.manifest
+        // The access review can stay open while this version, or a later one, is installed elsewhere.
+        // Applying it then would move the bar back to the reviewed version.
+        try await reloadInstalled()
+        if let newest = newestVersion(of: manifest.id, from: draft.sourceID),
+           newest.compare(manifest.version, options: .numeric) == .orderedDescending {
+            configurationChanged()
+            store.customizationHistory.showNotice("\(manifest.name) \(newest) is already installed.")
+            return
+        }
         if !isInstalled(draft) {
             draft.inspection = try await install(draft)
         } else if let source = try await source(of: draft) {
@@ -395,15 +418,23 @@ final class PackageLibrary {
         await loadStore()
     }
 
-    func loadInstalled() async {
+    /// False, with `error` set, when the packages folder couldn't be read; the previous lists stay.
+    @discardableResult func loadInstalled() async -> Bool {
         do {
-            installed = try await client.installed()
-            records = try await client.records()
+            try await reloadInstalled()
             error = nil
             configurationChanged()
+            return true
         } catch {
             self.error = errorMessage(error)
+            return false
         }
+    }
+
+    private func reloadInstalled() async throws {
+        let manifests = try await client.installed(), records = try await client.records()
+        installed = manifests
+        self.records = records
     }
 
     func loadStore(reload: Bool = false) async {
