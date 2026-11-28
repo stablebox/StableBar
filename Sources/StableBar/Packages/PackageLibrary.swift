@@ -191,13 +191,17 @@ final class PackageLibrary {
             $0.sourceID == sourceID && $0.id == manifest.id && $0.version.compare(manifest.version, options: .numeric) == .orderedDescending
         }) else { return nil }
         // An older copy has nothing to get once the source's own copy of that version, or a later one, is installed.
-        // A folder build, or a copy without a record, doesn't count: it may hold other files.
-        guard let record = records[manifest.id], record.source == sourceID else { return entry }
-        let alreadyInstalled = installed.contains {
-            $0.id == manifest.id && $0.version.compare(entry.version, options: .numeric) != .orderedAscending
-                && !record.isLocal(version: $0.version)
-        }
-        return alreadyInstalled ? nil : entry
+        guard let newest = newestVersion(of: manifest.id, from: sourceID),
+              newest.compare(entry.version, options: .numeric) != .orderedAscending else { return entry }
+        return nil
+    }
+
+    /// The newest installed version that holds the source's own files.
+    /// A folder build, or a copy without a record, doesn't count: it may hold other files.
+    private func newestVersion(of id: String, from sourceID: String?) -> String? {
+        guard let record = records[id], record.source == sourceID else { return nil }
+        return installed.filter { $0.id == id && !record.isLocal(version: $0.version) }.map(\.version)
+            .max { $0.compare($1, options: .numeric) == .orderedAscending }
     }
 
     /// The name of the other source that installed this entry's ID, which must be uninstalled before getting it.
@@ -257,8 +261,15 @@ final class PackageLibrary {
     private func applyUpdate(_ draft: PackageDraft) async throws {
         guard let store else { return }
         let manifest = draft.inspection.manifest
-        // The access review can stay open while the version is installed elsewhere.
+        // The access review can stay open while this version, or a later one, is installed elsewhere.
+        // Applying it then would move the bar back to the reviewed version.
         try await reloadInstalled()
+        if let newest = newestVersion(of: manifest.id, from: draft.sourceID),
+           newest.compare(manifest.version, options: .numeric) == .orderedDescending {
+            configurationChanged()
+            store.customizationHistory.showNotice("\(manifest.name) \(newest) is already installed.")
+            return
+        }
         if !isInstalled(draft) {
             draft.inspection = try await install(draft)
         } else if let source = try await source(of: draft) {
