@@ -191,11 +191,11 @@ final class PackageLibrary {
             $0.sourceID == sourceID && $0.id == manifest.id && $0.version.compare(manifest.version, options: .numeric) == .orderedDescending
         }) else { return nil }
         // An older copy has nothing to get once the source's own copy of that version, or a later one, is installed.
-        // A folder build of the version doesn't count: it may hold other files.
-        let record = records[manifest.id]
+        // A folder build, or a copy without a record, doesn't count: it may hold other files.
+        guard let record = records[manifest.id], record.source == sourceID else { return entry }
         let alreadyInstalled = installed.contains {
             $0.id == manifest.id && $0.version.compare(entry.version, options: .numeric) != .orderedAscending
-                && record?.isLocal(version: $0.version) != true
+                && !record.isLocal(version: $0.version)
         }
         return alreadyInstalled ? nil : entry
     }
@@ -209,12 +209,12 @@ final class PackageLibrary {
     var updates: [WidgetPackageManifest] { installedPackages.filter { update(for: $0) != nil } }
 
     func update(_ manifest: WidgetPackageManifest) async {
-        guard store != nil, update(for: manifest) != nil else { return }
+        guard store != nil, let offered = update(for: manifest)?.key else { return }
         updating.insert(manifest.id)
         defer { updating.remove(manifest.id) }
         // The version may have been installed since the list was read, such as from the command line.
-        await loadInstalled()
-        guard let store, let entry = update(for: manifest) else { return }
+        // When the offer changed, the page shows the new one instead of applying it unseen.
+        guard await loadInstalled(), let store, let entry = update(for: manifest), entry.key == offered else { return }
         do {
             let downloaded = try await client.packageForAdding(entry)
             let values = try downloaded.manifest.values(WidgetSetup(store: store).savedSettings(for: downloaded.manifest))
@@ -257,6 +257,8 @@ final class PackageLibrary {
     private func applyUpdate(_ draft: PackageDraft) async throws {
         guard let store else { return }
         let manifest = draft.inspection.manifest
+        // The access review can stay open while the version is installed elsewhere.
+        try await reloadInstalled()
         if !isInstalled(draft) {
             draft.inspection = try await install(draft)
         } else if let source = try await source(of: draft) {
@@ -405,15 +407,23 @@ final class PackageLibrary {
         await loadStore()
     }
 
-    func loadInstalled() async {
+    /// False, with `error` set, when the packages folder couldn't be read; the previous lists stay.
+    @discardableResult func loadInstalled() async -> Bool {
         do {
-            installed = try await client.installed()
-            records = try await client.records()
+            try await reloadInstalled()
             error = nil
             configurationChanged()
+            return true
         } catch {
             self.error = errorMessage(error)
+            return false
         }
+    }
+
+    private func reloadInstalled() async throws {
+        let manifests = try await client.installed(), records = try await client.records()
+        installed = manifests
+        self.records = records
     }
 
     func loadStore(reload: Bool = false) async {
